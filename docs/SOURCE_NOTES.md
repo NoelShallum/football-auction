@@ -28,6 +28,7 @@ Application source/translation text is normalized to LF line endings and strippe
 9. Generated an asset-complete service worker with content-based revisioning. The original worker listed some files that were not part of the active page; the clone uses its actual tree instead.
 10. Fixed text exports to include futsal `DEF/MID/FWD` and `CF` roles and to download when clipboard access is unavailable. JSON export settings also include game-mode and pool identifiers.
 11. Escaped participant names in the results-card heading, consistent with the app's other text renderers.
+12. Scoped room identities to individual tabs, preserved unlimited timer settings for guests, and cleared transient identity after failed room operations. Added draft/round guards for delayed actions, server deadline validation, server anti-snipe normalization, and server timestamps for sealed-offer ties.
 
 The original page contains a comment describing an additional “FS SIM” engine but no corresponding active script includes. It is not an active public feature in the retrieved application. The real seeded match/tournament functionality is present in `js/results.js` and is included here. No undocumented private server source or database rules were accessed or assumed.
 

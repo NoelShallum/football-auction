@@ -90,7 +90,9 @@ Unlimited stays unlimited. Timers derive from absolute deadlines, with server cl
 
 Passing/calling final bids is explicit and sticky until a new round or that manager bids again. The current leader counts as an implicit pass while leading. Once the eligible electorate has passed, the round shortens to a five-second grace window or settles immediately when untimed/without a live leader, as appropriate.
 
-Exactly one bidding round per draft is selected for sealed bids. Only bidding rounds count, excluding Classic automatic assignments. The randomly selected target and final-slots safeguard prevent the round from being skipped. Offers remain visually hidden until reveal; highest valid offer wins, with equal offers resolved by earlier submission time. Sealed bids use the original party-game trust model; the transport is not a cryptographic sealed auction.
+Exactly one bidding round per draft is selected for sealed bids. Only bidding rounds count, excluding Classic automatic assignments. The randomly selected target and final-slots safeguard prevent the round from being skipped. Offers remain visually hidden until reveal; highest valid offer wins, with equal offers resolved by earlier server receipt time. Sealed bids use the original party-game trust model; the transport is not a cryptographic sealed auction.
+
+The clone binds each online action to its draft and round. Delayed bids, votes and sealed offers cannot apply to a replacement player or a restarted draft. The server also rejects bids/votes after a timed round's deadline, even when host settlement is delayed, and computes anti-snipe extensions using its own clock.
 
 Reroll settings:
 
@@ -117,7 +119,7 @@ The AI reuses the same auction and validation functions as shared-screen play. V
 4. Starting resets every participant's budget/squad/filled positions from the room's selected mode.
 5. The host draws players, schedules deadlines and settles each round. All clients render the same committed state.
 6. Bids use optimistic compare-and-set with revision retries. Seat-scoped votes/sealed offers update their own subpaths. Settlement atomically updates game state and the winner's budget/squad/filled slots.
-7. Disconnect instructions mark seats offline; reconnect re-arms presence. Saved room/user keys and the transport token restore a seat on refresh. Same-name reclamation is allowed only for an offline seat.
+7. Disconnect instructions mark seats offline; reconnect re-arms presence. Room/user keys and the transport token are scoped to the browser tab in session storage and restore a seat on refresh. Same-name reclamation is allowed only for an offline seat. Rejected restores, creations and joins clear transient online identity before local play can begin.
 8. A host departure ends the room. Falling below two connected managers mid-draft returns the room to waiting. These retain the original application's behavior rather than inventing a different host migration system.
 9. Finished rooms show results. The host can start another draft with fresh budgets and squads. Host-published simulation format/seed yields identical results for all clients.
 

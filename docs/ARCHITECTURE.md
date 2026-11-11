@@ -54,8 +54,8 @@ Every request has an `id` and `op`. Replies echo `id` and contain `ok: true`, or
 | --- | --- | --- |
 | `hello` | `token` | Establish a tab session and return server clock |
 | `get` | `path`, optional `limit` | Read a room/subtree and its revision |
-| `set` | `path`, `value` | Set/remove a node; create a room or join a seat |
-| `update` | `path`, `value` map | Apply nonoverlapping relative paths atomically in one room |
+| `set` | `path`, `value`, optional `context` | Set/remove a node; create a room or join a seat |
+| `update` | `path`, `value` map, optional `context` | Apply nonoverlapping relative paths atomically in one room |
 | `subscribe` | `path`, `subscription`, optional `limit` | Receive initial and changed value snapshots |
 | `unsubscribe` | `subscription` | Detach a listener |
 | `cas` | `path`, `revision`, `value` | Commit a validated bid only if its snapshot revision is current |
@@ -69,6 +69,10 @@ The browser adapter implements the small reference API actually used by the app:
 
 Transactions read a snapshot/revision, run the original update callback, then submit a compare-and-set. A revision conflict retries against the latest value, up to 30 attempts. There are no optimistic client-side writes to shared state. Disconnected in-flight writes fail instead of being blindly replayed into a potentially different round.
 
+Bids also capture the `draftId` and `roundId` visible when clicked; a transaction aborts if its snapshot belongs to another player/draft. Votes and sealed offers carry `{draftId, roundId}` in `context`, which the server requires to match the current state. Timed actions close at the server deadline before host settlement. Sealed offers receive server timestamps and anti-snipe extensions are normalized to the server clock.
+
+Room/user identifiers share the transport token's per-tab session storage; preferences/translations still use persistent local storage. Cleanup after a rejected restore/create/join resets local identity without issuing a leave command against an unowned seat.
+
 ## Canonical room schema
 
 ```text
@@ -81,7 +85,7 @@ rooms/{CODE}
     name, color, budget, squad[], positionsFilled[]
     connected, ready, joinedAt
   gameState
-    roundPhase, roundId, currentRound, phaseNum, totalPhases
+    draftId, roundPhase, roundId, currentRound, phaseNum, totalPhases
     positionOrder[], positionPhaseTracking{}, positionRankFloor{}
     currentPlayer, currentBid, currentLeader
     roundEndsAt, roundSeconds, currentRoundSeconds, resetSeconds

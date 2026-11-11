@@ -26,8 +26,8 @@
       this.database.subscribe(this.path, this.limit, callback); return callback;
     }
     off(event, callback) { this.database.unsubscribe(this.path, callback); }
-    set(value) { return this.database.write('set', { path: this.path, value }); }
-    update(value) { return this.database.write('update', { path: this.path, value }); }
+    set(value, context = {}) { return this.database.write('set', { path: this.path, value, context }); }
+    update(value, context = {}) { return this.database.write('update', { path: this.path, value, context }); }
     remove() { return this.set(null); }
     push(value) {
       const key = Date.now().toString(36).padStart(10, '0') + '_' + random().replace(/-/g, '').slice(0, 12);

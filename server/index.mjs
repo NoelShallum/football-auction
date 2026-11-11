@@ -6,6 +6,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { RoomStore, RoomError } from './room-store.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const VERSION = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf8')).version;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
 const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'";
 
@@ -24,7 +25,7 @@ export async function createApplication({ assetDirectory = resolve(ROOT, 'public
     catch { response.writeHead(400); response.end(); return; }
     if (pathname === '/api/health') {
       response.writeHead(200, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' });
-      response.end(request.method === 'HEAD' ? undefined : JSON.stringify({ status: 'ok', application: 'auctionxi-clone', version: '1.0.0' })); return;
+      response.end(request.method === 'HEAD' ? undefined : JSON.stringify({ status: 'ok', application: 'auctionxi-clone', version: VERSION })); return;
     }
     const path = resolve(assets, '.' + (pathname === '/' ? '/index.html' : pathname));
     if (!path.startsWith(assets + sep) || pathname.includes('\0') || pathname.split('/').some(p => p.startsWith('.'))) { response.writeHead(403); response.end(); return; }
@@ -82,8 +83,8 @@ export async function createApplication({ assetDirectory = resolve(ROOT, 'public
         if (!client.token) throw new RoomError('Session required.');
         let result = {};
         if (op === 'get') result = store.read(path, message.limit);
-        else if (op === 'set') result = store.set(client.token, path, message.value);
-        else if (op === 'update') result = store.update(client.token, path || '', message.value);
+        else if (op === 'set') result = store.set(client.token, path, message.value, message.context);
+        else if (op === 'update') result = store.update(client.token, path || '', message.value, message.context);
         else if (op === 'cas') result = store.compareAndSet(client.token, path, message.revision, message.value);
         else if (op === 'claim') store.claim(client.token, message.code, message.uid, message.name);
         else if (op === 'subscribe') {

@@ -3,5 +3,7 @@ node_modules
 dist
 data
 test-results
+.env
+.env.*
 *.zip
 *.bundle

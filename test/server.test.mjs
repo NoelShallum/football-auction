@@ -17,6 +17,7 @@ const room = () => ({
   participants: { host: seat('host') },
 });
 const bidding = () => ({
+  draftId: 'draft-1',
   roundId: 1, currentRound: 0, roundPhase: 'bidding', currentPlayer: { id: 1, name: 'Test Player', posIdx: 1, startPrice: 1 },
   currentBid: 0, currentLeader: null, currentRoundSeconds: 30, roundEndsAt: Date.now() + 30_000,
   paused: false, isBlindRound: false, rerollVotes: {}, goingVotes: {}, goingGraceApplied: false, rerollsRemaining: 5, roundRerolls: 0,
@@ -113,7 +114,7 @@ test('atomic multipath updates produce a complete snapshot, and chat and votes s
   await host.request('update', { value: { 'rooms/ABC234/status': 'playing', 'rooms/ABC234/gameState': bidding() } });
   await until(() => guest.events.length === 2, 'atomic room snapshot');
   assert.equal(guest.events[1].value.status, 'playing'); assert.equal(guest.events[1].value.gameState.roundPhase, 'bidding');
-  await guest.request('set', { path: 'rooms/ABC234/gameState/rerollVotes/guest', value: true });
+  await guest.request('set', { path: 'rooms/ABC234/gameState/rerollVotes/guest', value: true, context: { draftId: 'draft-1', roundId: 1 } });
   await assert.rejects(guest.request('set', { path: 'rooms/ABC234/gameState/goingVotes/host', value: true }), { code: 'PERMISSION_DENIED' });
   await assert.rejects(guest.request('set', { path: 'rooms/ABC234/chat/bad', value: { uid: 'host', name: 'Host', text: 'spoofed' } }), { code: 'PERMISSION_DENIED' });
   const message = { uid: 'guest', name: 'Guest', text: '<script>text</script>', ts: Date.now() };
@@ -151,4 +152,44 @@ test('snapshots persist without bearer tokens, reset presence on restart, and ex
   assert.equal(restored.read('rooms/ABC234/participants/host/connected').value, false);
   now += 1001; restored.expire(); assert.equal(restored.read('rooms/ABC234').value, null);
   assert.throws(() => store.set(token, 'rooms/ABC234/__proto__/polluted', true), { code: 'INVALID_PATH' });
+});
+
+test('votes and sealed offers stay bound to their original draft and round', () => {
+  let now = 100_000;
+  const store = new RoomStore({ now: () => now });
+  const host = randomUUID(); const guest = randomUUID();
+  store.set(host, 'rooms/ABC234', room());
+  store.set(guest, 'rooms/ABC234/participants/guest', seat('guest'));
+  store.update(host, '', { 'rooms/ABC234/status': 'playing', 'rooms/ABC234/gameState': { ...bidding(), roundEndsAt: now + 30_000 } });
+  const path = 'rooms/ABC234/gameState/goingVotes/guest';
+  assert.throws(() => store.set(guest, path, true), { code: 'STALE_ROUND' });
+  assert.throws(() => store.set(guest, path, true, { draftId: 'draft-1', roundId: 0 }), { code: 'STALE_ROUND' });
+  assert.throws(() => store.set(guest, path, true, { draftId: 'previous-draft', roundId: 1 }), { code: 'STALE_ROUND' });
+  assert.equal(store.read(path).value, null);
+  store.set(guest, path, true, { draftId: 'draft-1', roundId: 1 });
+  assert.equal(store.read(path).value, true);
+  store.set(host, 'rooms/ABC234/gameState', { ...bidding(), isBlindRound: true, roundId: 2, roundEndsAt: now + 30_000 });
+  assert.throws(() => store.set(guest, 'rooms/ABC234/gameState/sealedBids/guest', { amount: 1 }, { draftId: 'draft-1', roundId: 1 }), { code: 'STALE_ROUND' });
+  const context = { draftId: 'draft-1', roundId: 2 };
+  store.set(host, 'rooms/ABC234/gameState/sealedBids/host', { amount: 1, time: -999 }, context);
+  now += 10;
+  store.set(guest, 'rooms/ABC234/gameState/sealedBids/guest', { amount: 1, time: -999999 }, context);
+  const offers = store.read('rooms/ABC234/gameState/sealedBids').value;
+  assert.equal(offers.host.time, 100_000); assert.equal(offers.guest.time, 100_010);
+});
+
+test('server deadlines close bids and votes before a delayed host settlement runs', () => {
+  let now = 100_000;
+  const store = new RoomStore({ now: () => now }); const host = randomUUID(); const guest = randomUUID();
+  store.set(host, 'rooms/ABC234', room());
+  store.set(guest, 'rooms/ABC234/participants/guest', seat('guest'));
+  store.update(host, '', { 'rooms/ABC234/status': 'playing', 'rooms/ABC234/gameState': { ...bidding(), roundEndsAt: now + 1000 } });
+  now += 1001;
+  const current = store.read('rooms/ABC234/gameState');
+  assert.throws(() => store.compareAndSet(guest, 'rooms/ABC234/gameState', current.revision, { ...current.value, currentLeader: 'guest', currentBid: 1, roundEndsAt: now + 10_000 }), { code: 'INVALID_BID' });
+  assert.throws(() => store.set(guest, 'rooms/ABC234/gameState/goingVotes/guest', true, { draftId: 'draft-1', roundId: 1 }), { code: 'INVALID_BID' });
+  store.set(host, 'rooms/ABC234/gameState', { ...current.value, isBlindRound: true });
+  assert.throws(() => store.set(guest, 'rooms/ABC234/gameState/sealedBids/guest', { amount: 1 }, { draftId: 'draft-1', roundId: 1 }), { code: 'INVALID_BID' });
+  assert.equal(store.read('rooms/ABC234/gameState/currentBid').value, 0);
+  assert.equal(store.read('rooms/ABC234/gameState/goingVotes/guest').value, null);
 });

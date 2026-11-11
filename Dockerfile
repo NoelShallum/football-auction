@@ -1,7 +1,10 @@
+# syntax=docker/dockerfile:1
 FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
+    npm ci --omit=dev --no-audit --no-fund --strict-ssl=true
 COPY public ./public
 COPY scripts/build.mjs ./scripts/build.mjs
 RUN node scripts/build.mjs

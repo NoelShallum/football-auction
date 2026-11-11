@@ -14,14 +14,16 @@
    already in. They are not required to play, and they must never be able to
    stop you playing.
 
-   localStorage.setItem THROWS in Safari private browsing and wherever site
+   Browser storage can throw in private browsing and wherever site
    data is blocked, and these calls sit directly in the create-room and
    join-room paths - so an unguarded write turned a privacy setting into
    "cannot start or join a game at all". js/i18n.js already treats storage as
    best-effort (see I18N_STORAGE_KEY); this file was the outlier. */
-function mpStoreSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
-function mpStoreGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
-function mpStoreDel(k){ try { localStorage.removeItem(k); } catch(e){} }
+// A room identity belongs to one tab. Preferences remain in localStorage,
+// while sessionStorage preserves the seat/token together across a refresh.
+function mpStoreSet(k, v){ try { sessionStorage.setItem(k, v); } catch(e){} }
+function mpStoreGet(k){ try { return sessionStorage.getItem(k); } catch(e){ return null; } }
+function mpStoreDel(k){ try { sessionStorage.removeItem(k); } catch(e){} }
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -255,6 +257,8 @@ async function createMultiplayerRoom() {
     setupMultiplayerListeners();
 
   } catch (error) {
+    mpClearLocalSession(currentRoomCode);
+    showScreen('lobbyScreen');
     showLobbyError(t('mp.createFailed', {error: error.message}));
   } finally {
     mpLobbyActionInFlight = false;
@@ -440,6 +444,8 @@ async function joinMultiplayerRoom() {
     }
 
   } catch (error) {
+    mpClearLocalSession(currentRoomCode);
+    showScreen('lobbyScreen');
     showLobbyError(t('mp.joinFailed', {error: error.message}));
   } finally {
     mpLobbyActionInFlight = false;
@@ -813,8 +819,8 @@ function setupMultiplayerListeners() {
       // Mode first - it swaps the formation table the key is looked up in,
       // and sets BUDGET/BID_STEP/squad size to match the host.
       applyGameMode(settings.gameMode || DEFAULT_GAME_MODE_ID, settings.formation);
-      ROUND_SECONDS = settings.roundSeconds || 30;
-      RESET_SECONDS = Math.max(4, Math.round(ROUND_SECONDS * 0.4));
+      ROUND_SECONDS = settings.roundSeconds != null ? settings.roundSeconds : 30;
+      RESET_SECONDS = ROUND_SECONDS === 0 ? 0 : Math.max(4, Math.round(ROUND_SECONDS * 0.4));
       SHOW_RATINGS = settings.showRatings || false;
       REROLLS_MODE = settings.rerollsMode || '3';
       if((settings.maxParticipants || MP_MAX_PLAYERS) !== MP_MAX_PARTICIPANTS){
@@ -1211,6 +1217,7 @@ async function mpBuildFreshGameState(){
   }
 
   mpGameState = {
+    draftId: Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 11),
     roundPhase: 'bidding',
     phaseNum: 1,
     totalPhases: state.totalPhases,
@@ -1595,10 +1602,14 @@ function mpHostAutoAssignLast(participant, posIdx){
 // .update() write was vulnerable to.
 function mpPlaceBid(amount){
   if (!currentRoomCode || !currentUserId) return;
+  if (!mpGameState || mpGameState.roundPhase !== 'bidding' || mpGameState.paused) return;
   const pid = currentUserId;
+  const expectedDraftId = mpGameState.draftId;
+  const expectedRoundId = mpGameState.roundId;
   const gsRef = database.ref(`rooms/${currentRoomCode}/gameState`);
   gsRef.transaction((gs) => {
-    if (!gs || gs.roundPhase !== 'bidding' || !gs.currentPlayer) return; // abort
+    if (!gs || gs.roundPhase !== 'bidding' || gs.paused || !gs.currentPlayer) return; // abort
+    if (gs.draftId !== expectedDraftId || gs.roundId !== expectedRoundId) return;
     if (gs.currentLeader === pid) return; // already leading, abort
     /* Having passed no longer aborts the bid. A pass means "I am out
        unless I change my mind", and bidding IS changing your mind - it
@@ -1738,6 +1749,10 @@ function mpCanVoteReroll(){
   return mpIsEligibleThisRound();
 }
 
+function mpRoundContext(){
+  return { draftId: mpGameState && mpGameState.draftId, roundId: mpGameState && mpGameState.roundId };
+}
+
 function mpVoteReroll(){
   if (!currentRoomCode || !currentUserId || !mpGameState) return;
   if (mpGameState.roundPhase !== 'bidding') return;
@@ -1746,7 +1761,7 @@ function mpVoteReroll(){
   if (mpRerollsLeftThisRound(mpGameState) <= 0) return;
   if (mpGameState.currentLeader) return; // locked once bidding has started, same as single-player
   if (mpGameState.rerollVotes && mpGameState.rerollVotes[currentUserId]) return; // already voted
-  database.ref(`rooms/${currentRoomCode}/gameState/rerollVotes/${currentUserId}`).set(true);
+  database.ref(`rooms/${currentRoomCode}/gameState/rerollVotes/${currentUserId}`).set(true, mpRoundContext());
 }
 
 function mpVoteGoing(){
@@ -1762,7 +1777,7 @@ function mpVoteGoing(){
   // outbid later would leave them locked out of a round they clearly
   // still wanted.
   if (mpGoingVoteIsIn(mpGameState, currentUserId)) return;
-  database.ref(`rooms/${currentRoomCode}/gameState/goingVotes/${currentUserId}`).set(true);
+  database.ref(`rooms/${currentRoomCode}/gameState/goingVotes/${currentUserId}`).set(true, mpRoundContext());
 }
 
 // Submits (or replaces) this participant's sealed offer during the
@@ -1795,7 +1810,7 @@ function mpSubmitSealedBid(amount){
   const maxAfford = getMaxAffordable(participant);
   if (amount > maxAfford) { showError(`Max affordable: ${fmt(maxAfford)}`); return; }
 
-  database.ref(`rooms/${currentRoomCode}/gameState/sealedBids/${currentUserId}`).set({ amount, time: serverNow() });
+  database.ref(`rooms/${currentRoomCode}/gameState/sealedBids/${currentUserId}`).set({ amount, time: serverNow() }, mpRoundContext());
   haptics.bid();
 }
 
@@ -2440,9 +2455,19 @@ function leaveRoom() {
     }
   }
 
-  mpStoreDel('auctionXI_roomCode');
-  mpStoreDel('auctionXI_userId');
-  mpStoreDel('auctionXI_isHost');
+  mpClearLocalSession(code);
+}
+
+// Reset local UI/session state without sending any room mutations. A failed
+// seat claim must never leave stale host privileges attached to local play.
+function mpClearLocalSession(code = currentRoomCode, forget = true) {
+  unlockGameplayZoom();
+
+  if (forget) {
+    mpStoreDel('auctionXI_roomCode');
+    mpStoreDel('auctionXI_userId');
+    mpStoreDel('auctionXI_isHost');
+  }
 
   // Detach EVERY subscribed path (not just the room root), so this
   // room can never push state into the client again once it has left.
@@ -2546,7 +2571,9 @@ function mpTryReconnect(){
     } else {
       showWaitingRoom();
     }
-  }).catch(() => {
+  }).catch((error) => {
+    const forget = error && ['PERMISSION_DENIED', 'NOT_FOUND'].includes(error.code);
+    mpClearLocalSession(currentRoomCode, forget);
     showScreen('homeScreen');
   });
 

@@ -6,6 +6,8 @@ Run the complete check with:
 npm run verify
 ```
 
+Local release 1.0.1 passes **26 functional tests**, the source/asset checks, the static build, and the separate production container verification described below.
+
 The verification uses Node's test runner, jsdom for DOM integration, actual loopback HTTP/WebSocket connections, temporary persistence files, and a native canvas implementation for PNG output. jsdom is a DOM test environment, not a graphical browser.
 
 ## Automated coverage
@@ -22,6 +24,9 @@ The verification uses Node's test runner, jsdom for DOM integration, actual loop
 - Full online Classic/futsal drafts with separate client DOMs and a real room server.
 - Identical client squads, ready states, escaped chat, restarting drafts and resetting budgets/squads.
 - Disconnected-seat restoration with the original seat ID and transport session.
+- Independent identities in tabs sharing preferences, unlimited guest timers, rejected restore/create/join cleanup, and a join racing with the start of a draft.
+- Delayed bids across round changes, draft/round checks for votes and sealed offers, server receipt timestamps and deadline enforcement.
+- A complete synchronized six-player draft at the supported online room capacity.
 - Deterministic seeded tournament results, both single finals/two-leg ties and multi-team formats.
 - Shared simulation seeds producing identical online results.
 - JSON/text exports, futsal text completeness, clipboard-unavailable fallback and real PNG card generation.
@@ -40,7 +45,7 @@ Visual/pixel comparison, browser-specific layout, real touch/haptics/audio, nati
 
 The managed environment exposes no `cua_repl.js` browser-control tool in this session. The applicable [Sites skill](skill://plugin_connector_1p_689987207de08191979cf68eca2941c6/sites/SKILL.md) explicitly states: “If `cua_repl.js` is unavailable, skip browser QA: do not start a preview server, install a browser, or improvise another browser-control path.” Consequently no preview server or substitute browser was used. Loopback servers in this suite are ephemeral protocol/test fixtures and are closed by the tests.
 
-The Dockerfile is provided but a Docker image build has not been verified. There is no deployment or GitHub remote to verify yet. Internet-wide multiplayer latency, multiple backend replicas and load testing are outside the current local verification.
+The Docker production build and runtime have been verified with `npm run test:container`: application/JSON responses, two real WebSocket clients, restart with a persistent room volume, ownership restoration, non-root execution and runtime file permissions. The test removes its temporary container, volume and image. There is no deployment or GitHub remote to verify yet. Internet-wide multiplayer latency, multiple backend replicas and load testing are outside the current local verification.
 
 ## Manual acceptance once a browser is available
 

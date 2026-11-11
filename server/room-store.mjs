@@ -82,9 +82,14 @@ function needsSlot(room, uid, posIdx) {
   if (room.settings.gameMode !== 'sixv6') return !filled.has(posIdx);
   return formation.some((code, index) => code === formation[posIdx] && !filled.has(index));
 }
-function validateOffer(room, uid, amount, sealed = false) {
+function validateOpenRound(room, now) {
   const gs = room.gameState;
   requireThat(room.status === 'playing' && gs?.roundPhase === 'bidding' && !gs.paused && gs.currentPlayer, 'Bidding is closed.', 'INVALID_BID');
+  if (gs.currentRoundSeconds > 0) requireThat(Number.isFinite(gs.roundEndsAt) && gs.roundEndsAt > now, 'The round deadline has passed.', 'INVALID_BID');
+}
+function validateOffer(room, uid, amount, sealed = false, now = Date.now()) {
+  validateOpenRound(room, now);
+  const gs = room.gameState;
   requireThat(Boolean(gs.isBlindRound) === sealed, 'Wrong bid type for this round.', 'INVALID_BID');
   requireThat(room.participants[uid]?.connected !== false && needsSlot(room, uid, gs.currentPlayer.posIdx), 'This position is already filled.', 'INVALID_BID');
   const player = room.participants[uid];
@@ -145,8 +150,8 @@ export class RoomStore extends EventEmitter {
     requireThat(this.member(token, code), 'Join the room before subscribing.');
     return code;
   }
-  set(token, path, value) { return this.update(token, '', { [path]: value }); }
-  update(token, basePath, patch) {
+  set(token, path, value, context = {}) { return this.update(token, '', { [path]: value }, context); }
+  update(token, basePath, patch, context = {}) {
     requireThat(patch && typeof patch === 'object' && !Array.isArray(patch), 'Invalid update.', 'INVALID_DATA');
     safeData(patch);
     const writes = Object.entries(patch).map(([path, value]) => ({ parts: pathParts([basePath, path].filter(Boolean).join('/')), value }));
@@ -182,7 +187,13 @@ export class RoomStore extends EventEmitter {
         entry.owners[joiningUid] = ownerKey(token);
       } else {
         requireThat(uid, 'Join the room before changing it.');
-        for (const write of writes) this.authorizeWrite(entry.data, uid, host, write.parts.slice(2), write.value);
+        for (const write of writes) {
+          const parts = write.parts.slice(2);
+          this.authorizeWrite(entry.data, uid, host, parts, write.value, context);
+          // The receipt time, rather than a supplied client clock, breaks
+          // equal sealed offers in their actual server arrival order.
+          if (parts.length === 3 && parts[0] === 'gameState' && parts[1] === 'sealedBids') write.value = { amount: write.value.amount, time: this.now() };
+        }
       }
       for (const write of writes) next = writeAt(next, write.parts.slice(2), write.value);
       requireThat(next, 'Rooms expire automatically; direct room deletion is not supported.');
@@ -194,19 +205,22 @@ export class RoomStore extends EventEmitter {
     this.changed(code, entry);
     return this.read(writes[0].parts.join('/'));
   }
-  authorizeWrite(room, uid, host, parts, value) {
-    if (host) return;
-    if (parts[0] === 'participants' && parts[1] === uid) {
-      requireThat((parts.length === 2 && value === null) || (parts.length === 3 && ['ready', 'connected'].includes(parts[2]) && typeof value === 'boolean'), 'Only the host may edit squads and budgets.');
-      return;
-    }
-    if (parts[0] === 'gameState' && parts.length === 3 && parts[2] === uid) {
+  authorizeWrite(room, uid, host, parts, value, context) {
+    if (parts[0] === 'gameState' && parts.length === 3 && ['sealedBids', 'goingVotes', 'rerollVotes'].includes(parts[1])) {
+      requireThat(parts[2] === uid, 'A round action must belong to its sender.');
       const gs = room.gameState;
-      requireThat(gs?.roundPhase === 'bidding' && !gs.paused, 'Voting is closed.');
-      if (parts[1] === 'sealedBids') { validateOffer(room, uid, value?.amount, true); return; }
+      requireThat(Number.isInteger(context?.roundId) && context.roundId === gs?.roundId && context.draftId === gs?.draftId, 'That round has already changed.', 'STALE_ROUND');
+      validateOpenRound(room, this.now());
+      requireThat(room.participants[uid]?.connected !== false, 'Reconnect before acting in this round.');
+      if (parts[1] === 'sealedBids') { validateOffer(room, uid, value?.amount, true, this.now()); return; }
       requireThat(['goingVotes', 'rerollVotes'].includes(parts[1]) && value === true, 'Invalid vote.');
       requireThat(needsSlot(room, uid, gs.currentPlayer?.posIdx) || (parts[1] === 'rerollVotes' && room.settings.gameMode === 'sixv6'), 'This seat is not in the electorate.');
       if (parts[1] === 'rerollVotes') requireThat(!gs.isBlindRound && !gs.currentLeader && gs.rerollsRemaining > 0 && (gs.roundRerolls || 0) < 5, 'Reroll is unavailable.');
+      return;
+    }
+    if (host) return;
+    if (parts[0] === 'participants' && parts[1] === uid) {
+      requireThat((parts.length === 2 && value === null) || (parts.length === 3 && ['ready', 'connected'].includes(parts[2]) && typeof value === 'boolean'), 'Only the host may edit squads and budgets.');
       return;
     }
     if (parts[0] === 'chat' && parts.length === 2) {
@@ -228,7 +242,7 @@ export class RoomStore extends EventEmitter {
     requireThat(parts.length === 1 && parts[0] === 'gameState', 'Transactions are restricted to bids.');
     if (entry.revision !== revision) return { conflict: true, ...this.read(path) };
     const gs = entry.data.gameState;
-    validateOffer(entry.data, uid, value?.currentBid);
+    validateOffer(entry.data, uid, value?.currentBid, false, this.now());
     requireThat(value.currentLeader === uid, 'A bid must belong to its sender.');
     const allowed = new Set(['currentBid', 'currentLeader', 'roundEndsAt', 'rerollVotes', 'goingVotes', 'goingGraceApplied']);
     for (const key of new Set([...Object.keys(gs), ...Object.keys(value)])) {
@@ -237,11 +251,13 @@ export class RoomStore extends EventEmitter {
     requireThat(equal(value.rerollVotes, {}) && value.goingGraceApplied === false, 'A bid must reset reroll votes and the pass grace period.');
     const expectedPasses = { ...(gs.goingVotes || {}) }; delete expectedPasses[uid];
     requireThat(equal(value.goingVotes || {}, expectedPasses), 'A bid can only clear its sender’s pass.');
+    let deadline = gs.roundEndsAt;
     if (gs.currentRoundSeconds > 0 && gs.roundEndsAt) {
       const expectedDeadline = gs.roundEndsAt - this.now() < 10_000 ? this.now() + 10_000 : gs.roundEndsAt;
       requireThat(Number.isFinite(value.roundEndsAt) && Math.abs(value.roundEndsAt - expectedDeadline) <= 2500, 'Invalid anti-snipe deadline.');
+      deadline = expectedDeadline;
     } else requireThat(value.roundEndsAt === gs.roundEndsAt, 'An untimed round must remain untimed.');
-    entry.data.gameState = clone(value);
+    entry.data.gameState = { ...clone(value), roundEndsAt: deadline };
     this.changed(code, entry);
     return { committed: true, ...this.read(path) };
   }

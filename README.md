@@ -11,7 +11,7 @@ npm ci
 npm start
 ```
 
-Open **http://localhost:3000**. For multiplayer, open separate browser profiles/devices, create a room, and join with its six-character code. Devices must reach the same server. On a local network, use the machine's LAN address and port 3000. For internet hosting, use HTTPS with WebSocket forwarding for `/_realtime`.
+Open **http://localhost:3000**. For multiplayer, open separate tabs or devices, create a room, and join with its six-character code. Each tab has its own seat and restores it on refresh; language/settings remain shared browser preferences. Devices must reach the same server. On a local network, use the machine's LAN address and port 3000. For internet hosting, use HTTPS with WebSocket forwarding for `/_realtime`.
 
 ```sh
 npm run dev       # restart the Node server when its files change
@@ -76,8 +76,10 @@ docker build -t auctionxi-local .
 docker run --rm -p 3000:3000 -v auctionxi-data:/app/data auctionxi-local
 ```
 
+`npm run test:container` builds the image, checks HTTP and two multiplayer clients, restarts it, verifies persisted room/seat data, and removes its temporary resources. Docker must be running. In the managed cloud environment the script supplies the session's proxy CA through an optional build secret; the certificate is not retained in the image. `AUCTIONXI_DOCKER_HOST` can select a particular daemon for this check.
+
 Static hosting alone supports shared-screen and AI play. Online multiplayer additionally requires the included server, or an equivalent backend implementing its protocol. Installability and service workers require localhost or HTTPS; networked multiplayer itself works over HTTP on a private LAN.
 
 ## Git handoff
 
-This directory is a local Git repository on `main`. No remote is configured and nothing has been pushed. When GitHub access is provided, create the private repository and add its remote; the existing commit history can be pushed intact. Do not add `data/`, `.env`, or `node_modules/` to Git.
+This directory is a local Git repository on `main`. No remote is configured and nothing has been pushed. When GitHub access is provided, create the private repository and add its remote; the existing commit history can be pushed intact. Do not add `data/`, `.env`, or `node_modules/` to Git. See [CHANGELOG.md](CHANGELOG.md) for local release changes.
