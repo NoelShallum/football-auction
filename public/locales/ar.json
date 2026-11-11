@@ -182,7 +182,16 @@
     "dbLoadingAlert": "قاعدة بيانات اللاعبين ما زالت قيد التحميل. يرجى الانتظار لحظة والمحاولة مجددًا.",
     "bidToRejoin": "↩ زايد للعودة",
     "showSquad": "عرض التشكيلة",
-    "hideSquad": "إخفاء التشكيلة"
+    "hideSquad": "إخفاء التشكيلة",
+    "unsold": "لم يُبَع",
+    "leftoverPick": "اختيار المتبقي",
+    "soldDetailUnsold": "{player} بلا مزايدات - إلى آخر الحزمة",
+    "soldDetailLeftover": "{player} ← {winner} مقابل {price} (اختيار المتبقي)",
+    "progressExtra": "دورة إضافية {lap} · الجولة {round}/{rounds}",
+    "unsoldPile": "غير المباعين · {count}",
+    "backOfPack": "آخر الحزمة",
+    "returnsNextLap": "يعود في الدورة التالية",
+    "returnedFromPack": "فرصة ثانية · يبدأ بـ {price}"
   },
   "ticker": {
     "bargain": "صفقة رابحة!",
@@ -212,6 +221,14 @@
     "noBidsRandom": [
       "لا مزايدات على <b>{name}</b> - جارٍ الإسناد عشوائياً...",
       "<b>{name}</b> لم يجد مشترياً - إسناد عشوائي..."
+    ],
+    "unsoldPack": [
+      "لا مزايدات على <b>{name}</b> - إلى آخر الحزمة وسيُعرض مجدداً.",
+      "<b>{name}</b> لم يجد مشترياً - أُرسل إلى آخر الحزمة."
+    ],
+    "unsoldReturns": [
+      "<b>{name}</b> يعود من الحزمة، يبدأ بـ {price}.",
+      "فرصة ثانية لـ <b>{name}</b> - يبدأ بـ {price}."
     ]
   },
   "sim": {

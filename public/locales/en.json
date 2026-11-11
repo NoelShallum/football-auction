@@ -182,7 +182,16 @@
     "dbLoadingAlert": "Player database is still loading. Please wait a moment and try again.",
     "bidToRejoin": "↩ Bid to rejoin",
     "showSquad": "Show squad",
-    "hideSquad": "Hide squad"
+    "hideSquad": "Hide squad",
+    "unsold": "UNSOLD",
+    "leftoverPick": "LEFTOVER PICK",
+    "soldDetailUnsold": "{player} drew no bids - back of the pack",
+    "soldDetailLeftover": "{player} → {winner} for {price} (leftover pick)",
+    "progressExtra": "Extra lap {lap} · Round {round}/{rounds}",
+    "unsoldPile": "Unsold pile · {count}",
+    "backOfPack": "Back of the pack",
+    "returnsNextLap": "Returns next lap",
+    "returnedFromPack": "Second look · opens at {price}"
   },
   "ticker": {
     "bargain": "bargain!",
@@ -212,6 +221,14 @@
     "noBidsRandom": [
       "No bids for <b>{name}</b> - randomly assigning...",
       "<b>{name}</b> found no takers - assigning at random..."
+    ],
+    "unsoldPack": [
+      "No bids for <b>{name}</b> - back of the pack, he'll be offered again.",
+      "<b>{name}</b> found no takers - sent to the back of the pack."
+    ],
+    "unsoldReturns": [
+      "<b>{name}</b> is back from the pack, opening at {price}.",
+      "Second look at <b>{name}</b> - now opening at {price}."
     ]
   },
   "sim": {

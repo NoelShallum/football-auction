@@ -182,7 +182,16 @@
     "dbLoadingAlert": "A base de dados de jogadores ainda está a carregar. Aguarde um momento e tente novamente.",
     "bidToRejoin": "↩ Dar lance para voltar",
     "showSquad": "Ver plantel",
-    "hideSquad": "Ocultar plantel"
+    "hideSquad": "Ocultar plantel",
+    "unsold": "NÃO VENDIDO",
+    "leftoverPick": "ESCOLHA RESTANTE",
+    "soldDetailUnsold": "{player} sem licitações - para o fim do baralho",
+    "soldDetailLeftover": "{player} → {winner} por {price} (escolha restante)",
+    "progressExtra": "Volta extra {lap} · Ronda {round}/{rounds}",
+    "unsoldPile": "Não vendidos · {count}",
+    "backOfPack": "Fim do baralho",
+    "returnsNextLap": "Volta na próxima volta",
+    "returnedFromPack": "Segunda hipótese · abre em {price}"
   },
   "ticker": {
     "bargain": "pechincha!",
@@ -212,6 +221,14 @@
     "noBidsRandom": [
       "Sem licitações por <b>{name}</b> - atribuição aleatória...",
       "<b>{name}</b> não encontrou comprador - a atribuir ao acaso..."
+    ],
+    "unsoldPack": [
+      "Sem licitações por <b>{name}</b> - para o fim do baralho, será oferecido de novo.",
+      "<b>{name}</b> não encontrou comprador - enviado para o fim do baralho."
+    ],
+    "unsoldReturns": [
+      "<b>{name}</b> volta do baralho, abre em {price}.",
+      "Segunda hipótese para <b>{name}</b> - abre em {price}."
     ]
   },
   "sim": {

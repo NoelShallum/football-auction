@@ -21,6 +21,9 @@ function loadSettings(){
       applyGameMode(settings.gameMode || DEFAULT_GAME_MODE_ID, settings.formation);
       SHOW_RATINGS = settings.showRatings || false;
       REROLLS_MODE = settings.rerollsMode || '3';
+      // Absent/unknown = the mode's own default, which is what every save
+      // from before this setting existed was already doing.
+      setDrawOrder(settings.drawOrder);
       SOUND_EFFECTS = settings.soundEffects !== undefined ? settings.soundEffects : true;
       // Only a preference at this point - loadPlayerDatabase() checks it
       // against the catalogue and falls back if the pool has since been
@@ -42,6 +45,7 @@ function saveSettings(){
       formation: selectedFormation,
       showRatings: SHOW_RATINGS,
       rerollsMode: REROLLS_MODE,
+      drawOrder: DRAW_ORDER,   // null until the player picks one explicitly
       soundEffects: SOUND_EFFECTS,
       poolId: activePoolId
     };

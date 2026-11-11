@@ -182,7 +182,16 @@
     "dbLoadingAlert": "La base de datos de jugadores todavía se está cargando. Espera un momento e inténtalo de nuevo.",
     "bidToRejoin": "↩ Pujar para volver",
     "showSquad": "Ver plantilla",
-    "hideSquad": "Ocultar plantilla"
+    "hideSquad": "Ocultar plantilla",
+    "unsold": "SIN VENDER",
+    "leftoverPick": "ELECCIÓN SOBRANTE",
+    "soldDetailUnsold": "{player} sin pujas - al final del montón",
+    "soldDetailLeftover": "{player} → {winner} por {price} (elección sobrante)",
+    "progressExtra": "Vuelta extra {lap} · Ronda {round}/{rounds}",
+    "unsoldPile": "Sin vender · {count}",
+    "backOfPack": "Al final del montón",
+    "returnsNextLap": "Vuelve en la próxima vuelta",
+    "returnedFromPack": "Segunda oportunidad · sale a {price}"
   },
   "ticker": {
     "bargain": "¡un chollo!",
@@ -212,6 +221,14 @@
     "noBidsRandom": [
       "Sin pujas por <b>{name}</b> - asignando al azar...",
       "<b>{name}</b> no encontró comprador - asignación aleatoria..."
+    ],
+    "unsoldPack": [
+      "Sin pujas por <b>{name}</b> - al final del montón, se ofrecerá de nuevo.",
+      "<b>{name}</b> no encontró comprador - enviado al final del montón."
+    ],
+    "unsoldReturns": [
+      "<b>{name}</b> vuelve del montón, sale a {price}.",
+      "Segunda oportunidad para <b>{name}</b> - sale a {price}."
     ]
   },
   "sim": {

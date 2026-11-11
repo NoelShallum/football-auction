@@ -118,6 +118,7 @@ async function startAuction(){
   state.totalPhases = state.participants.length - 1;
   state.phaseNum = 1;
   state.currentRound = 0;
+  state.unsold = [];            // the back of the pack - see js/unsold.js
   state.paused = false;
   state.goingVotes = {};
   state.aiValuations = {};
@@ -199,7 +200,7 @@ function startRound(){
   }
 
   // Safety check - if we've gone through too many phases, force end
-  if(state.phaseNum > state.totalPhases + 5){
+  if(state.phaseNum > maxDraftPhases(state.participants.length)){
     return endAuction();
   }
 
@@ -233,21 +234,35 @@ function startRound(){
   const positionPhase = positionPhaseTracking[posIdx];
   const numParticipants = state.participants.length;
 
-  // Generate player for this phase - occasionally a flash pick from the
-  // top tier instead (see maybeGenerateFlashPlayer()), which deliberately
-  // bypasses positionRankFloor entirely (a real phase-0 draw regardless
-  // of this position's progress is the whole point of a flash pick).
-  const flashPlayer = maybeGenerateFlashPlayer(posIdx, positionPhase, numParticipants, eligible.length);
-  if(flashPlayer){
-    state.currentPlayer = flashPlayer;
-  } else {
-    const picked = generateRoundPlayer(posIdx, positionPhase, numParticipants, positionRankFloor[posIdx]);
-    state.currentPlayer = picked.player;
-    positionRankFloor[posIdx] = picked.rankFloor;
-  }
+  // Anyone unsold whose slot nobody needs any more can never come back.
+  state.unsold = pruneUnsold(state.unsold, state.participants);
 
-  // Increment phase tracker for this position
-  positionPhaseTracking[posIdx]++;
+  // A player nobody bid on last time round is offered BEFORE a fresh draw.
+  // Neither the ladder nor this position's phase counter moves for him: he
+  // was already drawn, and the slot's next fresh player is still the next
+  // band down, exactly as if he had been sold.
+  const back = takeUnsoldForSlot(state.unsold, posIdx, state.phaseNum);
+  if(back.player){
+    state.unsold = back.queue;
+    state.currentPlayer = back.player;
+    addTicker(tVariant('ticker.unsoldReturns', pickVariantIndex(), {name: esc(back.player.name), price: fmt(back.player.startPrice)}));
+  } else {
+    // Generate player for this phase - occasionally a flash pick from the
+    // top tier instead (see maybeGenerateFlashPlayer()), which deliberately
+    // bypasses positionRankFloor entirely (a real phase-0 draw regardless
+    // of this position's progress is the whole point of a flash pick).
+    const flashPlayer = maybeGenerateFlashPlayer(posIdx, positionPhase, numParticipants, eligible.length);
+    if(flashPlayer){
+      state.currentPlayer = flashPlayer;
+    } else {
+      const picked = generateRoundPlayer(posIdx, positionPhase, numParticipants, positionRankFloor[posIdx]);
+      state.currentPlayer = picked.player;
+      positionRankFloor[posIdx] = picked.rankFloor;
+    }
+
+    // Increment phase tracker for this position
+    positionPhaseTracking[posIdx]++;
+  }
 
   // Check if only one person needs this position (automatic assignment).
   // 6v6 opts out: it has no auto-assignment at all, so the round still
@@ -307,7 +322,8 @@ function startBidding(eligible, isBlind){
 
   document.getElementById('posTag').textContent = slotLabel(p.posIdx);
   document.getElementById('phaseTag').textContent = t('auction.phaseEligible', {phase: p.phase, count: eligible.length});
-  document.getElementById('progressTag').textContent = t('auction.progress', {phase: state.phaseNum, phases: state.totalPhases, round: state.currentRound+1, rounds: FORMATION.length});
+  document.getElementById('progressTag').textContent = progressText(state.phaseNum, state.totalPhases, state.currentRound);
+  renderUnsoldPile();
 
   // A blind round never shows a public current bid/leader - that's the
   // whole point. See resolveSealedBids() for how this gets settled.
@@ -380,7 +396,8 @@ function autoAssign(participant){
 
   document.getElementById('posTag').textContent = slotLabel(p.posIdx);
   document.getElementById('phaseTag').textContent = t('auction.autoAssignPhase');
-  document.getElementById('progressTag').textContent = t('auction.progress', {phase: state.phaseNum, phases: state.totalPhases, round: state.currentRound+1, rounds: FORMATION.length});
+  document.getElementById('progressTag').textContent = progressText(state.phaseNum, state.totalPhases, state.currentRound);
+  renderUnsoldPile();
 
   document.getElementById('timerNum').textContent = '—';
   document.getElementById('goingBtn').disabled = true;
@@ -1207,60 +1224,83 @@ function checkGoingVotesAndMaybeSettle(){
   // repeated across every round of the draft.
   aiStopThinking();
   if(state.isBlindRound){ settleRound(); return; }
-  if(!state.currentLeader){ handleAutoReroll(); return; }
+  if(!state.currentLeader){ handleNoBids(); return; }
   settleRound();
 }
 
-function handleAutoReroll(){
-  if(canRerollThisRound()){
-    // Consume a reroll and replace player
-    addTicker(buildNoInterestTickerHTML());
-    rerollPlayer();
-  } else {
-    // No rerolls left - randomly assign current player
-    randomAssignPlayer();
+/* Nobody bid. This used to spend a reroll and, once those ran out, hand the
+   player to a random manager. Now see js/unsold.js: the first time he goes to
+   the back of the pack, the second time someone must take him. */
+function handleNoBids(){
+  if(!state.currentPlayer) return;
+  // Callers differ in whether the round is still marked live (settleRound has
+  // already stopped it; the AI "everyone passed" vote has not). Stop it here so
+  // a still-running timer can never settle the same round a second time.
+  state.auctioning = false;
+  clearInterval(state.timerInterval);
+
+  const p = state.currentPlayer;
+  const decision = unsoldDecision(p);
+  if(decision.action === 'leftover'){
+    assignLeftoverPlayer(decision.noBids);
+    return;
   }
+
+  state.unsold = (state.unsold || []).concat(unsoldEntry(p, decision.noBids, state.phaseNum));
+  addTicker(tVariant('ticker.unsoldPack', pickVariantIndex(), {name: esc(p.name)}));
+  renderUnsoldPile();
+
+  document.getElementById('soldWord').textContent = t('auction.unsold');
+  document.getElementById('soldWord').className = 'word unsold';
+  document.getElementById('soldDetail').textContent = t('auction.soldDetailUnsold', {player: playerNameText(p)});
+  document.getElementById('soldFlash').classList.add('show');
+
+  // The slot itself is still open: it comes round again on the next pass.
+  setTimeout(() => {
+    document.getElementById('soldFlash').classList.remove('show');
+    state.currentRound++;
+    startRound();
+  }, 1500);
 }
 
-// Randomly assign the current player to an eligible participant
-function randomAssignPlayer(){
+// The back-of-the-pack count shown in the HUD. Tolerates a skin without it.
+function renderUnsoldPile(){
+  const pile = state.unsold || [];
+  const el = document.getElementById('unsoldPile');
+  if(!el) return;
+  el.hidden = pile.length === 0;
+  const label = document.getElementById('unsoldPileLabel');
+  if(label) label.textContent = t('auction.unsoldPile', {count: pile.length});
+  el.title = pile.map(e => `${e.name} (${e.pos} ${e.rating})`).join('\n');
+}
+
+// Second no-bid on the same player: someone has to take him. Not random - the
+// manager with the most empty slots (see pickLeftoverWinner), at the lowered
+// price or the floor if that is out of reach.
+function assignLeftoverPlayer(noBids){
   const p = state.currentPlayer;
   const posIdx = p.posIdx;
 
-  // Get participants who still need this position
-  const eligible = state.participants.filter(participant => participantNeedsSlot(participant, posIdx));
-
-  if(eligible.length === 0){
+  const winner = pickLeftoverWinner(state.participants, posIdx);
+  if(!winner){
     // Nobody needs this position anymore
     state.currentRound++;
     startRound();
     return;
   }
-
-  // Randomly pick one eligible participant
-  const winner = eligible[Math.floor(Math.random() * eligible.length)];
-  const price = p.startPrice;
-
-  // Check if they can afford it
-  const maxAfford = getMaxAffordable(winner);
-  let finalPrice = price;
-
-  if(price > maxAfford){
-    // Use minimum if they can't afford
-    finalPrice = MIN_PER_POSITION;
-  }
+  const finalPrice = leftoverPrice(p, winner, noBids);
 
   const slotIdx = resolveFilledSlot(winner, posIdx);
   winner.budget -= finalPrice;
   winner.squad.push({...p, posIdx: slotIdx, price: finalPrice, newlyPlaced: true});
   winner.positionsFilled.add(slotIdx);
 
-  document.getElementById('soldWord').textContent = t('auction.randomAssignment');
+  document.getElementById('soldWord').textContent = t('auction.leftoverPick');
   document.getElementById('soldWord').className = 'word forced';
-  document.getElementById('soldDetail').textContent = t('auction.soldDetailNoBids', {player: playerNameText(p), winner: winner.name, price: fmt(finalPrice)});
+  document.getElementById('soldDetail').textContent = t('auction.soldDetailLeftover', {player: playerNameText(p), winner: winner.name, price: fmt(finalPrice)});
   document.getElementById('soldFlash').classList.add('show');
 
-  addTicker(buildSaleTickerHTML(p.name, slotCode(slotIdx), winner.name, finalPrice, ' (random)', p.rating, p.isFlash));
+  addTicker(buildSaleTickerHTML(p.name, slotCode(slotIdx), winner.name, finalPrice, ' (leftover)', p.rating, p.isFlash));
 
   renderBidderGrid();
 
@@ -1310,7 +1350,7 @@ document.getElementById('goingBtn').onclick = () => {
 
   // If no one has bid yet, auto-reroll or random assign
   if(!state.currentLeader){
-    handleAutoReroll();
+    handleNoBids();
     return;
   }
 
@@ -1416,17 +1456,11 @@ function settleRound(){
   const posIdx = p.posIdx;
   const eligible = state.participants.filter(p => participantNeedsSlot(p, posIdx));
 
-  // Check if nobody bid - auto reroll or random assign. Bounded by the
-  // per-round ceiling as well as the pool, so "nobody ever bids" ends in
-  // a random assignment rather than rerolling forever.
+  // Nobody bid: back of the pack (or, the second time, a leftover pick). It
+  // ends: each player can draw only UNSOLD_MAX_NO_BIDS no-bids before someone
+  // is made to take him, so "nobody ever bids" cannot loop forever.
   if(!state.currentLeader){
-    if(canRerollThisRound()){
-      addTicker(tVariant('ticker.noBidsReroll', pickVariantIndex(), {name: esc(p.name)}));
-      setTimeout(() => rerollPlayer(), 800);
-    } else {
-      addTicker(tVariant('ticker.noBidsRandom', pickVariantIndex(), {name: esc(p.name)}));
-      setTimeout(() => randomAssignPlayer(), 800);
-    }
+    handleNoBids();
     return;
   }
 
@@ -1491,7 +1525,7 @@ function autoAssignLastPlayer(participant, posIdx){
   // through the dynamic floor so the last player handed out continues
   // the same downward progression as everyone else's, rather than
   // resetting to the top of the weakest band.
-  const picked = selectPlayerDynamic(pos.code, currentPhase, numParticipants, positionRankFloor[posIdx]);
+  const picked = pickAutoAssignPlayer(pos.code, currentPhase, numParticipants, positionRankFloor[posIdx]);
   const realPlayer = picked.player;
   positionRankFloor[posIdx] = picked.rankFloor;
 

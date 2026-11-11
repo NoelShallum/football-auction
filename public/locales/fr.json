@@ -182,7 +182,16 @@
     "dbLoadingAlert": "La base de joueurs est encore en cours de chargement. Merci de patienter un instant et de réessayer.",
     "bidToRejoin": "↩ Miser pour revenir",
     "showSquad": "Voir l’effectif",
-    "hideSquad": "Masquer l’effectif"
+    "hideSquad": "Masquer l’effectif",
+    "unsold": "INVENDU",
+    "leftoverPick": "CHOIX RESTANT",
+    "soldDetailUnsold": "{player} sans enchère - au fond de la pile",
+    "soldDetailLeftover": "{player} → {winner} pour {price} (choix restant)",
+    "progressExtra": "Tour supplémentaire {lap} · Tour {round}/{rounds}",
+    "unsoldPile": "Invendus · {count}",
+    "backOfPack": "Au fond de la pile",
+    "returnsNextLap": "Revient au prochain tour",
+    "returnedFromPack": "Deuxième chance · mise à prix {price}"
   },
   "ticker": {
     "bargain": "bonne affaire !",
@@ -212,6 +221,14 @@
     "noBidsRandom": [
       "Aucune enchère pour <b>{name}</b> - attribution aléatoire...",
       "<b>{name}</b> n'a trouvé preneur - attribution au hasard..."
+    ],
+    "unsoldPack": [
+      "Aucune enchère pour <b>{name}</b> - au fond de la pile, il sera reproposé.",
+      "<b>{name}</b> n'a trouvé preneur - renvoyé au fond de la pile."
+    ],
+    "unsoldReturns": [
+      "<b>{name}</b> revient de la pile, mise à prix {price}.",
+      "Deuxième chance pour <b>{name}</b> - mise à prix {price}."
     ]
   },
   "sim": {

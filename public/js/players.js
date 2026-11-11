@@ -579,8 +579,8 @@ function selectPlayerRandom(position, numParticipants){
       position: position
     };
   }
-  const mode = activeMode();
-  const player = weightedRandomPick(available, mode.randomBiasExponent, mode.randomBiasFloor);
+  const bias = randomBias();
+  const player = weightedRandomPick(available, bias.exponent, bias.floor);
   usedPlayerIds.add(player.id);
   return player;
 }
@@ -787,7 +787,7 @@ function selectPlayerSimilar(position, rating, numParticipants){
 // The reroll counterpart of generateRoundPlayer(): same mode-awareness,
 // but anchored to the rating of the player being replaced.
 function generateRerollPlayer(posIdx, phaseIndex, numParticipants, rankFloor, currentRating){
-  if(activeMode().selection === 'random'){
+  if(effectiveDrawOrder() === 'random'){
     const pos = FORMATION[posIdx];
     const realPlayer = selectPlayerSimilar(pos.code, currentRating, numParticipants);
     return {
@@ -800,8 +800,20 @@ function generateRerollPlayer(posIdx, phaseIndex, numParticipants, rankFloor, cu
   return generatePlayerForPositionDynamic(posIdx, phaseIndex, numParticipants, rankFloor);
 }
 
+/* Who the last participant still needing a slot is handed. On the ladder that
+   is the weakest band by construction; on a random draw it is simply another
+   random draw - there is no "weakest band" to speak of. Returns the same
+   {player, rankFloor} shape selectPlayerDynamic() does, so both engines can
+   store the floor back without caring which one ran. */
+function pickAutoAssignPlayer(position, phaseIndex, numParticipants, rankFloor){
+  if(effectiveDrawOrder() === 'random'){
+    return { player: selectPlayerRandom(position, numParticipants), rankFloor: rankFloor || 0 };
+  }
+  return selectPlayerDynamic(position, phaseIndex, numParticipants, rankFloor);
+}
+
 function generateRoundPlayer(posIdx, phaseIndex, numParticipants, rankFloor){
-  if(activeMode().selection === 'random'){
+  if(effectiveDrawOrder() === 'random'){
     const pos = FORMATION[posIdx];
     const realPlayer = selectPlayerRandom(pos.code, numParticipants);
     return {
@@ -955,10 +967,10 @@ const FLASH_PRICE_PREMIUM = 1.35; // sought-after players cost a real premium
 // discarded and the caller falls through to the normal, phase-
 // appropriate generatePlayerForPosition() call instead.
 function maybeGenerateFlashPlayer(posIdx, positionPhase, numParticipants, eligibleCount){
-  // Modes that already draw uniformly at random (6v6) have nothing to
-  // pull an elite pick "forward" from - every round is a top-tier draw
-  // already, so a flash pick would be a badge with no meaning behind it.
-  if(!activeMode().flashPicks) return null;
+  // A random draw (6v6's default, or Classic switched to Random) has nothing
+  // to pull an elite pick "forward" from - every round is already a draw
+  // from the whole pool, so a flash pick would be a badge with no meaning.
+  if(!activeMode().flashPicks || effectiveDrawOrder() === 'random') return null;
   if(positionPhase <= 0 || eligibleCount <= 1) return null;
   if(Math.random() >= FLASH_ROUND_CHANCE) return null;
   const flashPlayer = generatePlayerForPosition(posIdx, 0, numParticipants);

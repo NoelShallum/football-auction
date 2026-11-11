@@ -1181,6 +1181,10 @@ function mpRebuildUsedPlayerIds(){
   if (mpGameState && mpGameState.currentPlayer && mpGameState.currentPlayer.id != null) {
     usedPlayerIds.add(mpGameState.currentPlayer.id);
   }
+  // Players waiting at the back of the pack are drawn already - never redraw them.
+  ((mpGameState && mpGameState.unsold) || []).forEach(entry => {
+    if (entry && entry.id != null) usedPlayerIds.add(entry.id);
+  });
 }
 
 async function mpBuildFreshGameState(){
@@ -1222,6 +1226,7 @@ async function mpBuildFreshGameState(){
     phaseNum: 1,
     totalPhases: state.totalPhases,
     currentRound: 0,
+    unsold: [],   // the back of the pack - see js/unsold.js
     positionOrder,
     positionPhaseTracking,
     positionRankFloor,
@@ -1295,7 +1300,7 @@ function mpHostAdvanceRound(){
 
   if (gs.currentRound >= FORMATION.length) { gs.phaseNum++; gs.currentRound = 0; }
 
-  if (gs.phaseNum > gs.totalPhases + 5) {
+  if (gs.phaseNum > maxDraftPhases(state.participants.length)) {
     gs.roundPhase = 'complete';
     gs.currentPlayer = null;
     mpGameState = gs;
@@ -1322,24 +1327,37 @@ function mpHostAdvanceRound(){
   }
 
   const phase = gs.positionPhaseTracking[posIdx] || 0;
-  // Occasionally a flash pick from the top tier instead (see
-  // maybeGenerateFlashPlayer()) - mirrors single-player exactly,
-  // including bypassing the dynamic floor entirely for that pick.
-  const flashPlayer = maybeGenerateFlashPlayer(posIdx, phase, state.participants.length, eligible.length);
+
+  // Mirrors single-player's startRound(): a player nobody bid on earlier is
+  // offered BEFORE a fresh draw, and neither the ladder nor this slot's
+  // phase counter moves for him.
+  gs.unsold = pruneUnsold(gs.unsold, state.participants);
+  const back = takeUnsoldForSlot(gs.unsold, posIdx, gs.phaseNum);
   let player;
-  if(flashPlayer){
-    player = flashPlayer;
+  let settleInfo = null;
+  if (back.player) {
+    gs.unsold = back.queue;
+    player = back.player;
+    settleInfo = { mode: 'packReturn', playerName: player.name, price: player.startPrice };
   } else {
-    const picked = generateRoundPlayer(posIdx, phase, state.participants.length, (gs.positionRankFloor || {})[posIdx]);
-    player = picked.player;
-    gs.positionRankFloor = {...gs.positionRankFloor, [posIdx]: picked.rankFloor};
+    // Occasionally a flash pick from the top tier instead (see
+    // maybeGenerateFlashPlayer()) - mirrors single-player exactly,
+    // including bypassing the dynamic floor entirely for that pick.
+    const flashPlayer = maybeGenerateFlashPlayer(posIdx, phase, state.participants.length, eligible.length);
+    if(flashPlayer){
+      player = flashPlayer;
+    } else {
+      const picked = generateRoundPlayer(posIdx, phase, state.participants.length, (gs.positionRankFloor || {})[posIdx]);
+      player = picked.player;
+      gs.positionRankFloor = {...gs.positionRankFloor, [posIdx]: picked.rankFloor};
+    }
+    gs.positionPhaseTracking = {...gs.positionPhaseTracking, [posIdx]: phase + 1};
   }
-  gs.positionPhaseTracking = {...gs.positionPhaseTracking, [posIdx]: phase + 1};
   gs.roundId = (gs.roundId || 0) + 1;
   gs.currentPlayer = player;
   gs.currentBid = 0;
   gs.currentLeader = null;
-  gs.settleInfo = null;
+  gs.settleInfo = settleInfo;
   gs.rerollVotes = {};
   gs.goingVotes = {};
   gs.goingGraceApplied = false;
@@ -1450,39 +1468,33 @@ function mpHostSettleRound(){
   // someone who no longer exists in the room.
   const leaderStillHere = gs.currentLeader && state.participants.some(x => x.id === gs.currentLeader);
   if (!leaderStillHere) {
-    if (mpRerollsLeftThisRound(gs) > 0) {
-      // No interest - silently reroll to a similar player, no SOLD flash.
-      const phase = p.phase - 1;
-      const picked = generateRerollPlayer(posIdx, phase, state.participants.length, (gs.positionRankFloor || {})[posIdx], p.rating);
-      const newPlayer = picked.player;
-      gs.positionRankFloor = {...gs.positionRankFloor, [posIdx]: picked.rankFloor};
-      gs.currentPlayer = newPlayer;
-      gs.currentBid = 0;
+    // Nobody bid: back of the pack, or - the second time - a leftover pick.
+    // See js/unsold.js; single-player's handleNoBids() does the same.
+    const decision = unsoldDecision(p);
+    if (decision.action === 'requeue') {
+      gs.unsold = [...(gs.unsold || []), unsoldEntry(p, decision.noBids, gs.phaseNum)];
+      gs.roundPhase = 'settled';
+      gs.settledAt = serverNow();
+      gs.settleInfo = { mode: 'unsold', playerName: p.name, playerPos: p.pos, playerRating: p.rating, isFlash: !!p.isFlash };
       gs.currentLeader = null;
-      gs.rerollsRemaining--;
-      gs.roundRerolls = (gs.roundRerolls || 0) + 1;
-      gs.roundId++;
-      gs.currentRoundSeconds = roundSecondsForPhase(gs.roundSeconds, gs.phaseNum);
-      gs.roundEndsAt = gs.currentRoundSeconds > 0 ? serverNow() + gs.currentRoundSeconds * 1000 : null;
-      gs.settleInfo = { mode: 'noBidsReroll', playerName: newPlayer.name };
-      gs.rerollVotes = {};
-      gs.goingVotes = {};
-      gs.goingGraceApplied = false;
       mpGameState = gs;
       mpCommitGameState(gs);
-      mpScheduleHostRoundTimer(gs.roundEndsAt);
+      // The slot is still open: it comes round again on the next pass.
+      mpAdvanceTimerHandle = setTimeout(() => {
+        const gs2 = mpCloneGameState();
+        gs2.currentRound++;
+        mpGameState = gs2;
+        mpHostAdvanceRound();
+      }, MP_SETTLE_DISPLAY_MS);
       return;
     }
-    const eligible = state.participants.filter(pp => participantNeedsSlot(pp, posIdx));
-    if (eligible.length === 0) {
+    const winner = pickLeftoverWinner(state.participants, posIdx);
+    if (!winner) {
       gs.currentRound++;
       mpGameState = gs;
       return mpHostAdvanceRound();
     }
-    const winner = eligible[Math.floor(Math.random() * eligible.length)];
-    const maxAfford = getMaxAffordable(winner);
-    const price = p.startPrice > maxAfford ? MIN_PER_POSITION : p.startPrice;
-    mpFinishSettle(gs, winner, price, 'random', posIdx);
+    mpFinishSettle(gs, winner, leftoverPrice(p, winner, decision.noBids), 'leftover', posIdx);
     return;
   }
 
@@ -1542,7 +1554,7 @@ function mpHostAutoAssignLast(participant, posIdx){
   // is already the last (weakest) percentile band by this point, so
   // selectPlayerDynamic does the whole job - still through the dynamic
   // floor so this final pick continues the same downward progression.
-  const picked = selectPlayerDynamic(pos.code, currentPhase, numParticipants, (gs.positionRankFloor || {})[posIdx]);
+  const picked = pickAutoAssignPlayer(pos.code, currentPhase, numParticipants, (gs.positionRankFloor || {})[posIdx]);
   const realPlayer = picked.player;
   gs.positionRankFloor = {...gs.positionRankFloor, [posIdx]: picked.rankFloor};
 
@@ -2068,8 +2080,9 @@ function mpRenderFromState(){
   const isNewKey = key !== mpRenderedKey;
 
   document.getElementById('posTag').textContent = slotLabel(p.posIdx);
-  document.getElementById('progressTag').textContent = t('auction.progress',
-    {phase: gs.phaseNum, phases: gs.totalPhases, round: gs.currentRound + 1, rounds: FORMATION.length});
+  state.unsold = gs.unsold || [];
+  document.getElementById('progressTag').textContent = progressText(gs.phaseNum, gs.totalPhases, gs.currentRound);
+  renderUnsoldPile();
 
   if (gs.roundPhase === 'bidding') {
     document.getElementById('soldFlash').classList.remove('show');
@@ -2222,8 +2235,8 @@ function mpRenderFromState(){
     if (isNewKey) {
       document.getElementById('countdownBanner').classList.remove('show');
       mpLastTickShown = -1;
-      if (gs.settleInfo && gs.settleInfo.mode === 'noBidsReroll') {
-        addTicker(buildNoInterestTickerHTML());
+      if (gs.settleInfo && gs.settleInfo.mode === 'packReturn') {
+        addTicker(tVariant('ticker.unsoldReturns', pickVariantIndex(), {name: esc(gs.settleInfo.playerName), price: fmt(gs.settleInfo.price)}));
       } else if (gs.settleInfo && gs.settleInfo.mode === 'manualReroll') {
         addTicker(buildRerolledTickerHTML(gs.settleInfo.playerName));
       }
@@ -2237,12 +2250,25 @@ function mpRenderFromState(){
     document.getElementById('flashBadge').style.display = 'none';
     document.getElementById('blindBadge').style.display = 'none';
 
-    if (isNewKey && gs.settleInfo) {
+    if (isNewKey && gs.settleInfo && gs.settleInfo.mode === 'unsold') {
+      // Nobody bid: no winner, no price - the player just goes to the back of the pack.
+      document.getElementById('playerPos').classList.add('forced');
+      document.getElementById('playerPos').textContent = slotCode(p.posIdx);
+      document.getElementById('playerName').innerHTML = playerNameHTML(p, {nation:false});
+      document.getElementById('playerNat').innerHTML = playerNationalityLineHTML(p);
+      document.getElementById('playerSub').textContent = t('auction.backOfPack');
+      document.getElementById('soldWord').textContent = t('auction.unsold');
+      document.getElementById('soldWord').className = 'word unsold';
+      document.getElementById('soldDetail').textContent = t('auction.soldDetailUnsold', {player: playerNameText(p)});
+      document.getElementById('soldFlash').classList.add('show');
+      document.getElementById('countdownBanner').classList.remove('show');
+      addTicker(tVariant('ticker.unsoldPack', pickVariantIndex(), {name: esc(p.name)}));
+    } else if (isNewKey && gs.settleInfo) {
       const info = gs.settleInfo;
       // isSold distinguishes the wording; the tracked mode strings below
       // ('random'/'autoSingle'/'autoLast') never change, only their labels.
       let isSold, wordKey, cls, detailSuffix, tickerSuffix;
-      if (info.mode === 'random') { isSold = false; wordKey = 'auction.randomAssignment'; cls = 'word forced'; detailSuffix = ' (no bids)'; tickerSuffix = ' (random)'; }
+      if (info.mode === 'leftover') { isSold = false; wordKey = 'auction.leftoverPick'; cls = 'word forced'; detailSuffix = ' (leftover)'; tickerSuffix = ' (leftover)'; }
       else if (info.mode === 'autoSingle' || info.mode === 'autoLast') { isSold = false; wordKey = 'auction.autoAssigned'; cls = 'word forced'; detailSuffix = ''; tickerSuffix = ' (auto)'; }
       else { isSold = true; wordKey = 'auction.sold'; cls = 'word sold'; detailSuffix = ''; tickerSuffix = ''; }
       const word = t(wordKey);
@@ -2256,7 +2282,7 @@ function mpRenderFromState(){
 
       document.getElementById('soldWord').textContent = word;
       document.getElementById('soldWord').className = cls;
-      document.getElementById('soldDetail').textContent = t(detailSuffix ? 'auction.soldDetailNoBids' : 'auction.soldDetail',
+      document.getElementById('soldDetail').textContent = t(detailSuffix ? 'auction.soldDetailLeftover' : 'auction.soldDetail',
         {player: playerNameText(p), winner: info.winnerName, price: fmt(info.price)});
       document.getElementById('soldFlash').classList.add('show');
       document.getElementById('countdownBanner').classList.remove('show');
