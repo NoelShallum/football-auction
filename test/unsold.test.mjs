@@ -356,3 +356,31 @@ test('the 10,000-player pool completes Classic drafts at small and large tables,
     } finally { await app.close(); }
   }
 });
+
+test('online: the host switching pool, draw order and filters reaches the room and the guest, and the server accepts it', async t => {
+  const server = await createApplication(); const address = await server.listen();
+  const url = `http://127.0.0.1:${address.port}/`;
+  const clients = [];
+  t.after(async () => { await Promise.all(clients.map(client => client.close())); await server.close(); });
+  const host = await loadApp({ url, accelerate: true }); clients.push(host);
+  host.run("applyGameMode('classic'); document.getElementById('hostNameInput').value='Host Manager'");
+  await host.run('createMultiplayerRoom()');
+  const code = host.run('currentRoomCode');
+  const guest = await loadApp({ url, accelerate: true }); clients.push(guest);
+  guest.run(`document.getElementById('joinRoomCode').value='${code}'; document.getElementById('joinNameInput').value='Guest'`);
+  await guest.run('joinMultiplayerRoom()');
+  await until(() => clients.every(c => c.run('state.participants.length===2')), 'both joined');
+
+  await host.run("choosePool('ea_database')");
+  // Through the real controls, so the host's persist step is what is under test.
+  const league = host.window.document.querySelector('#waitingDraftRules [data-league]');
+  assert(league, 'the Pro Database offers a league filter');
+  league.value = 'Premier League'; league.dispatchEvent(new host.window.Event('change'));
+  host.window.document.querySelector('#waitingDraftRules [data-order="random"]').click();
+
+  const settings = () => host.json("(() => { let v; database.ref('rooms/'+currentRoomCode+'/settings').once('value').then(s => { window.__s = s.val(); }); return window.__s || null; })()");
+  await until(() => { settings(); return host.run('window.__s && window.__s.poolId') === 'ea_database' && host.run("window.__s.filters && window.__s.filters.league") === 'Premier League' && host.run('window.__s.drawOrder') === 'random'; }, 'the room settings to carry the host\'s choices');
+
+  await until(() => guest.run("DRAFT_FILTERS.league === 'Premier League' && effectiveDrawOrder() === 'random' && activePoolId === 'ea_database'"), 'the guest to adopt them');
+  assert.deepEqual(host.errors, []); assert.deepEqual(guest.errors, []);
+});

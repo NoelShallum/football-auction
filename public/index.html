@@ -46,6 +46,7 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <button class="sound-toggle-btn" id="globalSoundBtn" data-i18n-title="common.toggleSound" title="Toggle sound">🔊</button>
@@ -257,7 +258,7 @@
         <a href="#" class="footer-link" data-i18n="home.terms" onclick="showScreen('termsScreen'); return false;">Terms of Service</a>
         <a href="#" class="footer-link" data-i18n="home.contact" onclick="showScreen('aboutScreen'); return false;">Contact</a>
       </div>
-      <div style="color:var(--stone); font-size:12px;">Auction XI · Local edition v1.0.1</div>
+      <div style="color:var(--stone); font-size:12px;">Auction XI · Local edition v1.1.0</div>
     </div>
   </div>
 
@@ -355,6 +356,8 @@
         <span class="field-label" data-i18n="field.formation">Formation</span>
         <div class="chip-row" id="waitingFormationRow"></div>
 
+        <div id="waitingDraftRules"></div>
+
         <span class="field-label" data-i18n="field.auctionSettings">Auction Settings</span>
 
         <span class="field-label" data-i18n="field.timer" style="font-size:11px; margin-top:16px; margin-bottom:8px;">Timer</span>
@@ -400,64 +403,89 @@
 
   <!-- Keep original setupScreen but hide it by default -->
   <div id="setupScreen" style="display:none;">
-    <div class="setup-card">
-      <a href="#" class="back-link" onclick="showScreen('homeScreen'); return false;"><span class="nav-arrow">←</span> <span data-i18n="common.backHome">Back to Home</span></a>
+    <div class="setup-layout">
+      <div class="setup-main">
+        <a href="#" class="back-link" onclick="showScreen('homeScreen'); return false;"><span class="nav-arrow">←</span> <span data-i18n="common.backHome">Back to Home</span></a>
 
-      <div id="setupPoolBanner"></div>
+        <div id="setupPoolBanner"></div>
 
-      <span class="field-label" data-i18n="field.playerPool">Player Pool</span>
-      <button type="button" class="pool-select" id="setupPoolSelect"></button>
-      <div id="setupPoolWarning"></div>
+        <section class="panel">
+          <span class="field-label" data-i18n="field.playerPool">Player Pool</span>
+          <button type="button" class="pool-select" id="setupPoolSelect"></button>
+          <div id="setupPoolWarning"></div>
+        </section>
 
-      <span class="field-label" id="countLabel" data-i18n="setup.participants">Number of participants</span>
-      <div class="chip-row" id="countRow"></div>
+        <section class="panel">
+          <span class="field-label" id="countLabel" data-i18n="setup.participants">Number of participants</span>
+          <div class="chip-row" id="countRow"></div>
+        </section>
 
-      <span class="field-label" data-i18n="field.gameMode">Game mode</span>
-      <!-- Cards, not chips: these are two different games, not two squad
-           sizes. Filled by buildGameModeCards() from each mode's own
-           config - see js/modes/*.js. -->
-      <div class="mode-picker" id="gameModeRow"></div>
+        <section class="panel">
+          <span class="field-label" data-i18n="field.gameMode">Game mode</span>
+          <!-- Cards, not chips: these are two different games, not two squad
+               sizes. Filled by buildGameModeCards() from each mode's own
+               config - see js/modes/*.js. -->
+          <div class="mode-picker" id="gameModeRow"></div>
 
-      <span class="field-label" data-i18n="field.formation">Formation</span>
-      <div class="chip-row" id="formationRow"></div>
-      <!-- The slots this formation actually auctions, in the exact
-           wording the auction uses (LCB/RCB, not two bare CBs). -->
-      <div class="formation-slots" id="formationSlots"></div>
+          <span class="field-label" data-i18n="field.formation">Formation</span>
+          <div class="chip-row" id="formationRow"></div>
+          <!-- The slots this formation actually auctions, in the exact
+               wording the auction uses (LCB/RCB, not two bare CBs). -->
+          <div class="formation-slots" id="formationSlots"></div>
+        </section>
 
-      <span class="field-label" id="namesLabel" data-i18n="setup.names">Names</span>
-      <div class="names-grid" id="namesGrid"></div>
+        <!-- Draw order, the back-of-the-pack rule and who can appear.
+             Built by renderDraftRules() in js/setup.js; the online waiting
+             room mounts the same controls in #waitingDraftRules. -->
+        <section class="panel">
+          <div id="setupDraftRules"></div>
+        </section>
 
-      <div class="budget-note">
-        <span data-i18n="setup.budgetPer" style="color:var(--stone); font-size:13px;">Budget per participant</span>
-        <!-- Written by updateFormationNote(); it is mode-dependent and
-             was hardcoded to Classic's 1,000M, which read as a flat lie
-             on a 6v6 setup screen. -->
-        <span class="amt" id="budgetAmt">1,000M</span>
+        <section class="panel">
+          <span class="field-label" id="namesLabel" data-i18n="setup.names">Names</span>
+          <div class="names-grid" id="namesGrid"></div>
+        </section>
+
+        <section class="panel">
+          <div class="budget-note">
+            <span data-i18n="setup.budgetPer" style="color:var(--stone); font-size:13px;">Budget per participant</span>
+            <!-- Written by updateFormationNote(); it is mode-dependent and
+                 was hardcoded to Classic's 1,000M, which read as a flat lie
+                 on a 6v6 setup screen. -->
+            <span class="amt" id="budgetAmt">1,000M</span>
+          </div>
+
+          <span class="field-label" data-i18n="field.auctionSettings">Auction Settings</span>
+
+          <span class="field-label" data-i18n="field.timer" style="font-size:11px; margin-top:16px; margin-bottom:8px;">Timer</span>
+          <div class="chip-row" id="timerRow"></div>
+          <div id="customTimerSection" style="display:none; margin-bottom:20px;">
+            <input type="number" id="customTimerInput" data-i18n-placeholder="field.customTimer" placeholder="Enter minutes (max 60)" min="1" max="60" autocomplete="off" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Space Mono',monospace; font-size:13px; margin-top:8px;">
+            <div id="customTimerError" style="color:var(--red); font-size:11px; margin-top:4px; min-height:14px;"></div>
+          </div>
+
+          <span class="field-label" data-i18n="field.displayRatings" style="font-size:11px; margin-bottom:8px;">Display Ratings</span>
+          <div class="toggle-row">
+            <div class="toggle-switch" id="ratingToggle"><div class="knob"></div></div>
+            <span class="toggle-label" data-i18n="field.showRatings">Show player ratings next to names</span>
+          </div>
+
+          <!-- Hidden entirely in AI mode, which has no rerolls (see applySetupMode). -->
+          <div id="rerollsSetting">
+            <span class="field-label" data-i18n="field.rerolls" style="font-size:11px; margin-bottom:8px;">Rerolls</span>
+            <div class="chip-row" id="rerollsRow"></div>
+          </div>
+        </section>
       </div>
 
-      <span class="field-label" data-i18n="field.auctionSettings">Auction Settings</span>
-
-      <span class="field-label" data-i18n="field.timer" style="font-size:11px; margin-top:16px; margin-bottom:8px;">Timer</span>
-      <div class="chip-row" id="timerRow"></div>
-      <div id="customTimerSection" style="display:none; margin-bottom:20px;">
-        <input type="number" id="customTimerInput" data-i18n-placeholder="field.customTimer" placeholder="Enter minutes (max 60)" min="1" max="60" autocomplete="off" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Space Mono',monospace; font-size:13px; margin-top:8px;">
-        <div id="customTimerError" style="color:var(--red); font-size:11px; margin-top:4px; min-height:14px;"></div>
-      </div>
-
-      <span class="field-label" data-i18n="field.displayRatings" style="font-size:11px; margin-bottom:8px;">Display Ratings</span>
-      <div class="toggle-row">
-        <div class="toggle-switch" id="ratingToggle"><div class="knob"></div></div>
-        <span class="toggle-label" data-i18n="field.showRatings">Show player ratings next to names</span>
-      </div>
-
-      <!-- Hidden entirely in AI mode, which has no rerolls (see applySetupMode). -->
-      <div id="rerollsSetting">
-        <span class="field-label" data-i18n="field.rerolls" style="font-size:11px; margin-bottom:8px;">Rerolls</span>
-        <div class="chip-row" id="rerollsRow"></div>
-      </div>
-
-      <button class="start-btn" id="startBtn" data-i18n="setup.start">Start Auction</button>
-      <p class="formation-note" id="formationNote"></p>
+      <!-- The match sheet: what you are about to start, kept in view while
+           you change things. Written by renderMatchSheet() in js/setup.js. -->
+      <aside class="setup-sheet">
+        <div class="sheet-title" data-i18n="sheet.title">Match sheet</div>
+        <dl class="sheet-rows" id="matchSheet"></dl>
+        <button class="start-btn" id="startBtn" data-i18n="setup.start">Start Auction</button>
+        <p class="formation-note" id="formationNote"></p>
+      </aside>
     </div>
   </div>
 
@@ -479,7 +507,12 @@
         </div>
         <div class="phase-tag" id="phaseTag">—</div>
       </div>
-      <span class="progress" id="progressTag">—</span>
+      <div class="status-right">
+        <span class="draw-chip" id="drawChip"></span>
+        <!-- Players nobody bid on, waiting at the back of the pack. Hidden when empty. -->
+        <span class="unsold-pile" id="unsoldPile" hidden><span id="unsoldPileLabel"></span></span>
+        <span class="progress" id="progressTag">—</span>
+      </div>
     </div>
     <div class="stage">
       <div class="countdown-banner" id="countdownBanner">
@@ -491,12 +524,15 @@
         <div class="word" id="soldWord">SOLD</div>
         <div class="detail" id="soldDetail"></div>
       </div>
-      <div class="flash-badge" id="flashBadge" data-i18n="auction.flashBadge" style="display:none;">⚡ Scouting Report — Elite Talent!</div>
-      <div class="blind-badge" id="blindBadge" data-i18n="auction.blindBadge" style="display:none;">🔒 Sealed Bid Round — one shot each, revealed when time's up!</div>
-      <div class="pos-badge" id="playerPos">GK</div>
-      <div class="player-name" id="playerName">—</div>
-      <div class="player-nat" id="playerNat"></div>
-      <div class="player-sub" id="playerSub">Starting price —</div>
+      <div class="stage-player" id="stagePlayer">
+        <div class="flash-badge" id="flashBadge" data-i18n="auction.flashBadge" style="display:none;">⚡ Scouting Report — Elite Talent!</div>
+        <div class="blind-badge" id="blindBadge" data-i18n="auction.blindBadge" style="display:none;">🔒 Sealed Bid Round — one shot each, revealed when time's up!</div>
+        <div class="pos-badge" id="playerPos">GK</div>
+        <div class="player-name" id="playerName">—</div>
+        <div class="player-nat" id="playerNat"></div>
+        <div class="player-sub" id="playerSub">Starting price —</div>
+      </div>
+      <div class="stage-bid">
       <div class="timer-ring">
         <svg viewBox="0 0 100 100">
           <circle class="timer-track" cx="50" cy="50" r="42"></circle>
@@ -516,6 +552,7 @@
         <button class="ctrl-btn" id="rerollBtn">🔄 Reroll Player</button>
         <span class="mp-vote-count" id="mpRerollVoteCount" style="display:none;"></span>
         <div class="rerolls-indicator" id="rerollsIndicator"><span data-i18n="auction.rerollsLeft">Rerolls Left (this draft):</span> <span class="count" id="rerollsCount">3</span></div>
+      </div>
       </div>
     </div>
     <div class="bidder-grid" id="bidderGrid"></div>

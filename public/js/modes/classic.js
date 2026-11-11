@@ -176,7 +176,7 @@ const MODE_CLASSIC = {
      the mode during play. Every bullet is a rule that actually differs
      from the other mode - anything true of both belongs on the home
      screen, not here. */
-  accent: '#FFB020',
+  accent: '#D4FF3F',
   tagline: 'The full match. A real eleven, drafted position by position.',
   bullets: [
     '11 players · 5 real formations · 1,000M budget',

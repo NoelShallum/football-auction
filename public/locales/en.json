@@ -77,7 +77,10 @@
     "rerolls": "Rerolls",
     "customTimer": "Enter minutes (max 60)",
     "customTimerError": "Must be between 1 and 60 minutes",
-    "customTimerInvalid": "Please enter a valid custom timer duration (1-60 minutes)"
+    "customTimerInvalid": "Please enter a valid custom timer duration (1-60 minutes)",
+    "drawOrder": "Draw order",
+    "ifNobodyBids": "If nobody bids",
+    "whoCanAppear": "Who can appear"
   },
   "setup": {
     "participants": "Number of participants",
@@ -153,9 +156,7 @@
     "soldBang": "SOLD!",
     "sold": "SOLD",
     "autoAssigned": "AUTO-ASSIGNED",
-    "randomAssignment": "RANDOM ASSIGNMENT",
     "soldDetail": "{player} → {winner} for {price}",
-    "soldDetailNoBids": "{player} → {winner} for {price} (no bids)",
     "placeBid": "PLACE BID",
     "alreadyHasPosition": "Already has position",
     "leading": "🔨 Leading",
@@ -204,23 +205,10 @@
       "SOLD: <b>{name}</b> ({pos}) joins <b>{winner}</b> — {price}",
       "<b>{winner}</b> completes the signing of <b>{name}</b> ({pos}) for {price}"
     ],
-    "noInterest": [
-      "No interest - rerolling player...",
-      "Nobody's biting - swapping in a fresh face...",
-      "Market's cold on this one - rerolling..."
-    ],
     "rerolled": [
       "Rerolled to similar-level player: <b>{name}</b>",
       "New face on the stage: <b>{name}</b>",
       "Swapped in: <b>{name}</b>"
-    ],
-    "noBidsReroll": [
-      "No bids for <b>{name}</b> - rerolling with similar player...",
-      "<b>{name}</b> found no takers - rerolling..."
-    ],
-    "noBidsRandom": [
-      "No bids for <b>{name}</b> - randomly assigning...",
-      "<b>{name}</b> found no takers - assigning at random..."
     ],
     "unsoldPack": [
       "No bids for <b>{name}</b> - back of the pack, he'll be offered again.",
@@ -571,5 +559,51 @@
         "Played out as a high-scoring futsal match, not a football one"
       ]
     }
+  },
+  "draw": {
+    "phase": "Phase-wise",
+    "phaseDesc": "Stars first, bargains last. Every pass offers a weaker slice of the pool.",
+    "random": "Random shuffle",
+    "randomDesc": "Any player in any round, though better players are a little more likely."
+  },
+  "rule": {
+    "packName": "Back of the pack",
+    "packDesc": "Unsold players return next lap at a lower price. Draw no bids twice and whoever needs players most takes them, so every squad fills."
+  },
+  "filter": {
+    "era": "Era",
+    "eraAll": "Past & present",
+    "eraPresent": "Present day",
+    "eraLegends": "Legends only",
+    "quality": "Quality",
+    "qualityAuto": "Auto",
+    "qualityMin": "{n}+",
+    "league": "League",
+    "leagueAny": "Any league",
+    "nation": "Nation",
+    "nationAny": "Any nation",
+    "inPlay": "{n} players in play"
+  },
+  "sheet": {
+    "title": "Match sheet",
+    "mode": "Mode",
+    "formation": "Formation",
+    "pool": "Player pool",
+    "inPlay": "Players in play",
+    "draw": "Draw order",
+    "unsold": "If nobody bids",
+    "managers": "Managers",
+    "budget": "Budget",
+    "timer": "Timer",
+    "rerolls": "Rerolls",
+    "unlimited": "Unlimited",
+    "custom": "Custom",
+    "minutes": "{n} min",
+    "seconds": "{n} sec",
+    "off": "Off",
+    "limited": "Limited · {n}",
+    "eachBudget": "{budget} each",
+    "managersAI": "You + {n} AI",
+    "managersCount": "{n}"
   }
 }

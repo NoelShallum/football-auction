@@ -77,7 +77,10 @@
     "rerolls": "Trocas",
     "customTimer": "Introduza os minutos (máx. 60)",
     "customTimerError": "Tem de ser entre 1 e 60 minutos",
-    "customTimerInvalid": "Indique uma duração de cronómetro válida (1 a 60 minutos)"
+    "customTimerInvalid": "Indique uma duração de cronómetro válida (1 a 60 minutos)",
+    "drawOrder": "Ordem de sorteio",
+    "ifNobodyBids": "Se ninguém licitar",
+    "whoCanAppear": "Quem pode aparecer"
   },
   "setup": {
     "participants": "Número de participantes",
@@ -153,9 +156,7 @@
     "soldBang": "VENDIDO!",
     "sold": "VENDIDO",
     "autoAssigned": "ATRIBUÍDO AUTOMATICAMENTE",
-    "randomAssignment": "ATRIBUIÇÃO ALEATÓRIA",
     "soldDetail": "{player} → {winner} por {price}",
-    "soldDetailNoBids": "{player} → {winner} por {price} (sem licitações)",
     "placeBid": "LICITAR",
     "alreadyHasPosition": "Já tem essa posição",
     "leading": "🔨 Na frente",
@@ -204,23 +205,10 @@
       "VENDIDO: <b>{name}</b> ({pos}) junta-se a <b>{winner}</b> — {price}",
       "<b>{winner}</b> fecha a contratação de <b>{name}</b> ({pos}) por {price}"
     ],
-    "noInterest": [
-      "Sem interesse - a trocar de jogador...",
-      "Ninguém morde - entra uma cara nova...",
-      "O mercado está frio neste - a trocar..."
-    ],
     "rerolled": [
       "Trocado por um jogador de nível semelhante: <b>{name}</b>",
       "Cara nova no palco: <b>{name}</b>",
       "Entra em vez dele: <b>{name}</b>"
-    ],
-    "noBidsReroll": [
-      "Sem licitações por <b>{name}</b> - a trocar por um jogador semelhante...",
-      "<b>{name}</b> não encontrou comprador - a trocar..."
-    ],
-    "noBidsRandom": [
-      "Sem licitações por <b>{name}</b> - atribuição aleatória...",
-      "<b>{name}</b> não encontrou comprador - a atribuir ao acaso..."
     ],
     "unsoldPack": [
       "Sem licitações por <b>{name}</b> - para o fim do baralho, será oferecido de novo.",
@@ -571,5 +559,51 @@
         "Simulado como um jogo de futsal com muitos golos, não de futebol"
       ]
     }
+  },
+  "draw": {
+    "phase": "Por fases",
+    "phaseDesc": "Primeiro as estrelas, no fim as pechinchas. Cada volta oferece uma fatia mais fraca.",
+    "random": "Sorteio aleatório",
+    "randomDesc": "Qualquer jogador em qualquer ronda, embora os melhores sejam um pouco mais prováveis."
+  },
+  "rule": {
+    "packName": "Fim do baralho",
+    "packDesc": "Os não vendidos voltam na volta seguinte a preço mais baixo. Sem licitações duas vezes, fica com eles quem mais precisar de jogadores: todas as equipas ficam completas."
+  },
+  "filter": {
+    "era": "Época",
+    "eraAll": "Passado e presente",
+    "eraPresent": "Atualidade",
+    "eraLegends": "Só lendas",
+    "quality": "Nível",
+    "qualityAuto": "Auto",
+    "qualityMin": "{n}+",
+    "league": "Liga",
+    "leagueAny": "Qualquer liga",
+    "nation": "Nação",
+    "nationAny": "Qualquer nação",
+    "inPlay": "{n} jogadores em jogo"
+  },
+  "sheet": {
+    "title": "Ficha de jogo",
+    "mode": "Modo",
+    "formation": "Formação",
+    "pool": "Base de jogadores",
+    "inPlay": "Jogadores em jogo",
+    "draw": "Ordem de sorteio",
+    "unsold": "Se ninguém licitar",
+    "managers": "Managers",
+    "budget": "Orçamento",
+    "timer": "Cronómetro",
+    "rerolls": "Trocas",
+    "unlimited": "Ilimitado",
+    "custom": "Personalizado",
+    "minutes": "{n} min",
+    "seconds": "{n} s",
+    "off": "Desligadas",
+    "limited": "Limitadas · {n}",
+    "eachBudget": "{budget} cada",
+    "managersAI": "Tu + {n} IA",
+    "managersCount": "{n}"
   }
 }

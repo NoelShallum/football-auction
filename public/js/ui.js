@@ -287,3 +287,18 @@ document.getElementById('restartAuctionBtn').onclick = () => {
     okLabel: t('dialog.restartOk')
   }, restartAuctionSameSettings);
 };
+
+
+/* The position code (CAM, GK...) is the biggest thing on the stage: the theme
+   draws it as huge outlined lettering behind the player. CSS cannot read an
+   element's text, and the code is written from several places in both
+   engines, so mirror it onto the stage as data-code instead of touching every
+   writer. */
+(function mirrorStageCode(){
+  const badge = document.getElementById('playerPos');
+  const stage = document.getElementById('stagePlayer');
+  if(!badge || !stage || typeof MutationObserver === 'undefined') return;
+  const sync = () => { stage.dataset.code = (badge.textContent || '').trim(); };
+  new MutationObserver(sync).observe(badge, {childList: true, characterData: true, subtree: true});
+  sync();
+})();

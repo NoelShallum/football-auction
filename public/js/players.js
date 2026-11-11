@@ -446,11 +446,13 @@ function poolCardHTML(entry){
 const POOL_MOUNTS = [
   {
     select: 'setupPoolSelect', warning: 'setupPoolWarning', banner: 'setupPoolBanner',
+    rules: 'setupDraftRules',
     editable: () => true,
     count: () => participantCount,
   },
   {
     select: 'waitingPoolSelect', warning: 'waitingPoolWarning', banner: 'waitingPoolBanner',
+    rules: 'waitingDraftRules',
     editable: () => isHost,
     count: () => Math.max(2, mpConnectedParticipants),
   },
@@ -478,6 +480,10 @@ function renderAllPoolPickers(){
       selectEl.onclick = () => openPoolModal(mount);
     }
 
+    // Draw order, the back-of-the-pack rule and the filters; rebuilt here
+    // because the pool, participant count and formation all change what they show.
+    if(mount.rules && typeof renderDraftRules === 'function') renderDraftRules(mount);
+
     const warnEl = mount.warning && document.getElementById(mount.warning);
     if(warnEl){
       const msg = mount.editable && mount.editable() ? poolReadinessMessage(mount.count()) : null;
@@ -486,6 +492,8 @@ function renderAllPoolPickers(){
         : '';
     }
   });
+
+  if(typeof renderMatchSheet === 'function') renderMatchSheet();
 
   // The modal grid is shared by every mount, so it only needs a refresh
   // while actually open (an active-pool change elsewhere, e.g. a host's
@@ -542,7 +550,12 @@ async function choosePool(id){
     }
     saveSettings();
     if(isHost && currentRoomCode){
-      database.ref(`rooms/${currentRoomCode}/settings/poolId`).set(activePoolId);
+      // A new pool may have dropped filters it cannot honour (see
+      // sanitizeFiltersForPool), so the room hears about those too.
+      database.ref().update({
+        [`rooms/${currentRoomCode}/settings/poolId`]: activePoolId,
+        [`rooms/${currentRoomCode}/settings/filters`]: DRAFT_FILTERS,
+      });
     }
     closePoolModal();
   } finally {
@@ -1053,10 +1066,6 @@ function buildSaleTickerHTML(name, pos, winner, price, suffixLabel, rating, isFl
     name: esc(name), pos: esc(pos), winner: esc(winner), price: fmt(price)
   });
   return flashPrefix + line + (suffixLabel || '') + saleFlavorSuffix(price, rating);
-}
-
-function buildNoInterestTickerHTML(){
-  return tVariant('ticker.noInterest', pickVariantIndex());
 }
 
 function buildRerolledTickerHTML(name){

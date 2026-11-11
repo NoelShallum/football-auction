@@ -6,7 +6,7 @@ Run the complete check with:
 npm run verify
 ```
 
-Local release 1.0.1 passes **26 functional tests**, the source/asset checks, the static build, and the separate production container verification described below.
+Local release 1.1.0 passes **44 functional tests**, the source/asset checks and the static build. The production container check (`npm run test:container`) was last run for 1.0.1 and has **not** been re-run since the 1.1.0 changes (it needs a Docker daemon).
 
 The verification uses Node's test runner, jsdom for DOM integration, actual loopback HTTP/WebSocket connections, temporary persistence files, and a native canvas implementation for PNG output. jsdom is a DOM test environment, not a graphical browser.
 
@@ -19,7 +19,9 @@ The verification uses Node's test runner, jsdom for DOM integration, actual loop
 - First-run language onboarding and saved settings.
 - Formation/position eligibility, slot ownership, reserves, clocks and per-draft/per-round reroll caps.
 - Pool depth for every offered formation at 2, 4, 6 and 10 participants.
-- Complete local Classic draft and futsal drafts using each of the three player pools.
+- Complete local Classic draft and futsal drafts using each of the four player pools, and Classic drafts of 3, 5 and 8 managers on the 10,863-player Pro Database (ladder and random).
+- Unsold players: queue, re-offer price, leftover winner, and drafts where nobody ever bids (Classic and futsal, offline and online) still end with full squads and no duplicates.
+- Draw order defaults/persistence/behaviour, draft filters and automatic quality floors, and their sync through online room settings (including server-side validation).
 - Complete AI draft with distinct manager profiles.
 - Full online Classic/futsal drafts with separate client DOMs and a real room server.
 - Identical client squads, ready states, escaped chat, restarting drafts and resetting budgets/squads.

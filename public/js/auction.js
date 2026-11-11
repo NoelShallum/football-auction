@@ -1127,8 +1127,11 @@ function updateTimerUI(){
   // partway drained.
   const pct = state.timer/(state.currentRoundSeconds || ROUND_SECONDS);
   fill.style.strokeDashoffset = circumference * (1-Math.min(1,pct));
-  fill.style.stroke = state.timer<=3 ? 'var(--red)' : 'var(--amber)';
-  num.style.color = state.timer<=3 ? 'var(--red)' : 'var(--white)';
+  // Tokens with the original colours as fallbacks: the stage sits on a light
+  // card in the current theme, where white digits and an accent-coloured ring
+  // would vanish, so the theme declares its own (--timer-*).
+  fill.style.stroke = state.timer<=3 ? 'var(--timer-warn, var(--red))' : 'var(--timer-stroke, var(--amber))';
+  num.style.color = state.timer<=3 ? 'var(--timer-warn, var(--red))' : 'var(--timer-ink, var(--white))';
 }
 
 // Update the Reroll button state and display
@@ -1265,6 +1268,8 @@ function handleNoBids(){
 
 // The back-of-the-pack count shown in the HUD. Tolerates a skin without it.
 function renderUnsoldPile(){
+  const chip = document.getElementById('drawChip');
+  if(chip) chip.textContent = t(effectiveDrawOrder() === 'random' ? 'draw.random' : 'draw.phase');
   const pile = state.unsold || [];
   const el = document.getElementById('unsoldPile');
   if(!el) return;
