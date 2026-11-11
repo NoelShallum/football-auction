@@ -80,6 +80,6 @@ docker run --rm -p 3000:3000 -v auctionxi-data:/app/data auctionxi-local
 
 Static hosting alone supports shared-screen and AI play. Online multiplayer additionally requires the included server, or an equivalent backend implementing its protocol. Installability and service workers require localhost or HTTPS; networked multiplayer itself works over HTTP on a private LAN.
 
-## Git handoff
+## Source and development
 
-This directory is a local Git repository on `main`. No remote is configured and nothing has been pushed. When GitHub access is provided, create the private repository and add its remote; the existing commit history can be pushed intact. Do not add `data/`, `.env`, or `node_modules/` to Git. See [CHANGELOG.md](CHANGELOG.md) for local release changes.
+The Git repository uses `main` and retains tagged local releases and their development history. Runtime room data, credentials, installed dependencies and generated builds are excluded from Git. See [CHANGELOG.md](CHANGELOG.md) for release changes and [SOURCE_NOTES.md](docs/SOURCE_NOTES.md) for the original application's attribution and local adaptations.

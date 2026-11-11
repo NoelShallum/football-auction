@@ -43,9 +43,9 @@ The verification uses Node's test runner, jsdom for DOM integration, actual loop
 
 Visual/pixel comparison, browser-specific layout, real touch/haptics/audio, native share sheets, and actual PWA installation have not been exercised in a graphical browser. The original HTML/CSS, fonts and active UI code are retained, but automated DOM checks do not prove pixel-perfect rendering.
 
-The managed environment exposes no `cua_repl.js` browser-control tool in this session. The applicable [Sites skill](skill://plugin_connector_1p_689987207de08191979cf68eca2941c6/sites/SKILL.md) explicitly states: “If `cua_repl.js` is unavailable, skip browser QA: do not start a preview server, install a browser, or improvise another browser-control path.” Consequently no preview server or substitute browser was used. Loopback servers in this suite are ephemeral protocol/test fixtures and are closed by the tests.
+Graphical browser verification was unavailable in the development environment. The automated checks use DOM integration, native canvas rendering, and real HTTP/WebSocket connections. Loopback servers in this suite are ephemeral protocol/test fixtures and are closed by the tests.
 
-The Docker production build and runtime have been verified with `npm run test:container`: application/JSON responses, two real WebSocket clients, restart with a persistent room volume, ownership restoration, non-root execution and runtime file permissions. The test removes its temporary container, volume and image. There is no deployment or GitHub remote to verify yet. Internet-wide multiplayer latency, multiple backend replicas and load testing are outside the current local verification.
+The Docker production build and runtime have been verified with `npm run test:container`: application/JSON responses, two real WebSocket clients, restart with a persistent room volume, ownership restoration, non-root execution and runtime file permissions. The test removes its temporary container, volume and image. A hosted application deployment, internet-wide multiplayer latency, multiple backend replicas and load testing are outside the current verification.
 
 ## Manual acceptance once a browser is available
 
