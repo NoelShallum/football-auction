@@ -52,7 +52,7 @@ The pool manifest is `public/pools/index.json`. Three available entries point to
 | --- | ---: | --- |
 | All-Time Greats | 1,501 | `id`, `name`, `position`, `rating`, `nationality`, `club`, `era`, `years` |
 | Current Players | 840 | `id`, `name`, `nationality`, `club`, `league`, `position`, `secondaryPositions`, `rating`, `marketValue`, `foot`, `age` |
-| Pro Database | 10,863 | `id`, `name`, `nationality`, `club`, `league`, `position`, `secondaryPositions`, `rating`, `era`, `years`, `foot`, plus `marketValue`/`age` for current players |
+| Pro Database | 13,122 | `id`, `name`, `nationality`, `club`, `league`, `position`, `secondaryPositions`, `rating`, `era`, `years`, `foot`, plus `age` for current players |
 | World Cup 2026 | 591 | `id`, `name`, `position`, `rating`, `nationality`, `club`, `group`, `team`, `era`, `years` |
 
 IDs are unique within a pool, not across all pools. Every original data field is preserved in these source files. Auction round objects carry the fields the original game uses: identity, primary/base position, bought slot, rating, opening price, phase, nationality and club; a squad entry also carries its sale price. The extra catalogue fields are not additional simulation inputs.
@@ -118,7 +118,7 @@ How the next player is chosen is a setting of its own, `phase` or `random`, avai
 
 Narrow who can appear, on top of any pool: **era** (`all`, `present`, `legends`), **league**, **nation**, and a **quality floor** (`auto`, 75, 80, 85). Everything the draft reads goes through one filtered view, so selection, the AI's replacement estimates and the depth check agree. Filters that leave a position too thin block the start with the usual pool-depth message plus a hint to loosen them. Switching pools drops any filter the new pool cannot honour.
 
-A pool may declare `draft.autoMinRating` (`[{upTo: participants, min: rating}]`); *auto* then applies the matching floor. The Pro Database uses 80 up to 4 managers, 76 up to 6 and 72 beyond, so phase 1 is not a random 73-rated player. Pools that declare none are unchanged. "Present" means active in the pool's newest data (the Pro Database's newest season is 2022-23); "Legends" are the pool's explicitly retired icons.
+A pool may declare `draft.autoMinRating` (`[{upTo: participants, min: rating}]`); *auto* then applies the matching floor. The Pro Database uses 80 up to 4 managers, 76 up to 6 and 72 beyond, so phase 1 is not a random 73-rated player. Pools that declare none are unchanged. "Present" means in the pool's newest data (for the Pro Database, the EA FC 26 ratings, 2025-26); "Legends" are the pool's explicitly retired icons.
 
 ## Unsold players
 

@@ -45,7 +45,7 @@ for (const pool of manifest.pools) {
   assert(data.players.length > 0); assert.equal(new Set(data.players.map(p => p.id)).size, data.players.length);
   players += data.players.length; pools++;
 }
-assert.equal(players, 13795); assert.equal(pools, 4);
+assert.equal(players, 16054); assert.equal(pools, 4);
 for (const language of ['en', 'fr', 'ar', 'es', 'pt']) {
   const dictionary = JSON.parse(await readFile(resolve(publicDir, `locales/${language}.json`), 'utf8'));
   assert(dictionary.home && dictionary.auction && dictionary.sim && dictionary.tutorial, `Incomplete language ${language}`);

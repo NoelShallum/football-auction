@@ -5,7 +5,7 @@ import { loadApp, draftLocally, until } from './helpers.mjs';
 test('boots all player pools, preserves the screen structure, and switches all five languages', async t => {
   const app = await loadApp(); t.after(() => app.close());
   assert.equal(app.run('playerDatabase.length'), 1501);
-  assert.deepEqual(app.json('poolCatalog.filter(p=>p.available).map(p=>poolPlayerCount(p.id))'), [1501, 10863, 840, 591]);
+  assert.deepEqual(app.json('poolCatalog.filter(p=>p.available).map(p=>poolPlayerCount(p.id))'), [1501, 13122, 840, 591]);
   assert.equal(app.window.document.getElementById('homeScreen').style.display, 'block');
   for (const code of ['fr', 'ar', 'es', 'pt', 'en']) {
     await app.run(`setLanguage('${code}')`);

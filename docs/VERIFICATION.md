@@ -19,7 +19,7 @@ The verification uses Node's test runner, jsdom for DOM integration, actual loop
 - First-run language onboarding and saved settings.
 - Formation/position eligibility, slot ownership, reserves, clocks and per-draft/per-round reroll caps.
 - Pool depth for every offered formation at 2, 4, 6 and 10 participants.
-- Complete local Classic draft and futsal drafts using each of the four player pools, and Classic drafts of 3, 5 and 8 managers on the 10,863-player Pro Database (ladder and random).
+- Complete local Classic draft and futsal drafts using each of the four player pools, and Classic drafts of 3, 5 and 8 managers on the 13,122-player Pro Database (ladder and random).
 - Unsold players: queue, re-offer price, leftover winner, and drafts where nobody ever bids (Classic and futsal, offline and online) still end with full squads and no duplicates.
 - Draw order defaults/persistence/behaviour, draft filters and automatic quality floors, and their sync through online room settings (including server-side validation).
 - Complete AI draft with distinct manager profiles.

@@ -1,31 +1,35 @@
 #!/usr/bin/env node
-/* Builds public/pools/ea_database.json from the sofifa "FIFA 15-23 complete
-   player dataset" CSV (the Kaggle file, also mirrored on Hugging Face as
-   `jsulz/FIFA23`, file `male_players (legacy).csv`).
+/* Builds public/pools/ea_database.json (the "Pro Database" pool) from public
+   EA ratings data.
 
    Usage:
-     node scripts/import-ea.mjs "<path to male_players (legacy).csv>" [options]
+     node scripts/import-ea.mjs --fc26 <EAFC26.csv> [--legacy "<male_players (legacy).csv>"] [options]
+     node scripts/import-ea.mjs "<male_players (legacy).csv>"           (legacy only, older behaviour)
+
+   Sources:
+     --fc26    A CSV of EA SPORTS FC 26 ratings with columns ID, Name, GENDER, OVR,
+               Position, "Alternative positions", Age, Nation, League, Team,
+               "Preferred foot". (EA publishes these on its ratings pages; community
+               CSVs of them circulate on GitHub and Kaggle.) Only men (GENDER = M)
+               are used: this is a men's football game.
+     --legacy  The sofifa "FIFA 15-23 complete player dataset" (Kaggle; mirrored on
+               Hugging Face as jsulz/FIFA23, file `male_players (legacy).csv`).
+
+   One record per player. Player ids are EA's own, shared by both files, so the two
+   merge cleanly:
+     - In FC 26                    -> FC 26 rating and club (era "Current", i.e. present day).
+     - Only in FIFA 15-23          -> his best rating across those versions (era "Past").
+       The data starts with FIFA 15 (2014), so a long-retired star appears at his
+       2014-onward rating, not his career peak. There are no Icons in either file;
+       retired legends come from the curated All-Time pool.
+     - FC 26 players below the rating floor are dropped, not demoted to "Past".
 
    Options:
-     --min-rating <n>   Drop players rated below n (default 65).
+     --min-rating <n>   Drop players rated below n (default 70).
      --out <file>       Output path (default public/pools/ea_database.json).
      --stats            Print a profile of the result and write nothing.
 
-   One record per player:
-     - Active in the newest game version  -> that version's rating and club (era "Current").
-     - EA "Icons"/"Heroes" cards, if the file has any -> the card's rating (era "Legend").
-       (The FIFA 15-23 "legacy" file does not, so legends come from the
-       curated All-Time pool instead.)
-     - Everyone else (retired, dropped)    -> their peak rating across versions (era "Past").
-       Note the data starts with FIFA 15 (2014), so a long-retired star appears
-       at his 2014+ rating, not his career peak.
-
-   "Current" therefore means "in the newest game version of the file" (FIFA 23,
-   the 2022-23 season for the legacy file), not today's squads.
-
-   The source data is EA's, scraped from sofifa.com. Keep it out of any
-   repository that is published or redistributed unless you are comfortable
-   with that - see docs/SOURCE_NOTES.md. */
+   The ratings are EA's. See docs/SOURCE_NOTES.md before publishing the output. */
 
 import { createReadStream } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
@@ -35,7 +39,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /* ---------- CSV (RFC 4180: quoted fields, doubled quotes, newlines in quotes) ---------- */
-async function* csvRows(path) {
+export async function* csvRows(path) {
   let field = '';
   let row = [];
   let inQuotes = false;
@@ -66,27 +70,78 @@ async function* csvRows(path) {
   if (field !== '' || row.length) { row.push(field); yield row; }
 }
 
+// Header-aware reader: yields each row as an object keyed by column name.
+async function* records(path, required) {
+  let header = null;
+  for await (const r of csvRows(path)) {
+    if (!header) {
+      header = r;
+      for (const need of required) if (!header.includes(need)) throw new Error(`${path} is missing column "${need}"`);
+      continue;
+    }
+    const o = {};
+    header.forEach((h, i) => { o[h] = r[i]; });
+    yield o;
+  }
+}
+
 /* ---------- normalisation ---------- */
 const NATION_FIXES = {
+  'Holland': 'Netherlands',
   'Korea Republic': 'South Korea',
   'Korea DPR': 'North Korea',
   'China PR': 'China',
   'Republic of Ireland': 'Ireland',
   "Côte d'Ivoire": 'Ivory Coast',
+  'Congo DR': 'DR Congo',
   'Cape Verde Islands': 'Cape Verde',
   'FYR Macedonia': 'North Macedonia',
+  'St. Kitts and Nevis': 'Saint Kitts and Nevis',
   'St Kitts Nevis': 'Saint Kitts and Nevis',
+  'St. Lucia': 'Saint Lucia',
   'St Lucia': 'Saint Lucia',
-  'DR Congo': 'DR Congo',
-  'Congo': 'Congo',
 };
+const nation = n => NATION_FIXES[n] || n || 'Unknown';
 
-// EA position codes the game already understands.
+/* FC 26 names its leagues after sponsors; FIFA 15-23 used plain names. Mapped to
+   the plain ones so the league filter treats both sources as one list. Only
+   names I am sure of are mapped; anything else keeps EA's own wording. */
+const LEAGUE_FIXES = {
+  'LPF': 'Liga Profesional',
+  'MLS': 'Major League Soccer',
+  'EFL Championship': 'Championship',
+  'EFL League One': 'League One',
+  'EFL League Two': 'League Two',
+  'Serie A Enilive': 'Serie A',
+  'Serie BKT': 'Serie B',
+  'Bundesliga 2': '2. Bundesliga',
+  'LALIGA EA SPORTS': 'La Liga',
+  'LALIGA HYPERMOTION': 'La Liga 2',
+  'PKO BP Ekstraklasa': 'Ekstraklasa',
+  "Ligue 1 McDonald's": 'Ligue 1',
+  'Ligue 2 BKT': 'Ligue 2',
+  '1A Pro League': 'Jupiler Pro League',
+  'Trendyol Süper Lig': 'Super Lig',
+  'ROSHN Saudi League': 'Saudi Pro League',
+  'CSL': 'Chinese Super League',
+  'Scottish Prem': 'Scottish Premiership',
+  '3F Superliga': 'Danish Superliga',
+  'Ö. Bundesliga': 'Austrian Bundesliga',
+  'SSE Airtricity PD': 'League of Ireland Premier Division',
+  'ISL': 'Indian Super League',
+  'Brack Super League': 'Swiss Super League',
+  'Libertadores': 'Copa Libertadores',
+  'Sudamericana': 'Copa Sudamericana',
+};
+/* The FIFA 15-23 file gives league names without a country, so these could be
+   any of several countries' leagues. Better no league than a wrong one. */
+const AMBIGUOUS_LEAGUES = new Set(['', 'Super League', 'Pro League', 'Premiership', 'Superliga', 'Premier Division',
+  '1. Division', 'Primera Division', 'Primera División', 'Liga 1', 'Liga Pro', 'Liga De Futbol Prof']);
+
 const KNOWN_POSITIONS = new Set(['GK', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'LW', 'RW', 'CF', 'ST']);
 
-/* "L. Messi" + "Lionel Andrés Messi Cuccittini" -> "Lionel Messi".
-   Short names without an initial ("Neymar Jr", "Rodri") are already the
-   name fans use, so they pass through unchanged. */
+/* "L. Messi" + "Lionel Andrés Messi Cuccittini" -> "Lionel Messi". Short names
+   without an initial ("Neymar Jr", "Rodri") pass through unchanged. */
 export function displayName(shortName, longName) {
   const short = String(shortName || '').trim();
   const long = String(longName || '').trim();
@@ -97,120 +152,135 @@ export function displayName(shortName, longName) {
   return first ? `${first} ${m[2]}` : short;
 }
 
-function formatValue(eur) {
-  const v = Number(eur);
-  if (!Number.isFinite(v) || v <= 0) return undefined;
-  if (v >= 1e6) return `€${Math.round(v / 1e5) / 10}M`.replace('.0M', 'M');
-  return `€${Math.round(v / 1e3)}K`;
+// "['RW', 'CAM']" (a Python list printed as text) -> ['RW', 'CAM']
+function parseList(text) {
+  return String(text || '').replace(/[\[\]'"]/g, '').split(',').map(s => s.trim()).filter(Boolean);
 }
 
-const seasonLabel = v => `${2000 + v - 1}-${2000 + v}`; // FIFA 23 = 2022-2023
+const seasonStart = v => 2000 + v - 1;   // FIFA 23 = the 2022-23 season
 
-/* ---------- main ---------- */
-export async function buildPool(csvPath, { minRating = 65 } = {}) {
-  let header = null;
-  const col = {};
-  const byPlayer = new Map();
+/* ---------- sources ---------- */
+async function loadLegacy(path) {
+  const byId = new Map();
   let newest = 0;
-
-  for await (const r of csvRows(csvPath)) {
-    if (!header) {
-      header = r;
-      header.forEach((h, i) => { col[h] = i; });
-      for (const need of ['player_id', 'fifa_version', 'short_name', 'long_name', 'player_positions', 'overall', 'club_name', 'nationality_name', 'league_name', 'age', 'value_eur', 'preferred_foot']) {
-        if (!(need in col)) throw new Error(`CSV is missing column "${need}"`);
-      }
-      continue;
-    }
-    const id = Number(r[col.player_id]);
-    const version = Number(r[col.fifa_version]);
-    const overall = Number(r[col.overall]);
+  for await (const r of records(path, ['player_id', 'fifa_version', 'short_name', 'long_name', 'player_positions', 'overall', 'club_name', 'nationality_name', 'league_name', 'preferred_foot'])) {
+    const id = Number(r.player_id), version = Number(r.fifa_version), overall = Number(r.overall);
     if (!id || !version || !overall) continue;
     newest = Math.max(newest, version);
-    const club = r[col.club_name];
-    const rec = {
-      version, overall,
-      short: r[col.short_name], long: r[col.long_name],
-      positions: r[col.player_positions],
-      club, league: r[col.league_name],
-      nation: r[col.nationality_name],
-      age: Number(r[col.age]) || undefined,
-      value: r[col.value_eur],
-      foot: r[col.preferred_foot],
-      icon: club === 'Icons' || club === 'Heroes',
-    };
-    let p = byPlayer.get(id);
-    if (!p) { p = { first: version, last: version, latest: rec, peak: rec, icon: null }; byPlayer.set(id, p); }
+    const rec = { version, overall, short: r.short_name, long: r.long_name, positions: r.player_positions, club: r.club_name, league: r.league_name, nation: r.nationality_name, foot: r.preferred_foot, age: Number(r.age) || undefined };
+    let p = byId.get(id);
+    if (!p) { p = { first: version, last: version, peak: rec }; byId.set(id, p); }
     p.first = Math.min(p.first, version);
     p.last = Math.max(p.last, version);
-    if (version >= p.latest.version) p.latest = rec;
     if (overall > p.peak.overall) p.peak = rec;
-    if (rec.icon && (!p.icon || overall > p.icon.overall)) p.icon = rec;
+  }
+  return { byId, newest };
+}
+
+async function loadFc26(path) {
+  const rows = [];
+  for await (const r of records(path, ['ID', 'Name', 'GENDER', 'OVR', 'Position', 'Alternative positions', 'Age', 'Nation', 'League', 'Team', 'Preferred foot'])) {
+    if (r.GENDER !== 'M') continue;
+    const id = Number(r.ID), ovr = Number(r.OVR);
+    if (!id || !ovr) continue;
+    rows.push({ id, ovr, name: r.Name, position: r.Position, alts: r['Alternative positions'], age: Number(r.Age) || undefined, nation: r.Nation, league: r.League, team: r.Team, foot: r['Preferred foot'] });
+  }
+  return rows;
+}
+
+/* ---------- main ---------- */
+export async function buildPool({ fc26Path, legacyPath, minRating = 70 }) {
+  if (!fc26Path && !legacyPath) throw new Error('Give --fc26 and/or --legacy');
+  const legacy = legacyPath ? await loadLegacy(legacyPath) : { byId: new Map(), newest: 0 };
+  const fc26 = fc26Path ? await loadFc26(fc26Path) : [];
+  const inFc26 = new Set(fc26.map(r => r.id));
+  const players = [];
+
+  for (const r of fc26) {
+    if (r.ovr < minRating || !KNOWN_POSITIONS.has(r.position)) continue;
+    const old = legacy.byId.get(r.id);
+    const out = {
+      id: r.id,
+      name: r.name,
+      nationality: nation(r.nation),
+      club: r.team || '',
+      league: LEAGUE_FIXES[r.league] || r.league || '',
+      position: r.position,
+      rating: r.ovr,
+      era: 'Current',
+      years: `${old ? seasonStart(old.first) : 2025}-2026`,
+    };
+    const alts = parseList(r.alts).filter(c => c !== r.position && KNOWN_POSITIONS.has(c));
+    if (alts.length) out.secondaryPositions = alts;
+    if (r.foot) out.foot = r.foot;
+    if (r.age) out.age = r.age;
+    players.push(out);
   }
 
-  const players = [];
-  for (const [id, p] of byPlayer) {
-    let rec, era;
-    if (p.icon) { rec = p.icon; era = 'Legend'; }
-    else if (p.last === newest) { rec = p.latest; era = 'Current'; }
-    else { rec = p.peak; era = 'Past'; }
+  for (const [id, p] of legacy.byId) {
+    if (inFc26.has(id)) continue;                      // still in the game: handled above
+    const rec = p.peak;
     if (rec.overall < minRating) continue;
-
-    const codes = rec.positions.split(',').map(s => s.trim()).filter(Boolean);
+    // The legacy-only mode has no FC 26 to compare to, so "current" is its newest version.
+    const era = (!fc26.length && p.last === legacy.newest) ? 'Current' : 'Past';
+    const codes = String(rec.positions || '').split(',').map(s => s.trim()).filter(Boolean);
     const position = codes.find(c => KNOWN_POSITIONS.has(c));
     if (!position) continue;
     const secondary = codes.filter(c => c !== position && KNOWN_POSITIONS.has(c));
-
+    const league = AMBIGUOUS_LEAGUES.has(rec.league) ? '' : (LEAGUE_FIXES[rec.league] || rec.league);
     const out = {
       id,
       name: displayName(rec.short, rec.long),
-      nationality: NATION_FIXES[rec.nation] || rec.nation || 'Unknown',
-      club: rec.icon ? '' : (rec.club || ''),
-      league: rec.icon ? '' : (rec.league || ''),
+      nationality: nation(rec.nation),
+      club: rec.club || '',
+      league,
       position,
       rating: rec.overall,
       era,
-      years: era === 'Legend' ? '' : `${seasonLabel(p.first).slice(0, 4)}-${seasonLabel(p.last).slice(5)}`,
+      years: `${seasonStart(p.first)}-${seasonStart(p.last) + 1}`,
     };
     if (secondary.length) out.secondaryPositions = secondary;
-    const mv = formatValue(rec.value);
-    if (mv && era === 'Current') out.marketValue = mv;
     if (rec.foot) out.foot = rec.foot;
-    if (rec.age && era === 'Current') out.age = rec.age;
     players.push(out);
   }
 
   players.sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name));
-  // Stable, dense ids after sorting keep the file diff-friendly and ids small.
-  // (EA ids would also work, but they are 6 digits each across thousands of rows.)
+  // Dense ids after sorting keep the file small and diff-friendly (EA's ids are 6 digits each).
   players.forEach((p, i) => { p.id = i + 1; });
-  return { players, newest, totalSeen: byPlayer.size };
+  return { players, fc26Count: fc26.length, legacySeen: legacy.byId.size, legacyNewest: legacy.newest };
 }
 
-function profile({ players, newest, totalSeen }) {
+function profile({ players, fc26Count, legacySeen, legacyNewest }) {
   const by = f => players.reduce((m, p) => ((m[f(p)] = (m[f(p)] || 0) + 1), m), {});
-  const bucket = by(p => Math.floor(p.rating / 5) * 5);
-  console.log(`source players seen: ${totalSeen}, newest game version: FIFA ${newest}`);
+  console.log(`sources: FC 26 men ${fc26Count || 0}, FIFA 15-${legacyNewest || '-'} players ${legacySeen}`);
   console.log(`kept: ${players.length}`);
   console.log('era      :', JSON.stringify(by(p => p.era)));
   console.log('position :', JSON.stringify(by(p => p.position)));
-  console.log('rating   :', JSON.stringify(bucket));
-  const leagues = Object.entries(by(p => p.league || '(none)')).sort((a, b) => b[1] - a[1]).slice(0, 12);
-  console.log('top leagues:', leagues.map(([k, v]) => `${k} ${v}`).join(' | '));
-  console.log('sample   :', players.slice(0, 3).map(p => `${p.name} ${p.rating} ${p.era}`).join(' | '));
+  console.log('rating   :', JSON.stringify(by(p => Math.floor(p.rating / 5) * 5)));
+  const top = o => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => `${k} ${v}`).join(' | ');
+  console.log('top leagues:', top(by(p => p.league || '(none)')));
+  console.log('blank league:', players.filter(p => !p.league).length, ' blank club:', players.filter(p => !p.club).length);
+  console.log('sample   :', players.slice(0, 4).map(p => `${p.name} ${p.rating} ${p.era} ${p.club}`).join(' | '));
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const args = process.argv.slice(2);
-  const input = args.find(a => !a.startsWith('--') && !args[args.indexOf(a) - 1]?.startsWith('--'));
   const opt = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
-  if (!input) { console.error('usage: node scripts/import-ea.mjs <csv> [--min-rating n] [--out file] [--stats]'); process.exit(1); }
-  const minRating = Number(opt('--min-rating') || 65);
-  const result = await buildPool(input, { minRating });
+  const valueFlags = new Set(['--fc26', '--legacy', '--min-rating', '--out']);
+  const positional = args.filter((a, i) => !a.startsWith('--') && !valueFlags.has(args[i - 1]));
+  const fc26Path = opt('--fc26');
+  const legacyPath = opt('--legacy') || positional[0];
+  if (!fc26Path && !legacyPath) {
+    console.error('usage: node scripts/import-ea.mjs --fc26 <EAFC26.csv> [--legacy <legacy.csv>] [--min-rating n] [--out file] [--stats]');
+    process.exit(1);
+  }
+  const minRating = Number(opt('--min-rating') || 70);
+  const result = await buildPool({ fc26Path, legacyPath, minRating });
   profile(result);
   if (!args.includes('--stats')) {
     const out = resolve(root, opt('--out') || 'public/pools/ea_database.json');
+    const hasFc26 = !!fc26Path;
     const file = {
       schemaVersion: 1,
       pool: {
@@ -219,7 +289,9 @@ if (isMain) {
         shortName: 'Pro DB',
         icon: '🗄️',
         tagline: 'Thousands of pros, from superstars to squad fillers.',
-        description: `A deep ratings database built from the FIFA 15-23 player data (2014 to the 2022-23 season): players still active then, plus retired players at their best rating in the data. Rated ${minRating} and up, so later phases have a long tail of cheaper players.`,
+        description: hasFc26
+          ? `A deep ratings database: the EA SPORTS FC 26 men's player ratings for today's pros, plus players from FIFA 15-23 who have since left the game at their best rating in that data. Rated ${minRating} and up, so later phases have a long tail of cheaper players.`
+          : `A deep ratings database built from the FIFA 15-23 player data (2014 to the 2022-23 season). Rated ${minRating} and up, so later phases have a long tail of cheaper players.`,
         category: 'core',
         order: 12,
         theme: { accent: '#D4FF3F', accentInk: '#0B2A1B', badge: 'PRO DATABASE' },
@@ -231,7 +303,12 @@ if (isMain) {
           minParticipants: 2,
           maxParticipants: 10,
         },
-        credit: { author: 'sofifa.com via the FIFA 15-23 player dataset (EA ratings)', url: 'https://sofifa.com/' },
+        credit: {
+          author: hasFc26
+            ? 'EA SPORTS FC 26 ratings (ea.com/games/ea-sports-fc/ratings) and sofifa.com via the FIFA 15-23 player dataset'
+            : 'sofifa.com via the FIFA 15-23 player dataset (EA ratings)',
+          url: 'https://www.ea.com/games/ea-sports-fc/ratings',
+        },
       },
       players: result.players,
     };

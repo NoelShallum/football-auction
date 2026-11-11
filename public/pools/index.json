@@ -66,7 +66,7 @@
       "shortName": "Pro DB",
       "icon": "🗄️",
       "tagline": "Thousands of pros, from superstars to squad fillers.",
-      "description": "A deep ratings database built from the FIFA 15-23 player data, rated 70 and up. Far more players per position, so the later phases have a long tail of cheaper options.",
+      "description": "EA SPORTS FC 26 ratings for today's pros, plus players from FIFA 15-23 who have since left the game, rated 70 and up. Far more players per position, so the later phases have a long tail of cheaper options.",
       "category": "core",
       "order": 12,
       "available": true,
