@@ -22,6 +22,51 @@ const DEFAULT_GAME_MODE_ID = MODE_CLASSIC.id;
 
 let GAME_MODE_ID = DEFAULT_GAME_MODE_ID;
 
+/* ================= DRAW ORDER =================
+
+   HOW the next player on the stage is chosen is a setting of its own, not a
+   property of the mode:
+
+     'phase'  - the ladder. Each pass through the formation offers a weaker
+                slice of the pool than the last: stars first, bargains last.
+     'random' - any eligible player in any round, weighted toward higher
+                ratings (see randomBias) so a draft is not all squad fillers.
+
+   Classic used to be hard-wired to the ladder and 6v6 to random. Those are
+   now just each mode's DEFAULT (its `selection` field), so a saved game with
+   no explicit choice behaves exactly as before. null = "use the mode's own".
+   Online, the host's choice travels in the room settings (see
+   mpAdoptRoomSettings) and the host is the only client that ever draws. */
+const DRAW_ORDERS = ['phase', 'random'];
+let DRAW_ORDER = null;
+
+function modeDefaultDrawOrder(mode){
+  return ((mode || activeMode()).selection === 'random') ? 'random' : 'phase';
+}
+
+function effectiveDrawOrder(){
+  return DRAW_ORDERS.includes(DRAW_ORDER) ? DRAW_ORDER : modeDefaultDrawOrder();
+}
+
+// Anything unrecognised (a stale save, a hostile room payload) means "mode default".
+function setDrawOrder(order){
+  DRAW_ORDER = DRAW_ORDERS.includes(order) ? order : null;
+  return effectiveDrawOrder();
+}
+
+/* The odds curve used whenever the draw is random: weight = normalised
+   rating ^ exponent + floor. Modes may override (6v6 does, with these same
+   numbers); everything else gets this, so choosing Random in Classic feels
+   like 6v6's random rather than a coin flip over a bottom-heavy pool. */
+const DEFAULT_RANDOM_BIAS = { exponent: 2.2, floor: 0.12 };
+function randomBias(){
+  const mode = activeMode();
+  return {
+    exponent: mode.randomBiasExponent != null ? mode.randomBiasExponent : DEFAULT_RANDOM_BIAS.exponent,
+    floor: mode.randomBiasFloor != null ? mode.randomBiasFloor : DEFAULT_RANDOM_BIAS.floor,
+  };
+}
+
 // Mode-derived globals. Declared here (rather than in config.js/setup.js
 // where they used to live) so that applyGameMode below is the only thing
 // that ever writes them - otherwise a mode switch has to be repeated in

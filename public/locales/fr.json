@@ -30,7 +30,8 @@
     "about": "À propos",
     "privacy": "Confidentialité",
     "terms": "Conditions d'utilisation",
-    "contact": "Contact"
+    "contact": "Contact",
+    "onlineUnavailable": "Les salons en ligne nécessitent le serveur de jeu, inaccessible ici. L'écran partagé et le jeu contre l'IA fonctionnent normalement."
   },
   "tutorial": {
     "howToPlay": "Comment jouer",
@@ -77,7 +78,10 @@
     "rerolls": "Relances",
     "customTimer": "Entrez les minutes (max 60)",
     "customTimerError": "Doit être compris entre 1 et 60 minutes",
-    "customTimerInvalid": "Merci d'indiquer une durée de minuteur valide (1 à 60 minutes)"
+    "customTimerInvalid": "Merci d'indiquer une durée de minuteur valide (1 à 60 minutes)",
+    "drawOrder": "Ordre de tirage",
+    "ifNobodyBids": "Si personne n'enchérit",
+    "whoCanAppear": "Joueurs possibles"
   },
   "setup": {
     "participants": "Nombre de participants",
@@ -153,9 +157,7 @@
     "soldBang": "ADJUGÉ !",
     "sold": "ADJUGÉ",
     "autoAssigned": "ATTRIBUÉ D'OFFICE",
-    "randomAssignment": "ATTRIBUTION ALÉATOIRE",
     "soldDetail": "{player} → {winner} pour {price}",
-    "soldDetailNoBids": "{player} → {winner} pour {price} (aucune enchère)",
     "placeBid": "ENCHÉRIR",
     "alreadyHasPosition": "Poste déjà occupé",
     "leading": "🔨 En tête",
@@ -182,7 +184,16 @@
     "dbLoadingAlert": "La base de joueurs est encore en cours de chargement. Merci de patienter un instant et de réessayer.",
     "bidToRejoin": "↩ Miser pour revenir",
     "showSquad": "Voir l’effectif",
-    "hideSquad": "Masquer l’effectif"
+    "hideSquad": "Masquer l’effectif",
+    "unsold": "INVENDU",
+    "leftoverPick": "CHOIX RESTANT",
+    "soldDetailUnsold": "{player} sans enchère - au fond de la pile",
+    "soldDetailLeftover": "{player} → {winner} pour {price} (choix restant)",
+    "progressExtra": "Tour supplémentaire {lap} · Tour {round}/{rounds}",
+    "unsoldPile": "Invendus · {count}",
+    "backOfPack": "Au fond de la pile",
+    "returnsNextLap": "Revient au prochain tour",
+    "returnedFromPack": "Deuxième chance · mise à prix {price}"
   },
   "ticker": {
     "bargain": "bonne affaire !",
@@ -195,23 +206,18 @@
       "ADJUGÉ : <b>{name}</b> ({pos}) rejoint <b>{winner}</b> — {price}",
       "<b>{winner}</b> boucle la signature de <b>{name}</b> ({pos}) pour {price}"
     ],
-    "noInterest": [
-      "Aucun intérêt - on relance le joueur...",
-      "Personne ne mord - on change de visage...",
-      "Le marché est froid sur ce coup - on relance..."
-    ],
     "rerolled": [
       "Relancé vers un joueur de niveau similaire : <b>{name}</b>",
       "Nouveau visage sur la scène : <b>{name}</b>",
       "Remplacé par : <b>{name}</b>"
     ],
-    "noBidsReroll": [
-      "Aucune enchère pour <b>{name}</b> - relance avec un joueur similaire...",
-      "<b>{name}</b> n'a trouvé preneur - on relance..."
+    "unsoldPack": [
+      "Aucune enchère pour <b>{name}</b> - au fond de la pile, il sera reproposé.",
+      "<b>{name}</b> n'a trouvé preneur - renvoyé au fond de la pile."
     ],
-    "noBidsRandom": [
-      "Aucune enchère pour <b>{name}</b> - attribution aléatoire...",
-      "<b>{name}</b> n'a trouvé preneur - attribution au hasard..."
+    "unsoldReturns": [
+      "<b>{name}</b> revient de la pile, mise à prix {price}.",
+      "Deuxième chance pour <b>{name}</b> - mise à prix {price}."
     ]
   },
   "sim": {
@@ -465,7 +471,8 @@
     "loading": "Chargement…",
     "hasNoPlayers": "« {pool} » ne contient encore aucun joueur.",
     "tooThin": "« {pool} » est trop restreint pour {n} participants avec cette formation - insuffisant à {detail}.",
-    "pickDifferent": "Choisissez un autre vivier, ou ajoutez-y des joueurs."
+    "pickDifferent": "Choisissez un autre vivier, ou ajoutez-y des joueurs.",
+    "loosenFilters": "Essayez d'assouplir les filtres."
   },
   "mp": {
     "invalidCode": "Veuillez entrer un code de salon valide à 6 caractères",
@@ -553,5 +560,51 @@
         "Simulé comme un match de futsal à gros score, pas comme du football"
       ]
     }
+  },
+  "draw": {
+    "phase": "Par phases",
+    "phaseDesc": "Les stars d'abord, les bonnes affaires ensuite. Chaque passage propose une tranche plus faible.",
+    "random": "Tirage aléatoire",
+    "randomDesc": "N'importe quel joueur à chaque tour, les meilleurs étant un peu plus probables."
+  },
+  "rule": {
+    "packName": "Au fond de la pile",
+    "packDesc": "Les invendus reviennent au tour suivant à prix réduit. Sans enchère deux fois, celui qui a le plus besoin de joueurs les prend : toutes les équipes se remplissent."
+  },
+  "filter": {
+    "era": "Époque",
+    "eraAll": "Passé et présent",
+    "eraPresent": "Aujourd'hui",
+    "eraLegends": "Légendes seulement",
+    "quality": "Niveau",
+    "qualityAuto": "Auto",
+    "qualityMin": "{n}+",
+    "league": "Championnat",
+    "leagueAny": "Tous les championnats",
+    "nation": "Nation",
+    "nationAny": "Toutes les nations",
+    "inPlay": "{n} joueurs en jeu"
+  },
+  "sheet": {
+    "title": "Feuille de match",
+    "mode": "Mode",
+    "formation": "Formation",
+    "pool": "Base de joueurs",
+    "inPlay": "Joueurs en jeu",
+    "draw": "Ordre de tirage",
+    "unsold": "Sans enchère",
+    "managers": "Managers",
+    "budget": "Budget",
+    "timer": "Chrono",
+    "rerolls": "Relances",
+    "unlimited": "Illimité",
+    "custom": "Personnalisé",
+    "minutes": "{n} min",
+    "seconds": "{n} s",
+    "off": "Désactivées",
+    "limited": "Limitées · {n}",
+    "eachBudget": "{budget} chacun",
+    "managersAI": "Vous + {n} IA",
+    "managersCount": "{n}"
   }
 }

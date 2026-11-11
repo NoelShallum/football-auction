@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
+import { gzipSync } from 'node:zlib';
 import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -8,6 +9,8 @@ import { RoomStore, RoomError } from './room-store.mjs';
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const VERSION = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf8')).version;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
+const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.json', '.svg', '.txt']);
+const gzipCache = new Map();
 const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'";
 
 /** Exported for integration tests; tests use an ephemeral loopback port. */
@@ -32,8 +35,19 @@ export async function createApplication({ assetDirectory = resolve(ROOT, 'public
     try {
       const info = await stat(path);
       if (!info.isFile()) throw Object.assign(new Error('Not a file'), { code: 'ENOENT' });
-      const content = request.method === 'HEAD' ? null : await readFile(path);
-      response.writeHead(200, { 'Content-Type': TYPES[extname(path)] || 'application/octet-stream', 'Content-Length': info.size, 'Cache-Control': 'no-cache' });
+      const headers = { 'Content-Type': TYPES[extname(path)] || 'application/octet-stream', 'Content-Length': info.size, 'Cache-Control': 'no-cache' };
+      let content = request.method === 'HEAD' ? null : await readFile(path);
+      // The 10,000-player pool is 2.3 MB of JSON; gzip makes it ~340 KB. Compressed
+      // copies are memoised per file revision so each is built once.
+      if (COMPRESSIBLE.has(extname(path)) && info.size > 1024 && /\bgzip\b/.test(request.headers['accept-encoding'] || '')) {
+        headers['Content-Encoding'] = 'gzip'; headers.Vary = 'Accept-Encoding';
+        const key = `${path}:${info.mtimeMs}:${info.size}`;
+        let packed = gzipCache.get(key);
+        if (!packed) { packed = gzipSync(content ?? await readFile(path)); gzipCache.set(key, packed); }
+        headers['Content-Length'] = packed.length;
+        content = request.method === 'HEAD' ? null : packed;
+      }
+      response.writeHead(200, headers);
       response.end(content);
     } catch (error) { response.writeHead(error.code === 'ENOENT' ? 404 : 500); response.end('Not found'); }
   });

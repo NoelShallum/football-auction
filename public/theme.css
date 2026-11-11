@@ -1,0 +1,286 @@
+/* ================= THEME: STADIUM BROADCAST =================
+
+   The look of the game: a floodlit, mown pitch behind TV-style graphics - a
+   scorebug up top, the player as a big name over outlined lettering, a
+   paper-white bid card, a ticker. Loaded AFTER styles.css, which still holds
+   every structural rule (and the whole mobile section); this file re-colours
+   it through the design tokens and restyles the pieces that define the look.
+   Nothing here changes behaviour or element ids.
+
+   Fonts are the bundled Oswald (headlines, numerals) and Inter (text) - the
+   game stays fully offline, so no web fonts are fetched. */
+
+:root{
+  --bg:#07170F;
+  --bg-alt:#0A2114;
+  --card:#0D2A1A;
+  --line:rgba(245,247,242,0.16);
+  --white:#F5F7F2;
+  --stone:#B4CCBF;
+  --amber:#D4FF3F;        /* the accent. Named for the old amber; now lime. */
+  --green:#3ECF6B;
+  --red:#FF6B6B;
+  --blue:#6CB4FF;
+  --lime:#D4FF3F;
+  --ink:#0B2A1B;
+  --paper:#F5F7F2;
+  --paper-line:#CFD9D2;
+  --paper-mute:#486656;
+  --paper-good:#1F8F4A;
+  --pool-accent:#D4FF3F;
+  --pool-ink:#0B2A1B;
+  /* The stage timer lives on the paper bid card (see updateTimerUI). */
+  --timer-stroke:#1F8F4A;
+  --timer-ink:#0B2A1B;
+  --timer-warn:#C62828;
+}
+
+[hidden]{display:none !important;}
+
+/* ---------- The pitch behind everything ---------- */
+body{
+  background:
+    radial-gradient(ellipse 85% 70% at 50% 28%, transparent 22%, rgba(2,10,6,0.82) 100%),
+    repeating-linear-gradient(90deg, #0E3623 0 90px, #10402A 90px 180px);
+  background-color:var(--bg);
+}
+
+/* Wordmark as a scorebug: white block, lime block. */
+.brand{margin-bottom:10px;}
+.brand h1{
+  display:inline-flex; align-items:stretch; overflow:hidden; border-radius:10px;
+  background:var(--paper); color:var(--ink); padding:0 0 0 18px;
+  font-family:'Oswald',sans-serif; font-weight:700; font-size:24px; letter-spacing:.1em;
+  text-transform:uppercase; line-height:1; box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+.brand h1 span{background:var(--lime); color:var(--ink); margin-left:12px; padding:9px 16px; display:inline-flex; align-items:center;}
+.brand{display:flex; justify-content:center;}
+.tagline{color:var(--stone);}
+
+/* ---------- Shared controls ---------- */
+.setup-card, .squad-card{border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,.35);}
+.field-label{color:var(--stone); font-weight:600;}
+.chip-btn{background:var(--bg-alt); border-color:var(--line); border-radius:10px; min-height:44px;}
+.chip-btn:hover{border-color:var(--lime);}
+.chip-btn.active{background:var(--lime); color:var(--ink); border-color:var(--lime);}
+.start-btn{
+  background:var(--lime); color:var(--ink); border-radius:14px; padding:18px;
+  font-size:18px; letter-spacing:.14em; box-shadow:none;
+}
+.start-btn:hover{filter:none; background:#E4FF7A;}
+.toggle-switch.on{background:var(--lime); border-color:var(--lime);}
+.player-rating, .bid-btn{color:var(--ink);}
+.pos-badge{background:var(--lime); color:var(--ink); font-weight:600;}
+.pos-badge.forced{background:rgba(255,107,107,.18); color:var(--red);}
+body[data-game-mode="classic"]{--mode-accent:#D4FF3F;}
+body[data-game-mode="sixv6"] .pos-badge:not(.forced){background:rgba(108,180,255,.2); color:var(--blue);}
+.mode-card.active{box-shadow:inset 4px 0 0 var(--mode-accent);}
+.home-how .n{color:var(--ink); background:var(--lime);}
+.mc-chip{color:var(--ink) !important; background:var(--mode-accent) !important;}
+.sound-toggle-btn{background:var(--paper); color:var(--ink); border-color:var(--paper);}
+.sound-toggle-btn:hover{color:var(--ink); border-color:var(--lime); background:var(--lime);}
+.sound-toggle-btn.muted{color:var(--paper-mute); opacity:1;}
+:focus-visible{outline:3px solid var(--lime); outline-offset:2px;}
+
+/* When there is no room server the online button is hidden (see probeOnlinePlay);
+   the next choice then takes the primary look. !important beats its inline style. */
+.start-btn.as-primary{background:var(--lime) !important; color:var(--ink) !important; border-color:var(--lime) !important;}
+.online-note{text-align:center; color:var(--stone); font-size:12.5px; line-height:1.6; margin-top:18px;}
+
+/* Side gutter and edge-fixed controls clear a phone's system bars when the page
+   runs edge to edge (a Claude artifact on a phone); they are 0 everywhere else. */
+body{
+  padding-block:28px 60px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.sound-toggle-btn{top:calc(16px + env(safe-area-inset-top, 0px)); right:calc(16px + env(safe-area-inset-right, 0px));}
+.mp-toast{top:calc(70px + env(safe-area-inset-top, 0px));}
+.chat-toggle-btn{bottom:calc(16px + env(safe-area-inset-bottom, 0px)); right:calc(16px + env(safe-area-inset-right, 0px));}
+
+/* ================= SETUP: panels + match sheet ================= */
+#setupScreen{max-width:1180px; margin:0 auto;}
+.setup-layout{display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:20px; align-items:start;}
+.setup-main{display:flex; flex-direction:column; gap:14px; min-width:0;}
+.setup-main .back-link{align-self:flex-start; margin-bottom:0;}
+.setup-main .panel{
+  background:var(--card); border:1px solid var(--line); border-radius:18px;
+  padding:22px; box-shadow:0 18px 40px rgba(0,0,0,.28);
+}
+.setup-main .panel .chip-row:last-child, .setup-main .panel .toggle-row:last-child{margin-bottom:0;}
+.setup-main .pool-select{margin-bottom:0;}
+.setup-main .mode-picker{margin-bottom:22px;}
+.setup-main .names-grid{margin-bottom:0;}
+.name-input{min-height:46px;}   /* AI opponents have no input to give the row its height */
+.setup-main .formation-slots{margin-bottom:0;}
+.setup-main .budget-note{margin-bottom:22px;}
+
+.setup-sheet{
+  position:sticky; top:20px; background:var(--paper); color:var(--ink);
+  border-radius:18px; padding:24px; box-shadow:0 30px 60px rgba(0,0,0,.5);
+}
+.sheet-title{font-family:'Oswald',sans-serif; font-weight:700; font-size:28px; letter-spacing:.08em; text-transform:uppercase; line-height:1;}
+.sheet-rows{margin:8px 0 20px;}
+.sheet-row{display:flex; justify-content:space-between; align-items:baseline; gap:14px; padding:11px 0; border-bottom:1px dashed #B7C7BD; font-size:14px;}
+.sheet-row dt{color:var(--paper-mute);}
+.sheet-row dd{font-weight:700; text-align:right; color:var(--ink); overflow-wrap:anywhere;}
+.sheet-row dd.hot{color:var(--paper-good);}
+.setup-sheet .start-btn{background:var(--ink); color:var(--lime); box-shadow:none;}
+.setup-sheet .start-btn:hover{background:#12402A;}
+.setup-sheet .formation-note{color:var(--paper-mute);}
+
+/* ---- Draw order, back of the pack, filters ---- */
+.rule-cards{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px;}
+.rule-card{
+  display:flex; flex-direction:column; gap:6px; text-align:left; padding:14px 16px; min-height:44px;
+  border-radius:14px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white);
+  cursor:pointer; font-family:'Inter',sans-serif; transition:.15s;
+}
+.rule-card:hover{border-color:var(--lime);}
+.rule-card svg{width:64px; height:40px; color:var(--stone);}
+.rule-name{font-family:'Oswald',sans-serif; font-weight:700; font-size:19px; letter-spacing:.06em; text-transform:uppercase;}
+.rule-desc{font-size:12.5px; line-height:1.45; color:var(--stone);}
+.rule-card.active{background:var(--paper); color:var(--ink); border-color:var(--lime); box-shadow:0 0 0 3px var(--lime);}
+.rule-card.active svg{color:var(--ink);}
+.rule-card.active .rule-desc{color:var(--paper-mute);}
+.rule-note{
+  display:flex; gap:12px; align-items:flex-start; padding:14px 16px; margin-bottom:24px;
+  border-radius:14px; border:1px dashed rgba(212,255,63,.55); background:rgba(212,255,63,.07);
+  font-size:13px; line-height:1.5; color:var(--white);
+}
+.rule-note svg{flex:none; color:var(--lime); margin-top:1px;}
+.filter-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px 18px; margin-bottom:12px;}
+.filter-group{grid-column:1 / -1;}
+.filter-group .chip-row{margin-bottom:0;}
+.filter-label, .filter-select span{display:block; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--stone); margin-bottom:8px;}
+.filter-select select{
+  width:100%; height:46px; border-radius:10px; border:1px solid var(--line); background:var(--bg-alt);
+  color:var(--white); padding:0 12px; font:500 14px 'Inter',sans-serif;
+}
+.filter-count{font-family:'Space Mono',monospace; font-size:12px; color:var(--lime);}
+.pool-warning{border-radius:12px;}
+#waitingDraftRules{margin-bottom:24px;}
+
+/* ================= AUCTION ================= */
+/* The scorebug */
+.status-bar{
+  background:var(--paper); color:var(--ink); border-radius:12px; padding:0; margin:0 0 14px;
+  align-items:stretch; flex-wrap:nowrap; gap:0; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+.status-bar > div:first-child{padding:11px 18px; display:flex; flex-direction:column; justify-content:center; min-width:0;}
+.status-bar .pos-tag{color:var(--ink); font-weight:700; font-size:17px; letter-spacing:.12em;}
+.status-bar .phase-tag{color:var(--paper-mute); margin-top:2px;}
+.status-bar .mode-badge{background:var(--lime); color:var(--ink); border:0;}
+.status-right{display:flex; align-items:stretch; margin-left:auto;}
+.status-right > *{display:flex; align-items:center; padding:0 18px; font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:.14em; text-transform:uppercase; font-weight:700;}
+.draw-chip{color:var(--ink); border-left:1px solid var(--paper-line);}
+.unsold-pile{background:#12402A; color:var(--lime);}
+.status-bar .progress{background:#0B1F17; color:var(--lime); font-size:15px; letter-spacing:.08em;}
+.auction-nav{top:18px;}
+body[data-screen="auctionScreen"] .brand{margin-bottom:16px;}
+.back-home-btn, .restart-auction-btn{background:rgba(5,20,13,.75); color:var(--white); border-radius:22px;}
+
+/* Stage: the player on the left, the bid card on the right */
+.stage{
+  display:grid; grid-template-columns:minmax(0,1fr) 370px; padding:0; text-align:left;
+  background:rgba(5,20,13,.72); border:1px solid var(--line); border-radius:18px; overflow:hidden;
+  box-shadow:0 24px 60px rgba(0,0,0,.4);
+}
+.stage::before{display:none;}
+.stage-player{position:relative; padding:34px 40px 30px; min-height:380px; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden; min-width:0;}
+.stage-player::before{
+  content:attr(data-code); position:absolute; left:18px; top:-26px; z-index:0; pointer-events:none;
+  font-family:'Oswald',sans-serif; font-weight:700; font-size:clamp(150px,22vw,290px); line-height:.85; letter-spacing:-.02em;
+  color:transparent; -webkit-text-stroke:2px rgba(212,255,63,.38);
+}
+.stage-player > *{position:relative; z-index:1;}
+.stage-player .pos-badge{align-self:flex-start; margin-bottom:14px;}
+.stage-player .flash-badge, .stage-player .blind-badge{align-self:flex-start;}
+.player-name{
+  font-size:clamp(42px,6.2vw,92px); line-height:.92; text-transform:uppercase; letter-spacing:.005em;
+  text-shadow:0 6px 30px rgba(0,0,0,.55); margin-bottom:12px; overflow-wrap:anywhere;
+}
+.player-nat{justify-content:flex-start; text-align:left; font-size:15px; color:var(--white); margin-bottom:8px;}
+.player-sub{color:var(--lime); font-weight:600; margin-bottom:0;}
+.player-name .player-rating{display:block; width:fit-content; margin:14px 0 0; font-size:22px; line-height:1; padding:6px 12px; background:var(--lime); border-radius:6px; text-shadow:none;}
+
+.stage-bid{
+  background:var(--paper); color:var(--ink); padding:26px 24px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.timer-ring{margin-bottom:12px;}
+.timer-track{stroke:#D7E1DB;}
+.timer-fill{stroke:var(--paper-good);}
+.timer-num{color:var(--ink); font-family:'Oswald',sans-serif; font-size:26px;}
+.bid-display{margin-bottom:16px; text-align:center;}
+.bid-display .label{color:var(--paper-mute); font-weight:700;}
+.bid-display .amount{font-family:'Oswald',sans-serif; font-size:76px; line-height:.95; color:var(--ink);}
+.bid-display .leader{color:#0B5A2C !important; font-weight:700;}
+.bid-display .leader.none{color:var(--paper-mute) !important; font-weight:500;}
+.stage-bid .ctrl-btn{background:#E9EFEB; color:var(--ink); border:1px solid #C3D2C9; border-radius:10px; min-height:44px;}
+.stage-bid .ctrl-btn:hover:not(:disabled){border-color:var(--ink); color:var(--ink); background:#fff;}
+.stage-bid .ctrl-btn.going{border-color:#B3261E; color:#B3261E; background:#fff;}
+.stage-bid .ctrl-btn.going:hover:not(:disabled){background:#FDEDEC;}
+.stage-bid .rerolls-indicator{color:var(--paper-mute);}
+.stage-bid .rerolls-indicator .count{color:var(--ink);}
+.stage-bid .mp-vote-count{background:#E9EFEB; color:var(--paper-mute); border-color:#C3D2C9;}
+.sold-flash, .countdown-banner{border-radius:0;}
+.sold-flash .word{font-size:clamp(34px,6vw,64px); letter-spacing:.1em;}
+.sold-flash .word.unsold{color:var(--lime);}
+.sold-flash .detail{color:var(--white); font-size:16px;}
+
+/* Managers */
+.bidder-card{background:rgba(5,20,13,.82); border-radius:14px; border:1px solid var(--line);}
+.bidder-card.leading{border-color:var(--lime); box-shadow:0 0 0 1px var(--lime) inset, 0 0 30px rgba(212,255,63,.12);}
+.bidder-name{font-family:'Oswald',sans-serif; font-size:19px; letter-spacing:.06em; text-transform:uppercase; font-weight:700;}
+.bidder-budget{font-family:'Oswald',sans-serif; font-size:20px; font-weight:700; color:var(--lime);}
+.slot-dot.filled{background:var(--lime);}
+.bid-btn{background:var(--lime); color:var(--ink); border-radius:10px; min-height:44px; font-size:15px; letter-spacing:.1em;}
+.bid-adjust, .bid-input{height:44px; border-radius:10px;}
+.bid-adjust{width:44px;}
+
+/* The ticker */
+.ticker{background:rgba(5,20,13,.82); border-left:4px solid var(--lime); border-radius:10px;}
+.live-squads-panel, .live-formation{border-radius:14px;}
+
+/* ================= RESULTS ================= */
+.results-title{font-size:34px; letter-spacing:.1em; text-transform:uppercase;}
+.squad-head h3{font-size:22px; letter-spacing:.08em; text-transform:uppercase;}
+.squad-avg{color:var(--lime); font-family:'Oswald',sans-serif; font-size:22px; letter-spacing:.06em;}
+
+.formation-pitch{
+  border:1px solid rgba(245,247,242,.35); border-radius:14px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 125' preserveAspectRatio='none' fill='none' stroke='%23F5F7F2' stroke-opacity='.55' stroke-width='.45'%3E%3Crect x='30' y='0' width='40' height='18'/%3E%3Crect x='40' y='0' width='20' height='7'/%3E%3Crect x='30' y='107' width='40' height='18'/%3E%3Crect x='40' y='118' width='20' height='7'/%3E%3Cpath d='M0 62.5h100'/%3E%3C/svg%3E") center/100% 100% no-repeat,
+    repeating-linear-gradient(0deg, #146B3F 0 12.5%, #11603A 12.5% 25%);
+}
+.formation-pitch::before{width:92px; height:92px; border:1.5px solid rgba(245,247,242,.55);}
+.formation-pitch::after{display:none;}
+.pitch-player{
+  background:var(--paper); color:var(--ink); border:0; border-radius:8px; backdrop-filter:none;
+  box-shadow:0 6px 14px rgba(0,0,0,.4);
+}
+.pitch-player .pos{color:var(--lime); background:var(--ink); border-radius:4px; padding:1px 5px; align-self:center; font-weight:700;}
+.pitch-player .name{color:var(--ink); font-weight:700;}
+.pitch-player .nat, .pitch-player .stats{color:var(--paper-mute);}
+.pitch-player .rating{color:var(--paper-good);}
+
+/* ================= SMALL SCREENS ================= */
+@media (max-width: 900px){
+  .setup-layout{grid-template-columns:1fr;}
+  .setup-sheet{position:static;}
+  .stage{grid-template-columns:1fr;}
+  .stage-player{min-height:260px; padding:26px 22px 22px;}
+  .stage-bid{padding:22px 18px;}
+  .bid-display .amount{font-size:64px;}
+}
+@media (max-width: 640px){
+  .rule-cards, .filter-grid{grid-template-columns:1fr;}
+  .status-bar{flex-wrap:wrap;}
+  .status-right{width:100%; margin-left:0; border-top:1px solid var(--paper-line); justify-content:space-between;}
+  .status-right > *{padding:8px 12px; flex:1; justify-content:center;}
+  .status-bar > div:first-child{padding:10px 14px;}
+  .setup-main .panel{padding:18px;}
+  .player-name{font-size:clamp(34px,11vw,52px);}
+  .auction-nav{position:static; justify-content:flex-end; margin:0 0 8px;}
+}
+@media (prefers-reduced-motion: reduce){ .flash-badge{animation:none;} }

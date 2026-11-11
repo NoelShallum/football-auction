@@ -9,14 +9,14 @@ The frontend is a single document with screens toggled by JavaScript. There is n
 1. **Loading:** player manifest/default pool load before the home screen is usable; failed loading offers retry.
 2. **First visit:** language choice followed by illustrated onboarding; the home toolbar can reopen the tutorial. In-context control and sealed-bid explanations appear on first relevant use.
 3. **Home:** Play with Friends, Shared Screen, Against AI, language picker, help, install controls, sound toggle, informational pages.
-4. **Shared/AI setup:** player pool picker, participant count, game mode cards, formation, participant names, per-manager budget, timer choices, ratings toggle, reroll setting. AI mode identifies the human and manager archetypes and hides rerolls.
+4. **Shared/AI setup:** player pool picker, participant count, game mode cards, formation, **draw order, the back-of-the-pack rule and draft filters**, participant names, per-manager budget, timer choices, ratings toggle, reroll setting, and a live **match sheet** summarising the draft. AI mode identifies the human and manager archetypes and hides rerolls.
 5. **Online lobby:** create a room with a name or join using a six-character code and name. Name defaults are supplied for blank input.
 6. **Waiting room:** code/share controls, participant list and ready state, host configuration, capacity, selected player pool, start/leave controls. Hosts can remove or remove-and-block a participant. A blocked name is a convenience restriction, not an account ban.
 7. **Auction:** current formation slot, player name/nationality/club, optional rating, opening/current bid, leader, countdown, phase/round progress, bidding controls, passes/final-bids, reroll control, ticker, sold flash, pause/resume. Online shows the local bidder controls and a live squad panel, with shared state supplied by the host. Shared-screen shows controls for each participant. AI controls computer managers automatically.
 8. **Results:** squads ranked by average rating (ties favor lower spend), formation pitches, total/remaining spend, squad breakdowns, draft statistics, player detail overlays, simulation format selection, exports, PNG shares, and another-draft/home actions.
 9. **Simulation:** seeded fixtures, animated textual commentary, events, live score/statistics, match detail, ratings, tournament table/bracket, awards and share cards.
 
-The original green/amber styling, spacing, typefaces, SVG artwork, responsive rules, and pitch coordinates are retained in `public/styles.css`, `public/fonts/`, and the mode configuration files. The clone updates the informational/privacy copy to describe its own server accurately.
+The visual design is the **Stadium Broadcast** theme in `public/theme.css`, loaded after `public/styles.css` (which keeps every structural and responsive rule): a mown-pitch background, a white-and-lime scorebug, the player as a large name over outlined position lettering, a paper-white bid card, and broadcast line-up pitches. Fonts, SVG artwork and pitch coordinates are unchanged. The clone updates the informational/privacy copy to describe its own server accurately.
 
 ## Modes and participant limits
 
@@ -52,6 +52,7 @@ The pool manifest is `public/pools/index.json`. Three available entries point to
 | --- | ---: | --- |
 | All-Time Greats | 1,501 | `id`, `name`, `position`, `rating`, `nationality`, `club`, `era`, `years` |
 | Current Players | 840 | `id`, `name`, `nationality`, `club`, `league`, `position`, `secondaryPositions`, `rating`, `marketValue`, `foot`, `age` |
+| Pro Database | 13,122 | `id`, `name`, `nationality`, `club`, `league`, `position`, `secondaryPositions`, `rating`, `era`, `years`, `foot`, plus `age` for current players |
 | World Cup 2026 | 591 | `id`, `name`, `position`, `rating`, `nationality`, `club`, `group`, `team`, `era`, `years` |
 
 IDs are unique within a pool, not across all pools. Every original data field is preserved in these source files. Auction round objects carry the fields the original game uses: identity, primary/base position, bought slot, rating, opening price, phase, nationality and club; a squad entry also carries its sale price. The extra catalogue fields are not additional simulation inputs.
@@ -103,7 +104,31 @@ Reroll settings:
 - Once bidding has a leader, rerolling is unavailable. Sealed rounds cannot be rerolled manually.
 - Classic votes count eligible connected managers; futsal reroll votes count the whole connected room. Final-bid votes count eligible connected managers in both modes.
 - Futsal rerolls prefer a replacement of similar rating, widening the rating band if necessary. Classic continues its progressive ladder.
-- If nobody bids, the engine rerolls while allowed, then randomly assigns an eligible manager, preserving the reserve budget.
+- Nobody bidding no longer spends a reroll or hands the player to a random manager. See **Unsold players** below.
+
+## Draw order
+
+How the next player is chosen is a setting of its own, `phase` or `random`, available in both modes. Each mode's default is its previous behaviour (Classic `phase`, 6v6 `random`), which is also what a saved game or a room created before the setting existed uses.
+
+- **Phase-wise** is the ladder described above: each pass through the formation offers a weaker slice of the pool, stars first.
+- **Random** draws any eligible unused player, weighted by `normalised_rating ** 2.2 + 0.12` (the 6v6 curve, now shared). Flash picks only occur on the ladder, and the last-eligible auto-assignment is another random draw rather than a "weakest band" pick.
+- Online, the host's choice travels in the room settings; only the host draws.
+
+## Draft filters
+
+Narrow who can appear, on top of any pool: **era** (`all`, `present`, `legends`), **league**, **nation**, and a **quality floor** (`auto`, 75, 80, 85). Everything the draft reads goes through one filtered view, so selection, the AI's replacement estimates and the depth check agree. Filters that leave a position too thin block the start with the usual pool-depth message plus a hint to loosen them. Switching pools drops any filter the new pool cannot honour.
+
+A pool may declare `draft.autoMinRating` (`[{upTo: participants, min: rating}]`); *auto* then applies the matching floor. The Pro Database uses 80 up to 4 managers, 76 up to 6 and 72 beyond, so phase 1 is not a random 73-rated player. Pools that declare none are unchanged. "Present" means in the pool's newest data (for the Pro Database, the EA FC 26 ratings, 2025-26); "Legends" are the pool's explicitly retired icons.
+
+## Unsold players
+
+A player who draws no bids goes to the **back of the pack**:
+
+1. He joins the unsold queue and the draft moves on. His slot stays open, so it comes round on the next pass through the formation. Neither the ladder nor that slot's phase counter advances.
+2. When that slot's turn comes round (a later pass, never the same one), he is offered **before** a fresh draw, opening 10% lower (from his original price, snapped to the bid step, never below the floor).
+3. If he draws no bids a second time, someone must take him: the manager still needing the slot with the **most empty squad slots** (ties: the smaller budget, then seat order) at the lowered price, or the floor price if they cannot afford it past their reserve.
+
+No reroll is spent, nobody is picked at random, and every squad fills. The extra passes are counted as "Extra lap N"; the safety cap on passes is `participants x 2 + 5`. Entries whose slot nobody needs any more are dropped. Online the queue travels in `gameState.unsold`.
 
 ## AI managers
 

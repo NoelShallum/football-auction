@@ -141,11 +141,15 @@ document.getElementById('playerInfoOverlay').onclick = (e) => {
 // The service worker itself is required by Chrome before it will ever
 // fire beforeinstallprompt - it does no caching (see sw.js), it's purely
 // there to satisfy that installability check.
-if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  });
-}
+// Guarded as well as caught: in a sandboxed frame (a Claude artifact, say) merely
+// reading navigator.serviceWorker can throw, and that must not stop the load.
+try {
+  if(!window.AUCTION_NO_SERVER && 'serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      try { navigator.serviceWorker.register('sw.js').catch(() => {}); } catch(e){}
+    });
+  }
+} catch(e){}
 
 function isRunningStandalone(){
   return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -287,3 +291,95 @@ document.getElementById('restartAuctionBtn').onclick = () => {
     okLabel: t('dialog.restartOk')
   }, restartAuctionSameSettings);
 };
+
+
+/* The position code (CAM, GK...) is the biggest thing on the stage: the theme
+   draws it as huge outlined lettering behind the player. CSS cannot read an
+   element's text, and the code is written from several places in both
+   engines, so mirror it onto the stage as data-code instead of touching every
+   writer. */
+(function mirrorStageCode(){
+  const badge = document.getElementById('playerPos');
+  const stage = document.getElementById('stagePlayer');
+  if(!badge || !stage || typeof MutationObserver === 'undefined') return;
+  const sync = () => { stage.dataset.code = (badge.textContent || '').trim(); };
+  new MutationObserver(sync).observe(badge, {childList: true, characterData: true, subtree: true});
+  sync();
+})();
+
+
+/* ================= HOSTING-AWARE HELPERS =================
+
+   The game also runs where it has no room server and where the page is not
+   allowed to pop dialogs or start downloads (for example inside a Claude
+   artifact). Each of these degrades to the normal behaviour in a plain browser. */
+
+/* alert() is not shown there at all, so a refusal such as "this pool is too
+   thin" would simply vanish. An in-page notice always shows, and stays up
+   longer the more there is to read. */
+function appNotice(message, tone){
+  const text = String(message == null ? '' : message).replace(/\s*\n+\s*/g, ' ').trim();
+  if(!text) return;
+  if(typeof mpShowToast === 'function') mpShowToast(text, tone || '', Math.min(10000, 3500 + text.length * 45));
+}
+
+/* Saves a generated file. A plain browser gets the usual download; where the
+   host forbids script-started downloads but offers the `downloads` capability,
+   the viewer is asked to confirm the save instead. Resolves 'saved' or
+   'declined'; any other failure falls back to the plain download. */
+function anchorSave(filename, blob){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return 'saved';
+}
+
+function saveFile(filename, blob){
+  const claude = window.claude;
+  if(!claude || typeof claude.use !== 'function') return Promise.resolve(anchorSave(filename, blob));
+  return Promise.resolve(claude.use('downloads'))
+    .then(downloads => downloads ? downloads.save({filename, data: blob}).then(() => 'saved') : anchorSave(filename, blob))
+    .catch(err => (err && err.code === 'declined') ? 'declined' : anchorSave(filename, blob));
+}
+
+/* Online rooms need the game server. On static hosting, or anywhere the server
+   does not answer, the online entry point is hidden rather than left to fail. */
+let ONLINE_PLAY_AVAILABLE = true;
+
+async function probeOnlinePlay(){
+  if(window.AUCTION_NO_SERVER){
+    ONLINE_PLAY_AVAILABLE = false;
+    applyOnlineAvailability();
+    return false;
+  }
+  try {
+    const res = await Promise.race([
+      fetch('api/health', {cache: 'no-store'}),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+    ]);
+    const body = res.ok ? await res.json() : null;
+    ONLINE_PLAY_AVAILABLE = !!(body && body.status === 'ok');
+  } catch(e){
+    ONLINE_PLAY_AVAILABLE = false;
+  }
+  applyOnlineAvailability();
+  return ONLINE_PLAY_AVAILABLE;
+}
+
+function applyOnlineAvailability(){
+  const online = document.getElementById('playOnlineBtn');
+  const note = document.getElementById('onlineUnavailableNote');
+  const shared = document.getElementById('playSharedBtn');
+  // That paragraph describes all three buttons, including the one that is gone.
+  const explain = document.getElementById('modeExplain');
+  if(explain) explain.hidden = !ONLINE_PLAY_AVAILABLE;
+  if(online) online.hidden = !ONLINE_PLAY_AVAILABLE;
+  if(note) note.hidden = ONLINE_PLAY_AVAILABLE;
+  // With the online button gone, the first remaining choice takes the primary look.
+  if(shared) shared.classList.toggle('as-primary', !ONLINE_PLAY_AVAILABLE);
+}

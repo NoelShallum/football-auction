@@ -193,3 +193,20 @@ test('server deadlines close bids and votes before a delayed host settlement run
   assert.equal(store.read('rooms/ABC234/gameState/currentBid').value, 0);
   assert.equal(store.read('rooms/ABC234/gameState/goingVotes/guest').value, null);
 });
+
+test('room settings accept the Pro Database, draw order and filters, and refuse junk for them', () => {
+  const store = new RoomStore({ now: () => Date.now() });
+  const host = randomUUID();
+  const withSettings = extra => ({ ...room(), settings: { ...room().settings, ...extra } });
+  store.set(host, 'rooms/ABC234', withSettings({ poolId: 'ea_database', drawOrder: 'random', filters: { era: 'present', league: 'Premier League', nation: '', minRating: 80 } }));
+  // Rooms from before these fields existed carry neither and stay valid.
+  store.set(host, 'rooms/ABD234', room());
+  for (const bad of [
+    { drawOrder: 'sideways' },
+    { filters: { era: 'nonsense' } },
+    { filters: { minRating: 99 } },
+    { filters: { league: 'x'.repeat(200) } },
+    { filters: 'everything' },
+    { poolId: 'made_up_pool' },
+  ]) assert.throws(() => store.set(host, 'rooms/ABE234', withSettings(bad)), { code: 'INVALID_SETTINGS' }, JSON.stringify(bad));
+});

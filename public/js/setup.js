@@ -21,6 +21,10 @@ function loadSettings(){
       applyGameMode(settings.gameMode || DEFAULT_GAME_MODE_ID, settings.formation);
       SHOW_RATINGS = settings.showRatings || false;
       REROLLS_MODE = settings.rerollsMode || '3';
+      // Absent/unknown = the mode's own default, which is what every save
+      // from before this setting existed was already doing.
+      setDrawOrder(settings.drawOrder);
+      setDraftFilters(settings.filters);
       SOUND_EFFECTS = settings.soundEffects !== undefined ? settings.soundEffects : true;
       // Only a preference at this point - loadPlayerDatabase() checks it
       // against the catalogue and falls back if the pool has since been
@@ -42,6 +46,8 @@ function saveSettings(){
       formation: selectedFormation,
       showRatings: SHOW_RATINGS,
       rerollsMode: REROLLS_MODE,
+      drawOrder: DRAW_ORDER,   // null until the player picks one explicitly
+      filters: DRAFT_FILTERS,
       soundEffects: SOUND_EFFECTS,
       poolId: activePoolId
     };
@@ -49,6 +55,9 @@ function saveSettings(){
   } catch(e){
     console.error('Error saving settings:', e);
   }
+  // Every change to a setting passes through here, so the match sheet that
+  // summarises them can never lag behind what the controls say.
+  if(typeof renderMatchSheet === 'function') renderMatchSheet();
 }
 
 // Sound effects
@@ -402,6 +411,122 @@ function renderNamesGrid(){
   }
 }
 
+/* ================= DRAFT RULES =================
+
+   Draw order, the back-of-the-pack rule and who can appear. One builder
+   serves the offline setup screen and the online waiting room (host only),
+   mounted through POOL_MOUNTS like the pool picker, so a change made in
+   either place goes through the same persist step: saved on this device
+   and, for an online host, published to the room so guests and the host
+   engine agree. */
+const DRAW_ART = {
+  phase: '<svg viewBox="0 0 64 40" aria-hidden="true"><g fill="currentColor"><rect x="2" y="2" width="9" height="36" rx="2"/><rect x="15" y="9" width="9" height="29" rx="2"/><rect x="28" y="16" width="9" height="22" rx="2"/><rect x="41" y="23" width="9" height="15" rx="2"/><rect x="54" y="30" width="8" height="8" rx="2"/></g></svg>',
+  random: '<svg viewBox="0 0 64 40" aria-hidden="true"><g fill="currentColor"><rect x="2" y="16" width="9" height="22" rx="2"/><rect x="15" y="3" width="9" height="35" rx="2"/><rect x="28" y="26" width="9" height="12" rx="2"/><rect x="41" y="10" width="9" height="28" rx="2"/><rect x="54" y="20" width="8" height="18" rx="2"/></g></svg>',
+  pack: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg>',
+};
+
+// Saves on this device and, for an online host, tells the room.
+function persistDraftRules(){
+  saveSettings();
+  if(typeof isHost !== 'undefined' && isHost && currentRoomCode){
+    database.ref().update({
+      [`rooms/${currentRoomCode}/settings/drawOrder`]: effectiveDrawOrder(),
+      [`rooms/${currentRoomCode}/settings/filters`]: DRAFT_FILTERS,
+    });
+  }
+}
+
+function renderDraftRules(mount){
+  const el = mount.rules && document.getElementById(mount.rules);
+  if(!el) return;
+  if(!mount.editable()){ el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  const opts = draftFilterOptions();
+  const order = effectiveDrawOrder();
+  const f = DRAFT_FILTERS;
+  const inPlay = draftablePlayers(mount.count()).length;
+
+  const card = (id, name, desc) =>
+    `<button type="button" class="rule-card${order === id ? ' active' : ''}" data-order="${id}" aria-pressed="${order === id}">` +
+    `${DRAW_ART[id]}<span class="rule-name">${esc(name)}</span><span class="rule-desc">${esc(desc)}</span></button>`;
+  const chip = (attr, value, label, active) =>
+    `<button type="button" class="chip-btn${active ? ' active' : ''}" data-${attr}="${esc(value)}" aria-pressed="${active}">${esc(label)}</button>`;
+  const select = (attr, label, anyLabel, list, current) =>
+    `<label class="filter-select"><span>${esc(label)}</span><select data-${attr}>` +
+    `<option value="">${esc(anyLabel)}</option>` +
+    list.map(o => `<option value="${esc(o.name)}"${o.name === current ? ' selected' : ''}>${esc(o.name)} (${o.count})</option>`).join('') +
+    `</select></label>`;
+
+  const eraChips = [chip('era', 'all', t('filter.eraAll'), f.era === 'all')];
+  if(opts.eraSplit) eraChips.push(chip('era', 'present', t('filter.eraPresent'), f.era === 'present'));
+  if(opts.legends) eraChips.push(chip('era', 'legends', t('filter.eraLegends'), f.era === 'legends'));
+
+  el.innerHTML = `
+    <span class="field-label">${esc(t('field.drawOrder'))}</span>
+    <div class="rule-cards">
+      ${card('phase', t('draw.phase'), t('draw.phaseDesc'))}
+      ${card('random', t('draw.random'), t('draw.randomDesc'))}
+    </div>
+
+    <span class="field-label">${esc(t('field.ifNobodyBids'))}</span>
+    <div class="rule-note">${DRAW_ART.pack}<span><b>${esc(t('rule.packName'))}.</b> ${esc(t('rule.packDesc'))}</span></div>
+
+    <span class="field-label">${esc(t('field.whoCanAppear'))}</span>
+    <div class="filter-grid">
+      ${eraChips.length > 1 ? `<div class="filter-group"><span class="filter-label">${esc(t('filter.era'))}</span><div class="chip-row">${eraChips.join('')}</div></div>` : ''}
+      <div class="filter-group"><span class="filter-label">${esc(t('filter.quality'))}</span><div class="chip-row">${
+        MIN_RATING_CHOICES.map(n => chip('min', n, n ? t('filter.qualityMin', {n}) : t('filter.qualityAuto'), f.minRating === n)).join('')
+      }</div></div>
+      ${opts.leagues.length ? select('league', t('filter.league'), t('filter.leagueAny'), opts.leagues, f.league) : ''}
+      ${opts.nations.length ? select('nation', t('filter.nation'), t('filter.nationAny'), opts.nations, f.nation) : ''}
+    </div>
+    <div class="filter-count">${esc(t('filter.inPlay', {n: inPlay.toLocaleString()}))}</div>`;
+
+  const changed = () => { persistDraftRules(); renderAllPoolPickers(); };
+  el.querySelectorAll('[data-order]').forEach(b => { b.onclick = () => { setDrawOrder(b.dataset.order); changed(); }; });
+  el.querySelectorAll('[data-era]').forEach(b => { b.onclick = () => { setDraftFilters({...DRAFT_FILTERS, era: b.dataset.era}); changed(); }; });
+  el.querySelectorAll('[data-min]').forEach(b => { b.onclick = () => { setDraftFilters({...DRAFT_FILTERS, minRating: Number(b.dataset.min)}); changed(); }; });
+  const league = el.querySelector('[data-league]');
+  if(league) league.onchange = () => { setDraftFilters({...DRAFT_FILTERS, league: league.value}); changed(); };
+  const nation = el.querySelector('[data-nation]');
+  if(nation) nation.onchange = () => { setDraftFilters({...DRAFT_FILTERS, nation: nation.value}); changed(); };
+}
+
+/* The match sheet beside the setup form: everything the draft is about to be,
+   in one place. Cheap enough to rewrite whole on every change. */
+function timerSummary(){
+  if(ROUND_SECONDS === 0) return t('sheet.unlimited');
+  if(ROUND_SECONDS === -1) return t('sheet.custom');
+  if(ROUND_SECONDS >= 60 && ROUND_SECONDS % 60 === 0) return t('sheet.minutes', {n: ROUND_SECONDS / 60});
+  return t('sheet.seconds', {n: ROUND_SECONDS});
+}
+
+function renderMatchSheet(){
+  const el = document.getElementById('matchSheet');
+  if(!el || !activeMode()) return;
+  const mode = activeMode();
+  const rerolls = AI_MODE ? '—'
+    : REROLLS_MODE === 'disabled' ? t('sheet.off')
+    : REROLLS_MODE === 'unlimited' ? t('sheet.unlimited')
+    : t('sheet.limited', {n: rerollPoolSize('3')});
+  const inPlay = playerDatabase.length ? draftablePlayers(participantCount).length : 0;
+  const rows = [
+    [t('sheet.mode'), tData('modes.' + mode.id + '.name', mode.name)],
+    [t('sheet.formation'), selectedFormation],
+    [t('sheet.pool'), poolName(activePoolDisplay())],
+    [t('sheet.inPlay'), inPlay.toLocaleString()],
+    [t('sheet.draw'), t(effectiveDrawOrder() === 'random' ? 'draw.random' : 'draw.phase'), 'hot'],
+    [t('sheet.unsold'), t('rule.packName'), 'hot'],
+    [t('sheet.managers'), AI_MODE ? t('sheet.managersAI', {n: participantCount - 1}) : t('sheet.managersCount', {n: participantCount})],
+    [t('sheet.budget'), t('sheet.eachBudget', {budget: fmt(BUDGET)})],
+    [t('sheet.timer'), timerSummary()],
+    [t('sheet.rerolls'), rerolls],
+  ];
+  el.innerHTML = rows.map(([k, v, cls]) =>
+    `<div class="sheet-row"><dt>${esc(k)}</dt><dd${cls ? ` class="${cls}"` : ''}>${esc(v)}</dd></div>`).join('');
+}
+
 /* ---- Mode entry points from the home screen ---- */
 
 const HUMAN_ID = 'p0';
@@ -461,6 +586,7 @@ function applySetupMode(){
   renderNamesGrid();
   updateFormationNote();
   renderAllPoolPickers();
+  renderMatchSheet();
 }
 renderNamesGrid();
 updateFormationNote();

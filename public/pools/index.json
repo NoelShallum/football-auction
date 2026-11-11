@@ -61,6 +61,23 @@
       }
     },
     {
+      "id": "ea_database",
+      "name": "Pro Database",
+      "shortName": "Pro DB",
+      "icon": "🗄️",
+      "tagline": "Thousands of pros, from superstars to squad fillers.",
+      "description": "EA SPORTS FC 26 ratings for today's pros, plus players from FIFA 15-23 who have since left the game, rated 70 and up. Far more players per position, so the later phases have a long tail of cheaper options.",
+      "category": "core",
+      "order": 12,
+      "available": true,
+      "file": "pools/ea_database.json",
+      "theme": {
+        "accent": "#D4FF3F",
+        "accentInk": "#0B2A1B",
+        "badge": "PRO DATABASE"
+      }
+    },
+    {
       "id": "world_cup_2026",
       "name": "World Cup 2026",
       "shortName": "World Cup",

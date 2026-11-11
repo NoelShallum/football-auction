@@ -67,7 +67,17 @@ function validateSettings(settings) {
   requireThat(Number.isInteger(settings.maxParticipants) && settings.maxParticipants >= 2 && settings.maxParticipants <= 6, 'Rooms support 2–6 participants.', 'INVALID_SETTINGS');
   requireThat(Number.isFinite(settings.roundSeconds) && settings.roundSeconds >= 0 && settings.roundSeconds <= 3600, 'Invalid round timer.', 'INVALID_SETTINGS');
   requireThat(['disabled', '3', 'unlimited'].includes(settings.rerollsMode), 'Invalid reroll setting.', 'INVALID_SETTINGS');
-  requireThat(['all_time', 'current_players', 'world_cup_2026'].includes(settings.poolId), 'Player pool is unavailable.', 'INVALID_SETTINGS');
+  requireThat(['all_time', 'ea_database', 'current_players', 'world_cup_2026'].includes(settings.poolId), 'Player pool is unavailable.', 'INVALID_SETTINGS');
+  // Both optional: rooms created before they existed omit them and draft as they always did.
+  requireThat(settings.drawOrder == null || ['phase', 'random'].includes(settings.drawOrder), 'Invalid draw order.', 'INVALID_SETTINGS');
+  const filters = settings.filters;
+  if (filters != null) {
+    const text = value => value == null || (typeof value === 'string' && value.length <= 80);
+    requireThat(typeof filters === 'object' && !Array.isArray(filters)
+      && (filters.era == null || ['all', 'present', 'legends'].includes(filters.era))
+      && text(filters.league) && text(filters.nation)
+      && (filters.minRating == null || [0, 75, 80, 85].includes(filters.minRating)), 'Invalid draft filters.', 'INVALID_SETTINGS');
+  }
 }
 function validateParticipant(player, budget) {
   requireThat(player && typeof player.name === 'string' && player.name.trim().length > 0 && player.name.length <= 80, 'Name must contain 1–80 characters.', 'INVALID_PARTICIPANT');

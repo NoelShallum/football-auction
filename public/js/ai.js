@@ -155,7 +155,7 @@ function aiReplacementRating(player, numParticipants){
 function aiRoundContext(){
   const player = state.currentPlayer;
   const numParticipants = state.participants.length;
-  const random = activeMode().selection === 'random';
+  const random = effectiveDrawOrder() === 'random';
   const replacement = random
     ? aiReplacementRandom(player, numParticipants)
     : aiReplacementRating(player, numParticipants);

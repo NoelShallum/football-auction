@@ -30,7 +30,8 @@
     "about": "Acerca de",
     "privacy": "Privacidad",
     "terms": "Términos del servicio",
-    "contact": "Contacto"
+    "contact": "Contacto",
+    "onlineUnavailable": "Las salas en línea necesitan el servidor del juego, que no está disponible aquí. La pantalla compartida y el juego contra la IA funcionan con normalidad."
   },
   "tutorial": {
     "howToPlay": "Cómo jugar",
@@ -77,7 +78,10 @@
     "rerolls": "Recambios",
     "customTimer": "Introduce los minutos (máx. 60)",
     "customTimerError": "Debe estar entre 1 y 60 minutos",
-    "customTimerInvalid": "Introduce una duración de temporizador válida (1-60 minutos)"
+    "customTimerInvalid": "Introduce una duración de temporizador válida (1-60 minutos)",
+    "drawOrder": "Orden de sorteo",
+    "ifNobodyBids": "Si nadie puja",
+    "whoCanAppear": "Quién puede salir"
   },
   "setup": {
     "participants": "Número de participantes",
@@ -153,9 +157,7 @@
     "soldBang": "¡VENDIDO!",
     "sold": "VENDIDO",
     "autoAssigned": "ASIGNADO AUTOMÁTICAMENTE",
-    "randomAssignment": "ASIGNACIÓN ALEATORIA",
     "soldDetail": "{player} → {winner} por {price}",
-    "soldDetailNoBids": "{player} → {winner} por {price} (sin pujas)",
     "placeBid": "PUJAR",
     "alreadyHasPosition": "Ya tiene esa posición",
     "leading": "🔨 En cabeza",
@@ -182,7 +184,16 @@
     "dbLoadingAlert": "La base de datos de jugadores todavía se está cargando. Espera un momento e inténtalo de nuevo.",
     "bidToRejoin": "↩ Pujar para volver",
     "showSquad": "Ver plantilla",
-    "hideSquad": "Ocultar plantilla"
+    "hideSquad": "Ocultar plantilla",
+    "unsold": "SIN VENDER",
+    "leftoverPick": "ELECCIÓN SOBRANTE",
+    "soldDetailUnsold": "{player} sin pujas - al final del montón",
+    "soldDetailLeftover": "{player} → {winner} por {price} (elección sobrante)",
+    "progressExtra": "Vuelta extra {lap} · Ronda {round}/{rounds}",
+    "unsoldPile": "Sin vender · {count}",
+    "backOfPack": "Al final del montón",
+    "returnsNextLap": "Vuelve en la próxima vuelta",
+    "returnedFromPack": "Segunda oportunidad · sale a {price}"
   },
   "ticker": {
     "bargain": "¡un chollo!",
@@ -195,23 +206,18 @@
       "VENDIDO: <b>{name}</b> ({pos}) ficha por <b>{winner}</b> — {price}",
       "<b>{winner}</b> cierra el fichaje de <b>{name}</b> ({pos}) por {price}"
     ],
-    "noInterest": [
-      "Sin interés - cambiando de jugador...",
-      "Nadie pica - entra una cara nueva...",
-      "El mercado está frío con este - cambiando..."
-    ],
     "rerolled": [
       "Cambiado por un jugador de nivel similar: <b>{name}</b>",
       "Cara nueva en el escenario: <b>{name}</b>",
       "Entra en su lugar: <b>{name}</b>"
     ],
-    "noBidsReroll": [
-      "Sin pujas por <b>{name}</b> - cambiando por un jugador similar...",
-      "<b>{name}</b> no encontró comprador - cambiando..."
+    "unsoldPack": [
+      "Sin pujas por <b>{name}</b> - al final del montón, se ofrecerá de nuevo.",
+      "<b>{name}</b> no encontró comprador - enviado al final del montón."
     ],
-    "noBidsRandom": [
-      "Sin pujas por <b>{name}</b> - asignando al azar...",
-      "<b>{name}</b> no encontró comprador - asignación aleatoria..."
+    "unsoldReturns": [
+      "<b>{name}</b> vuelve del montón, sale a {price}.",
+      "Segunda oportunidad para <b>{name}</b> - sale a {price}."
     ]
   },
   "sim": {
@@ -465,7 +471,8 @@
     "loading": "Cargando…",
     "hasNoPlayers": "\"{pool}\" todavía no tiene jugadores.",
     "tooThin": "\"{pool}\" es demasiado escaso para {n} participantes en esta formación - falta en {detail}.",
-    "pickDifferent": "Elige otro grupo de jugadores, o añade más jugadores a este."
+    "pickDifferent": "Elige otro grupo de jugadores, o añade más jugadores a este.",
+    "loosenFilters": "Prueba a relajar los filtros."
   },
   "mp": {
     "invalidCode": "Introduce un código de sala válido de 6 caracteres",
@@ -553,5 +560,51 @@
         "Se simula como un partido de fútbol sala con muchos goles, no de fútbol"
       ]
     }
+  },
+  "draw": {
+    "phase": "Por fases",
+    "phaseDesc": "Primero las estrellas, al final las gangas. Cada vuelta ofrece un tramo más flojo.",
+    "random": "Sorteo aleatorio",
+    "randomDesc": "Cualquier jugador en cualquier ronda, aunque los mejores son algo más probables."
+  },
+  "rule": {
+    "packName": "Al final del montón",
+    "packDesc": "Los no vendidos vuelven en la siguiente vuelta a menor precio. Si dos veces no hay pujas, se los queda quien más jugadores necesite: todos los equipos se completan."
+  },
+  "filter": {
+    "era": "Época",
+    "eraAll": "Pasado y presente",
+    "eraPresent": "Actualidad",
+    "eraLegends": "Solo leyendas",
+    "quality": "Nivel",
+    "qualityAuto": "Auto",
+    "qualityMin": "{n}+",
+    "league": "Liga",
+    "leagueAny": "Cualquier liga",
+    "nation": "Nación",
+    "nationAny": "Cualquier nación",
+    "inPlay": "{n} jugadores en juego"
+  },
+  "sheet": {
+    "title": "Hoja de partido",
+    "mode": "Modo",
+    "formation": "Formación",
+    "pool": "Base de jugadores",
+    "inPlay": "Jugadores en juego",
+    "draw": "Orden de sorteo",
+    "unsold": "Si nadie puja",
+    "managers": "Managers",
+    "budget": "Presupuesto",
+    "timer": "Temporizador",
+    "rerolls": "Relanzamientos",
+    "unlimited": "Ilimitado",
+    "custom": "Personalizado",
+    "minutes": "{n} min",
+    "seconds": "{n} s",
+    "off": "No",
+    "limited": "Limitados · {n}",
+    "eachBudget": "{budget} cada uno",
+    "managersAI": "Tú + {n} IA",
+    "managersCount": "{n}"
   }
 }

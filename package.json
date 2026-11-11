@@ -1,6 +1,6 @@
 {
   "name": "auctionxi-clone",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Self-contained local clone of Auction XI with an independent realtime room service.",
@@ -14,7 +14,8 @@
     "check": "node scripts/check.mjs",
     "test": "node --test --test-concurrency=1 test/*.test.mjs",
     "test:container": "node scripts/smoke-container.mjs",
-    "verify": "npm run check && npm test && npm run build"
+    "verify": "npm run check && npm test && npm run build",
+    "build:artifact": "node scripts/build-artifact.mjs"
   },
   "dependencies": {
     "ws": "^8.18.3"
