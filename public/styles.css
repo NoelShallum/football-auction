@@ -1,0 +1,2162 @@
+  :root{
+    --bg:#0B1F17;
+    --bg-alt:#102A1E;
+    --card:#132F22;
+    --line:rgba(245,247,242,0.08);
+    --white:#F5F7F2;
+    --stone:#8CA097;
+    --amber:#FFB020;
+    --green:#3ECF6B;
+    --red:#FF5C5C;
+    --blue:#5CA8FF;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(62,207,107,0.10), transparent 55%),
+      var(--bg);
+    color:var(--white);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    padding:28px 20px 60px;
+    /* Kills the ~300ms tap delay and double-tap-to-zoom everywhere
+       (pinch-zoom-out is untouched, so accessibility zoom still works
+       outside active gameplay - see lockGameplayZoom()/unlockGameplayZoom()
+       in the script for the separate, gameplay-only pinch-zoom lock). */
+    touch-action:manipulation;
+    /* This is a game, not a document - selecting/copying text mid-tap
+       is never the intent. Re-enabled explicitly below for inputs and
+       for the About/Privacy/Terms pages, where it's the whole point. */
+    -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none;
+    -webkit-touch-callout:none;
+  }
+  input, textarea{
+    -webkit-user-select:text; -moz-user-select:text; -ms-user-select:text; user-select:text;
+    -webkit-touch-callout:default;
+  }
+  .info-page, .info-page *{
+    -webkit-user-select:text; -moz-user-select:text; -ms-user-select:text; user-select:text;
+    -webkit-touch-callout:default;
+  }
+  /* Native-feeling press feedback in place of the removed tap highlight. */
+  button:not(:disabled):active{
+    transform:scale(0.96);
+    filter:brightness(0.93);
+  }
+  @media (prefers-reduced-motion: reduce){
+    button:not(:disabled):active{transform:none;}
+  }
+  .brand{display:flex; align-items:baseline; gap:10px; justify-content:center; margin-bottom:6px;}
+  .brand h1{font-family:'Oswald',sans-serif; font-weight:700; font-size:28px; letter-spacing:3px; text-transform:uppercase;}
+  .brand span{color:var(--amber);}
+  .tagline{text-align:center; color:var(--stone); font-size:13px; letter-spacing:1px; margin-bottom:34px;}
+  .wrap{max-width:1000px; margin:0 auto;}
+
+  /* DURING A ROUND THE MASTHEAD STANDS DOWN.
+     The wordmark and tagline cost about ninety pixels above every screen.
+     That is right on the home screen and wrong during a timed auction, where
+     it was part of what pushed PLACE BID past the bottom of a 390x844 phone.
+     Set by showScreen() in js/ui.js. */
+  body[data-screen="auctionScreen"] .tagline{display:none;}
+  body[data-screen="auctionScreen"] .brand h1{font-size:19px; letter-spacing:1px;}
+  body[data-screen="auctionScreen"] .brand{margin-bottom:6px;}
+
+  .setup-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:32px; max-width:560px; margin:0 auto;}
+  .field-label{font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--stone); margin-bottom:10px; display:block;}
+  .chip-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:26px;}
+  .chip-btn{padding:0 14px; height:42px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Space Mono',monospace; font-weight:700; cursor:pointer; transition:.15s;}
+  .chip-btn:hover{border-color:var(--amber);}
+  .chip-btn.active{background:var(--amber); color:#1a1200; border-color:var(--amber);}
+
+  /* ---------- Game mode picker ----------
+     Classic and 6v6 are different GAMES, not two squad sizes, and as two
+     identical chips they read as the latter. Each card states the rules
+     that mode actually differs on and carries its own --mode-accent
+     (declared in js/modes/*.js), so the choice is visibly a choice
+     between two things rather than a number. */
+  .mode-picker{display:grid; gap:10px; margin-bottom:26px;}
+  @media (min-width:620px){ .mode-picker{grid-template-columns:1fr 1fr;} }
+  .mode-card{
+    --mode-accent:var(--amber);
+    display:flex; flex-direction:column; gap:7px; text-align:left;
+    padding:14px 15px; border-radius:11px; border:1px solid var(--line);
+    background:var(--bg-alt); color:var(--white); cursor:pointer;
+    font-family:'Inter',sans-serif; transition:.15s;
+  }
+  .mode-card:hover{border-color:var(--mode-accent);}
+  .mode-card.active{
+    border-color:var(--mode-accent);
+    background:
+      linear-gradient(0deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02)),
+      var(--bg-alt);
+    box-shadow:inset 3px 0 0 var(--mode-accent);
+  }
+  .mode-card .mc-head{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .mode-card .mc-name{font-family:'Oswald',sans-serif; font-size:15px; letter-spacing:1px; text-transform:uppercase;}
+  .mode-card.active .mc-name{color:var(--mode-accent);}
+  .mode-card .mc-chip{
+    flex:none; padding:3px 9px; border-radius:20px; font-family:'Space Mono',monospace;
+    font-size:10px; font-weight:700; color:var(--mode-accent);
+    background:rgba(245,247,242,0.07);
+    background:color-mix(in srgb, var(--mode-accent) 15%, transparent);
+  }
+  .mode-card .mc-tagline{font-size:12px; color:var(--white); opacity:.85; line-height:1.5;}
+  .mode-card .mc-bullets{display:flex; flex-direction:column; gap:4px; margin-top:2px;}
+  .mode-card .mc-bullets span{
+    position:relative; padding-left:13px; font-size:11.5px; line-height:1.45; color:var(--stone);
+  }
+  .mode-card .mc-bullets span::before{
+    content:''; position:absolute; left:0; top:7px; width:5px; height:5px;
+    border-radius:50%; background:var(--mode-accent); opacity:.55;
+  }
+
+  /* The slots the chosen formation will actually auction, named exactly
+     as the auction names them (LCB/RCB rather than two bare CBs). */
+  .formation-slots{
+    margin:-16px 0 26px; font-family:'Space Mono',monospace; font-size:11px;
+    color:var(--stone); line-height:1.7; word-spacing:2px;
+  }
+
+  /* ---------- Player pools ----------
+     --pool-accent / --pool-ink are rewritten by applyPoolTheme() from
+     whatever the active pool's JSON declares, so an event's colour
+     travels with its data instead of living in this stylesheet. They
+     default to the house amber, which is what the all-time pool uses. */
+  :root{ --pool-accent:#FFB020; --pool-ink:#1A1200; }
+
+  /* The picker used to be a full grid of cards sitting inline in the
+     settings form, which meant every settings screen grew a whole
+     section per pool - unworkable once more than 2-3 events exist. It's
+     now a single-line "current pool" button that opens the grid in a
+     modal (below), so the settings form always costs exactly one row no
+     matter how many pools the catalogue lists. */
+  .pool-select{
+    display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+    background:var(--bg-alt); border:1px solid var(--line); border-radius:10px;
+    padding:11px 13px; margin-bottom:26px; cursor:pointer; transition:.15s;
+    font-family:'Inter',sans-serif; color:var(--white);
+  }
+  .pool-select:hover{border-color:var(--pool-accent);}
+  .pool-select:disabled{opacity:.6; cursor:not-allowed;}
+  .pool-select-icon{font-size:20px; line-height:1; flex-shrink:0;}
+  .pool-select-body{flex:1; min-width:0;}
+  .pool-select-name{
+    display:flex; align-items:center; gap:8px; min-width:0;
+    font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:.6px; text-transform:uppercase;
+  }
+  .pool-select-name-text{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pool-select-badge{
+    font-family:'Space Mono',monospace; font-size:9px; letter-spacing:.8px; text-transform:uppercase;
+    padding:2px 7px; border-radius:20px; background:var(--pool-accent); color:var(--pool-ink); flex-shrink:0;
+  }
+  .pool-select-meta{
+    font-size:11px; color:var(--stone); margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .pool-select-chevron{color:var(--stone); font-size:11px; flex-shrink:0;}
+
+  /* The grid only exists inside the modal now, so it never has to be
+     small - it can afford real cards because opening it is a deliberate
+     action, not something every settings screen pays for by default. */
+  .pool-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(212px,1fr)); gap:10px;}
+  .pool-card{
+    position:relative; text-align:left; display:flex; flex-direction:column; gap:6px;
+    background:var(--bg-alt); border:1px solid var(--line); border-radius:12px;
+    padding:14px 15px; color:var(--white); cursor:pointer; transition:.15s;
+    font-family:'Inter',sans-serif;
+  }
+  .pool-card:hover:not(.locked){border-color:var(--pool-accent); transform:translateY(-1px);}
+  .pool-card.active{
+    border-color:var(--pool-accent);
+    background:linear-gradient(180deg, rgba(255,255,255,0.05), transparent), var(--bg-alt);
+    box-shadow:0 0 0 1px var(--pool-accent) inset;
+  }
+  .pool-card.locked{opacity:.45; cursor:not-allowed;}
+  .pool-card-top{display:flex; align-items:center; gap:9px;}
+  .pool-card-icon{font-size:19px; line-height:1;}
+  .pool-card-name{font-family:'Oswald',sans-serif; font-size:15px; letter-spacing:.6px; text-transform:uppercase;}
+  .pool-card-tag{font-size:11.5px; color:var(--stone); line-height:1.45;}
+  .pool-card-meta{display:flex; align-items:center; gap:8px; margin-top:2px;}
+  .pool-card-count{font-family:'Space Mono',monospace; font-size:10.5px; color:var(--stone);}
+  .pool-card-pill{
+    font-family:'Space Mono',monospace; font-size:9.5px; letter-spacing:.8px; text-transform:uppercase;
+    padding:2px 7px; border-radius:20px; border:1px solid var(--line); color:var(--stone);
+  }
+  .pool-card.active .pool-card-pill{border-color:var(--pool-accent); color:var(--pool-accent);}
+  .pool-card-check{
+    position:absolute; top:12px; right:12px; width:16px; height:16px; border-radius:50%;
+    background:var(--pool-accent); color:var(--pool-ink); font-size:10px; font-weight:700;
+    display:none; align-items:center; justify-content:center;
+  }
+  .pool-card.active .pool-card-check{display:flex;}
+
+  /* The modal itself - same recipe as .confirm-overlay/.confirm-box
+     (fixed, blurred backdrop, centered box) so it reads as the same kind
+     of surface, just sized for a scrollable grid instead of a couple of
+     buttons. */
+  .pool-modal-overlay{position:fixed; inset:0; background:rgba(6,17,12,0.78); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:520; padding:20px;}
+  .pool-modal-overlay.show{display:flex;}
+  .pool-modal-box{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px;
+    max-width:640px; width:100%; max-height:82vh; display:flex; flex-direction:column;
+    box-shadow:0 20px 50px rgba(0,0,0,0.5);
+  }
+  .pool-modal-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;}
+  .pool-modal-title{font-family:'Oswald',sans-serif; font-size:16px; letter-spacing:1px; text-transform:uppercase;}
+  .pool-modal-close{background:none; border:none; color:var(--stone); font-size:20px; line-height:1; padding:4px 6px; cursor:pointer; transition:.15s;}
+  .pool-modal-close:hover{color:var(--white);}
+  .pool-modal-body{overflow-y:auto; padding-right:2px;}
+
+  .pool-warning{
+    background:rgba(255,92,92,0.10); border:1px solid rgba(255,92,92,0.32); color:var(--red);
+    border-radius:8px; padding:11px 13px; font-size:12px; line-height:1.55; margin:-16px 0 24px;
+  }
+  .pool-warning.info{background:rgba(255,176,32,0.10); border-color:rgba(255,176,32,0.32); color:var(--amber);}
+
+  /* The "you are playing an event, not a normal draft" marker. One
+     component, reused on the setup, auction and results screens. */
+  .pool-banner{
+    display:flex; align-items:center; gap:10px; justify-content:center; flex-wrap:wrap;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+    border:1px solid var(--pool-accent); border-radius:10px;
+    padding:9px 14px; margin-bottom:22px;
+  }
+  .pool-banner .pb-icon{font-size:17px; line-height:1;}
+  .pool-banner .pb-badge{
+    font-family:'Oswald',sans-serif; font-size:12.5px; letter-spacing:2px; text-transform:uppercase;
+    background:var(--pool-accent); color:var(--pool-ink); padding:3px 9px; border-radius:5px;
+  }
+  .pool-banner .pb-text{font-size:11.5px; color:var(--stone); letter-spacing:.4px;}
+  #auctionScreen .pool-banner{margin:0 auto 16px; max-width:560px;}
+
+  /* Nationality marker - the plain country name, nothing else. No flag
+     emoji anywhere in this file: the regional-indicator flag sequences
+     rely on the OS having a flag glyph for them, and Windows (among
+     others) has none for most of its life - it just prints the two bare
+     letters the sequence is built from, which reads exactly like the
+     abbreviation this component exists to avoid. */
+  .nat-name{margin-right:.4em; font-size:.78em; font-weight:600; color:var(--stone); letter-spacing:.2px;}
+  /* The separator in every "Nationality • Club" line (nationalityClubHTML
+     in config.js) - one shared style so the bullet reads identically on
+     the auction stage, results pitch, mobile info panel and tooltips. */
+  .nat-sep{opacity:.55; margin:0 .3em; font-weight:400;}
+
+  .names-grid{display:flex; flex-direction:column; gap:10px; margin-bottom:28px;}
+  .name-input{background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; padding:12px 14px; color:var(--white); display:flex; align-items:center; gap:10px;}
+  .name-input .dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+  .name-input input{background:none; border:none; outline:none; color:var(--white); font-family:'Inter',sans-serif; font-size:14px; flex:1;}
+  /* ...but give it back on keyboard focus. Removing the outline with no
+     replacement left this the one field a keyboard user could land on and
+     see no change at all. */
+  .name-input input:focus-visible{outline:2px solid var(--amber); outline-offset:1px; border-radius:3px;}
+  .budget-note{display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:var(--bg-alt); border-radius:8px; margin-bottom:26px; border:1px dashed var(--line);}
+  .budget-note .amt{font-family:'Space Mono',monospace; color:var(--green); font-weight:700; font-size:16px;}
+  .start-btn{width:100%; padding:16px; border:none; border-radius:9px; background:var(--amber); color:#1a1200; font-family:'Oswald',sans-serif; font-weight:700; font-size:15px; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:.15s;}
+  .start-btn:hover{filter:brightness(1.08); transform:translateY(-1px);}
+  .formation-note{text-align:center; color:var(--stone); font-size:12px; margin-top:16px; line-height:1.7;}
+
+  .toggle-row{display:flex; gap:12px; align-items:center; margin-bottom:26px;}
+  .toggle-switch{position:relative; width:48px; height:26px; background:var(--bg-alt); border:1px solid var(--line); border-radius:20px; cursor:pointer; transition:.2s;}
+  .toggle-switch.on{background:var(--amber); border-color:var(--amber);}
+  .toggle-switch .knob{position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:var(--white); transition:.2s;}
+  .toggle-switch.on .knob{left:24px;}
+  .toggle-label{color:var(--white); font-size:13px; font-weight:500;}
+
+  #auctionScreen{display:none;}
+  /* Auction top-right nav. right:76px clears the fixed sound toggle
+     (44px wide at right:16px). Flex means the buttons space themselves -
+     no per-button right-offsets to keep in sync. */
+  .auction-nav{position:absolute; top:20px; right:76px; display:flex; gap:8px; z-index:10;}
+  .back-home-btn, .restart-auction-btn{padding:10px 18px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--stone); font-family:'Inter',sans-serif; font-size:12px; font-weight:600; cursor:pointer; transition:.15s; white-space:nowrap;}
+  .back-home-btn:hover{border-color:var(--red); color:var(--red);}
+  /* Restart-with-same-settings. Offline/AI only - online restarts are the
+     host's call (see applyAuctionScreenMode, which hides this online). */
+  .restart-auction-btn:hover{border-color:var(--amber); color:var(--amber);}
+
+  /* Persistent, global sound toggle - present on every screen, always
+     top-right, controls only this browser's own audio. */
+  .sound-toggle-btn{position:fixed; top:16px; right:16px; width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-size:18px; line-height:1; cursor:pointer; z-index:300; display:flex; align-items:center; justify-content:center; transition:.15s;}
+  .sound-toggle-btn:hover{border-color:var(--amber); color:var(--amber);}
+  .sound-toggle-btn.muted{color:var(--stone); opacity:.7;}
+  .status-bar{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:18px; padding:0 4px; flex-wrap:wrap; gap:10px;}
+  .status-bar .pos-line{display:flex; align-items:center; gap:9px; flex-wrap:wrap;}
+  .status-bar .pos-tag{font-family:'Oswald',sans-serif; letter-spacing:2px; font-size:13px; color:var(--amber); text-transform:uppercase;}
+  /* Which game you are actually playing. Driven by body[data-game-mode],
+     set by applyModeChrome() - the accent matches the mode card you
+     picked on the setup screen. */
+  .mode-badge{
+    flex:none; padding:3px 9px; border-radius:20px;
+    font-family:'Space Mono',monospace; font-size:10px; font-weight:700; letter-spacing:.5px;
+    color:var(--mode-accent, var(--amber));
+    background:rgba(245,247,242,0.07);
+    background:color-mix(in srgb, var(--mode-accent, var(--amber)) 15%, transparent);
+    border:1px solid var(--line);
+    border-color:color-mix(in srgb, var(--mode-accent, var(--amber)) 35%, transparent);
+  }
+  body[data-game-mode="classic"]{--mode-accent:#FFB020;}
+  body[data-game-mode="sixv6"]{--mode-accent:#5CA8FF;}
+  /* The position badge on the stage is the single biggest thing on the
+     screen during a round, so it carries the mode accent too. */
+  body[data-game-mode="sixv6"] .pos-badge:not(.forced){
+    background:rgba(92,168,255,0.15); color:#5CA8FF;
+  }
+  .status-bar .phase-tag{color:var(--stone); font-size:12px; font-family:'Space Mono',monospace; margin-top:3px;}
+  .status-bar .progress{color:var(--stone); font-size:13px; font-family:'Space Mono',monospace;}
+
+  .stage{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:32px; text-align:center; position:relative; overflow:hidden; margin-bottom:18px;}
+  .stage::before{content:''; position:absolute; top:-60%; left:50%; width:140%; height:220%; background:radial-gradient(ellipse at center, rgba(255,176,32,0.08), transparent 60%); transform:translateX(-50%); pointer-events:none;}
+
+  .pos-badge{display:inline-block; padding:5px 14px; border-radius:20px; background:rgba(62,207,107,0.15); color:var(--green); font-size:11px; letter-spacing:2px; font-family:'Oswald',sans-serif; margin-bottom:16px;}
+  .pos-badge.forced{background:rgba(255,92,92,0.15); color:var(--red);}
+
+  /* "Flash round" banner - a rare, higher-tier player pulled forward
+     into a later, otherwise-lower-quality phase. Distinguishes it from
+     the normal, fully-predictable phase-by-phase quality ladder. */
+  .flash-badge{display:inline-block; padding:6px 16px; border-radius:20px; background:rgba(255,176,32,0.18); color:var(--amber); font-size:11px; font-weight:700; letter-spacing:1px; font-family:'Oswald',sans-serif; margin-bottom:12px; animation:flashPulse 1.6s ease-in-out infinite;}
+  @keyframes flashPulse{
+    0%, 100%{box-shadow:0 0 0 0 rgba(255,176,32,0.35);}
+    50%{box-shadow:0 0 0 6px rgba(255,176,32,0);}
+  }
+
+  /* "Blind bid round" banner - once per draft, everyone submits one
+     sealed offer instead of the normal live ascending auction. */
+  .blind-badge{display:inline-block; padding:6px 16px; border-radius:20px; background:rgba(92,168,255,0.18); color:var(--blue); font-size:11px; font-weight:700; letter-spacing:1px; font-family:'Oswald',sans-serif; margin-bottom:12px;}
+  .player-name{font-family:'Oswald',sans-serif; font-weight:700; font-size:36px; letter-spacing:1px; margin-bottom:4px;}
+  /* The player's country + club - "Nation • Club" (or "Club A / Club B"
+     for a legend strongly tied to two) - sits directly under the name
+     and above the starting price. No flag: see the note above .nat-name
+     on why this file never renders one. */
+  .player-nat{display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--stone); letter-spacing:.5px; margin-bottom:10px; text-align:center;}
+  .player-nat:empty{display:none; margin-bottom:0;}
+  .player-sub{color:var(--stone); font-size:13px; margin-bottom:22px;}
+  .player-rating{display:inline-block; background:var(--amber); color:#1a1200; font-family:'Space Mono',monospace; font-weight:700; font-size:15px; padding:4px 10px; border-radius:6px; margin-left:12px;}
+
+  .timer-ring{width:90px; height:90px; margin:0 auto 18px; position:relative;}
+  .timer-ring svg{transform:rotate(-90deg); width:100%; height:100%;}
+  .timer-ring circle{fill:none; stroke-width:6;}
+  .timer-track{stroke:var(--line);}
+  .timer-fill{stroke:var(--amber); stroke-linecap:round; transition:stroke-dashoffset 1s linear, stroke .3s;}
+  .timer-num{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-weight:700; font-size:22px;}
+
+  .bid-display{margin-bottom:20px;}
+  .bid-display .label{color:var(--stone); font-size:11px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:6px;}
+  .bid-display .amount{font-family:'Space Mono',monospace; font-weight:700; font-size:32px; color:var(--green);}
+  .bid-display .leader{color:var(--amber); font-size:14px; margin-top:6px; font-weight:600;}
+  .bid-display .leader.none{color:var(--stone); font-weight:400;}
+
+  .stage-controls{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .ctrl-btn{padding:10px 18px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s;}
+  .ctrl-btn:hover:not(:disabled){border-color:var(--amber); color:var(--amber);}
+  .ctrl-btn:disabled{opacity:.35; cursor:not-allowed;}
+  .ctrl-btn.going{border-color:var(--red); color:var(--red);}
+  .ctrl-btn.going:hover:not(:disabled){background:rgba(255,92,92,0.1);}
+  .rerolls-indicator{color:var(--stone); font-size:11px; font-family:'Space Mono',monospace; text-align:center; width:100%; margin-top:8px;}
+  .rerolls-indicator .count{color:var(--amber); font-weight:700;}
+
+  /* Multiplayer unanimous-vote counter for Reroll / Call Final Bids -
+     a compact "x/y" badge next to each control button rather than a
+     separate panel listing every participant's status. */
+  .mp-vote-count{font-family:'Space Mono',monospace; font-size:11px; color:var(--stone); background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; padding:2px 8px; align-self:center; text-align:center;}
+  .mp-vote-count.all-in{color:var(--green); border-color:rgba(62,207,107,0.4);}
+
+  /* Small transparent circular icon-only button (e.g. copy room code) */
+  .copy-icon-btn{width:34px; height:34px; flex-shrink:0; border-radius:50%; border:1px solid var(--line); background:transparent; color:var(--stone); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:.15s;}
+  .copy-icon-btn:hover{border-color:var(--amber); color:var(--amber); background:rgba(255,176,32,0.08);}
+  .copy-icon-btn.copied{color:var(--green); border-color:var(--green);}
+
+  /* Lightweight non-blocking notification banner (replaces jarring
+     alert() popups for room-lifecycle/error messages) */
+  .mp-toast{position:fixed; top:70px; left:50%; transform:translateX(-50%) translateY(-16px); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 22px; color:var(--white); font-size:13px; font-weight:600; z-index:400; opacity:0; pointer-events:none; transition:.25s ease; box-shadow:0 8px 24px rgba(0,0,0,0.4); max-width:90vw; text-align:center;}
+  .mp-toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .mp-toast.error{border-color:rgba(255,92,92,0.5); color:var(--red);}
+  .mp-toast.success{border-color:rgba(62,207,107,0.5); color:var(--green);}
+
+  /* Online-mode room chat. A single global floating widget (shown/hidden
+     via the .visible class rather than mounted per-screen) so it stays
+     available across the lobby, live draft, and results screens without
+     duplicating markup in each. */
+  .chat-toggle-btn{position:fixed; bottom:16px; right:16px; width:52px; height:52px; border-radius:50%; border:1px solid var(--line); background:var(--amber); color:#1a1200; font-size:20px; line-height:1; cursor:pointer; z-index:300; display:none; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(0,0,0,0.35); transition:.15s;}
+  .chat-toggle-btn.visible{display:flex;}
+  .chat-toggle-btn:hover{filter:brightness(1.08);}
+  .chat-unread-badge{position:absolute; top:-4px; right:-4px; background:var(--red); color:var(--white); font-size:11px; font-weight:700; min-width:18px; height:18px; border-radius:9px; display:flex; align-items:center; justify-content:center; padding:0 4px; font-family:'Space Mono',monospace;}
+
+  .chat-panel{position:fixed; bottom:80px; right:16px; width:320px; max-width:calc(100vw - 32px); height:420px; max-height:60vh; background:var(--card); border:1px solid var(--line); border-radius:12px; display:none; flex-direction:column; z-index:301; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.45);}
+  .chat-panel.show{display:flex;}
+  .chat-panel-head{display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid var(--line); font-family:'Oswald',sans-serif; font-weight:600; letter-spacing:0.5px; font-size:14px; color:var(--white); flex-shrink:0;}
+  .chat-panel-close{background:none; border:none; color:var(--stone); font-size:16px; cursor:pointer; line-height:1; padding:4px;}
+  .chat-panel-close:hover{color:var(--red);}
+  .chat-messages{flex:1; overflow-y:auto; padding:10px 12px; display:flex; flex-direction:column; gap:7px;}
+  .chat-msg{font-family:'Inter',sans-serif; font-size:13px; line-height:1.35; word-break:break-word;}
+  .chat-msg .chat-msg-name{font-weight:700; color:var(--amber); margin-right:6px;}
+  .chat-msg.mine .chat-msg-name{color:var(--green);}
+  .chat-msg-empty{color:var(--stone); font-size:12px; text-align:center; margin-top:20px;}
+  .chat-panel-input-row{display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--line); flex-shrink:0;}
+  #chatInput{flex:1; min-width:0; height:38px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Inter',sans-serif; font-size:13px; padding:0 10px;}
+  #chatInput:focus{outline:none; border-color:var(--amber);}
+  #chatSendBtn{flex-shrink:0; height:38px; padding:0 14px; border-radius:8px; border:none; background:var(--amber); color:#1a1200; font-family:'Oswald',sans-serif; font-weight:600; font-size:12px; cursor:pointer;}
+  #chatSendBtn:hover{filter:brightness(1.08);}
+
+  /* In-page confirmation dialog. Replaces window.confirm(), which
+     freezes the whole tab - in multiplayer that also freezes this
+     client's Firebase callbacks, so timers and bids from other players
+     stall until the box is dismissed. */
+  .confirm-overlay{position:fixed; inset:0; background:rgba(6,17,12,0.78); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:500; padding:20px;}
+  .confirm-overlay.show{display:flex;}
+  .confirm-box{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:26px; max-width:420px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,0.5);}
+  .confirm-title{font-family:'Oswald',sans-serif; font-size:18px; letter-spacing:1px; color:var(--white); margin-bottom:10px;}
+  .confirm-text{color:var(--stone); font-size:13.5px; line-height:1.6; margin-bottom:22px;}
+  .confirm-actions{display:flex; gap:10px; justify-content:flex-end;}
+  .confirm-btn{padding:11px 20px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:.15s;}
+  .confirm-btn:hover{border-color:var(--amber); color:var(--amber);}
+
+  /* Results screen: floating player-info panel (mobile pitch tap target -
+     see showPlayerInfoPanel()). Reuses .confirm-overlay/.confirm-box for
+     the same backdrop/card look as every other dialog in the game, but
+     overrides the show/hide to animate via opacity+transform instead of
+     .confirm-overlay's plain display swap, for a smooth open/close. */
+  .player-info-overlay{display:flex; opacity:0; visibility:hidden; pointer-events:none; transition:opacity 0.22s ease, visibility 0.22s ease;}
+  .player-info-overlay.show{display:flex; opacity:1; visibility:visible; pointer-events:auto;}
+  .player-info-card{position:relative; max-width:300px; text-align:center; transform:translateY(18px) scale(0.96); transition:transform 0.25s cubic-bezier(0.22,1,0.36,1);}
+  .player-info-overlay.show .player-info-card{transform:translateY(0) scale(1);}
+  .player-info-close{position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:50%; border:1px solid var(--line); background:none; color:var(--stone); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .player-info-close:hover{border-color:var(--amber); color:var(--amber);}
+  .player-info-pos{color:var(--amber); font-family:'Space Mono',monospace; font-size:13px; letter-spacing:1px; margin-bottom:10px;}
+  .player-info-name{font-family:'Oswald',sans-serif; font-weight:700; font-size:22px; letter-spacing:0.5px; margin-bottom:6px;}
+  .player-info-nat{color:var(--stone); font-size:14px; margin-bottom:16px;}
+  .player-info-stats{font-family:'Space Mono',monospace; font-size:16px; font-weight:700; color:var(--white);}
+  .player-info-rating{color:var(--amber);}
+  @media (prefers-reduced-motion: reduce){
+    .player-info-overlay, .player-info-card{transition:none;}
+  }
+  .confirm-btn.danger{background:var(--red); border-color:var(--red); color:#2a0808;}
+  .confirm-btn.danger:hover{filter:brightness(1.1); color:#2a0808;}
+  /* A disabled choice still has to read as "not available to you" rather
+     than "broken" - see mpShowReturnMenu, which disables Back to Room for
+     guests and prints the reason in .confirm-note underneath. */
+  .confirm-btn:disabled{opacity:.4; cursor:not-allowed;}
+  .confirm-btn:disabled:hover{border-color:var(--line); color:var(--white);}
+  .confirm-note{color:var(--stone); font-size:11.5px; line-height:1.5; margin-top:14px; text-align:right;}
+  .confirm-note:empty{display:none;}
+  /* Three actions don't fit the 2-button dialog's right-aligned row at
+     narrow widths, so this one wraps and centres instead. */
+  .mp-return-actions{justify-content:center; flex-wrap:wrap;}
+
+  .sold-flash{position:absolute; inset:0; background:rgba(11,31,23,0.94); display:none; align-items:center; justify-content:center; flex-direction:column; z-index:5; border-radius:16px;}
+  .sold-flash.show{display:flex;}
+  .sold-flash .word{font-family:'Oswald',sans-serif; font-weight:700; font-size:28px; letter-spacing:3px;}
+  .sold-flash .word.sold{color:var(--green);}
+  .sold-flash .word.forced{color:var(--blue);}
+  .sold-flash .detail{color:var(--stone); font-size:14px; margin-top:10px;}
+
+  .countdown-banner{position:absolute; inset:0; background:rgba(11,31,23,0.96); display:none; align-items:center; justify-content:center; flex-direction:column; z-index:4; border-radius:16px;}
+  .countdown-banner.show{display:flex;}
+  .countdown-banner .emoji{font-size:48px; margin-bottom:12px;}
+  .countdown-banner .text{font-family:'Oswald',sans-serif; font-weight:700; font-size:26px; letter-spacing:3px; color:var(--red); margin-bottom:8px;}
+  .countdown-banner .num{font-family:'Space Mono',monospace; font-weight:700; font-size:54px; color:var(--red);}
+
+  .paused-overlay{position:fixed; inset:0; background:rgba(11,31,23,0.92); display:none; align-items:center; justify-content:center; flex-direction:column; z-index:100;}
+  .paused-overlay.show{display:flex;}
+  .paused-overlay .text{font-family:'Oswald',sans-serif; font-weight:700; font-size:48px; letter-spacing:4px; color:var(--amber); margin-bottom:24px;}
+  .paused-overlay .resume-btn{padding:16px 32px; border-radius:10px; border:2px solid var(--amber); background:var(--bg-alt); color:var(--amber); font-family:'Oswald',sans-serif; font-weight:700; font-size:16px; letter-spacing:2px; cursor:pointer; transition:.15s;}
+  .paused-overlay .resume-btn:hover{background:var(--amber); color:#1a1200;}
+
+  .bidder-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:12px; margin-bottom:18px;}
+  .bidder-card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; transition:.15s;}
+  .bidder-card.leading{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber) inset;}
+  .bidder-card.ineligible{opacity:.45;}
+  .bidder-top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;}
+  .bidder-name{font-weight:600; font-size:14px;}
+  .bidder-budget{font-family:'Space Mono',monospace; font-size:13px; color:var(--green);}
+  /* The pitch starts collapsed during a round - see openSquads in
+     auction.js. It is reference information, and it was costing 356 px per
+     card on a screen that only has thirty seconds to be read. */
+  .squad-toggle{display:flex; align-items:center; gap:6px; width:100%;
+    margin-top:6px; padding:9px 10px; min-height:38px;
+    background:none; border:1px solid var(--line); border-radius:8px;
+    color:var(--stone); font-family:'Inter',sans-serif; font-size:11.5px;
+    letter-spacing:.4px; cursor:pointer; transition:.15s;}
+  .squad-toggle:hover{color:var(--white); border-color:rgba(245,247,242,.2);}
+  .squad-toggle-caret{font-size:10px; opacity:.8;}
+  .squad-collapse[hidden]{display:none;}
+
+  .live-formation{position:relative; border:1px solid var(--line); border-radius:8px; padding:8px; margin:8px 0; min-height:180px;}
+  .live-formation-title{font-size:10px; color:var(--stone); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; position:relative; z-index:2;}
+
+  /* Football Pitch Background */
+  .live-pitch{position:relative; width:100%; height:160px; border-radius:6px; overflow:hidden;
+    background:
+      linear-gradient(180deg, transparent 0%, transparent 49.4%, rgba(255,255,255,0.04) 49.4%, rgba(255,255,255,0.04) 50.6%, transparent 50.6%, transparent 100%),
+      linear-gradient(90deg, rgba(62,207,107,0.08) 0%, rgba(62,207,107,0.15) 50%, rgba(62,207,107,0.08) 100%),
+      radial-gradient(ellipse at 50% 50%, rgba(62,207,107,0.12), rgba(19,47,34,0.95));
+  }
+
+  .live-pitch::before{content:''; position:absolute; top:50%; left:50%; width:60px; height:60px;
+    border:1px solid rgba(255,255,255,0.06); border-radius:50%; transform:translate(-50%,-50%); z-index:0;}
+
+  .live-pitch::after{content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+    background:
+      linear-gradient(0deg, transparent 0%, transparent 20%, rgba(62,207,107,0.02) 20%, rgba(62,207,107,0.02) 21%, transparent 21%),
+      linear-gradient(0deg, transparent 79%, rgba(62,207,107,0.02) 79%, rgba(62,207,107,0.02) 80%, transparent 80%);
+    pointer-events:none; z-index:1;}
+
+  .live-slot{position:absolute; background:rgba(19,47,34,0.85); border:1px solid rgba(62,207,107,0.25);
+    backdrop-filter:blur(4px); border-radius:4px; padding:3px 5px; min-width:42px; text-align:center;
+    transform:translate(-50%,-50%); transition:all 0.3s ease; z-index:2;}
+  .live-slot.filled{border-color:var(--green); background:rgba(62,207,107,0.15); box-shadow:0 0 8px rgba(62,207,107,0.2);}
+  .live-slot.filled.newly-placed{animation:playerPlaced 0.8s ease;}
+  .live-slot .pos{font-size:8px; color:var(--amber); font-family:'Space Mono',monospace; line-height:1;}
+  .live-slot .name{font-size:9px; font-weight:600; color:var(--white); margin-top:2px; line-height:1;}
+  .live-slot.empty .name{color:var(--stone); opacity:0.4;}
+
+  /* Hover panel on a Live Squads player: full name, rating (only when
+     SHOW_RATINGS is on), and the price they were bought for. Rendered
+     in both the online Live Squads panel and offline's embedded
+     bidder-card pitch (buildLiveFormation()'s showTooltips argument) -
+     both .live-pitch containers below lift the overflow:hidden
+     clipping so the tooltip isn't cut off. */
+  #liveSquadsBody .live-pitch, .bidder-card .live-pitch{overflow:visible;}
+  .live-slot:hover{z-index:50;}
+  .live-slot-tooltip{position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+    background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 12px;
+    min-width:120px; max-width:190px; white-space:nowrap; text-align:center; font-size:11px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.45); opacity:0; visibility:hidden; pointer-events:none;
+    transition:opacity .15s ease; z-index:10;}
+  .live-slot:hover .live-slot-tooltip{opacity:1; visibility:visible;}
+  .live-slot-tooltip .tt-name{font-weight:700; color:var(--white); margin-bottom:3px; font-family:'Inter',sans-serif;}
+  /* Nation + club can run longer than a name ever does (a legend's
+     "Club A / Club B" pairing especially) - this is the one line in the
+     tooltip allowed to wrap, everything else here stays single-line. */
+  .live-slot-tooltip .tt-nat{color:var(--stone); font-family:'Inter',sans-serif; font-size:10px;
+    margin-bottom:3px; white-space:normal; overflow-wrap:break-word; word-break:break-word;}
+  .live-slot-tooltip .tt-nat:empty{display:none; margin-bottom:0;}
+  .live-slot-tooltip .tt-rating{color:var(--amber); font-family:'Space Mono',monospace; margin-bottom:2px;}
+  .live-slot-tooltip .tt-price{color:var(--green); font-family:'Space Mono',monospace;}
+
+  @keyframes playerPlaced{
+    0%{transform:translate(-50%,-50%) scale(0.5); opacity:0;}
+    50%{transform:translate(-50%,-50%) scale(1.15); box-shadow:0 0 20px rgba(255,176,32,0.6);}
+    100%{transform:translate(-50%,-50%) scale(1);}
+  }
+
+  /* Online-only "Live Squads" panel: browse any participant's squad via
+     Previous/Next, with their name and budget always on one line above
+     the pitch. Only ever shown/laid-out in online mode - see
+     #auctionScreen.online-mode below. Offline never references these
+     classes, so its layout is untouched. */
+  .live-squads-panel{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px;}
+  .live-squads-head{font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:1px; text-transform:uppercase; color:var(--amber); margin-bottom:10px;}
+  .live-squads-info{font-family:'Inter',sans-serif; font-size:14px; font-weight:600; color:var(--white); margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+  .live-squads-info-text{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1;}
+  .live-squads-nav{display:flex; gap:10px; margin-top:10px;}
+  .live-squads-nav-btn{flex:1; padding:9px 14px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--stone); font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s;}
+  .live-squads-nav-btn:hover{border-color:var(--amber); color:var(--amber);}
+  #liveSquadsBody .live-formation-title{display:none;}
+
+  /* Online desktop layout: Auction Info full-width on top, Bidding
+     Controls (left) + Live Squads (right) below it. This class is only
+     ever added to #auctionScreen in online mode (startMultiplayerAuction),
+     so Offline's plain top-to-bottom flow is completely unaffected. */
+  #auctionScreen.online-mode{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-areas:
+      "pool pool"
+      "status status"
+      "info info"
+      "bidding squads"
+      "ticker ticker";
+    gap:18px;
+    align-items:start;
+  }
+  /* The banner is an empty div whenever the default pool is in play, so
+     it must not reserve a gap - hence the :empty rule rather than a
+     margin on the element itself. */
+  #auctionScreen.online-mode > #auctionPoolBanner{grid-area:pool;}
+  #auctionScreen.online-mode > #auctionPoolBanner:empty{display:none;}
+  #auctionScreen.online-mode > .status-bar{grid-area:status; margin-bottom:0;}
+  #auctionScreen.online-mode > .stage{grid-area:info; margin-bottom:0;}
+  #auctionScreen.online-mode > #bidderGrid{grid-area:bidding; margin-bottom:0;}
+  #auctionScreen.online-mode > #liveSquadsPanel{grid-area:squads;}
+  #auctionScreen.online-mode > .ticker{grid-area:ticker;}
+
+  .bidder-slots{display:flex; gap:4px; margin:10px 0 12px; flex-wrap:wrap;}
+  .slot-dot{width:7px; height:7px; border-radius:50%; background:var(--line);}
+  .slot-dot.filled{background:var(--green);}
+  .bid-controls{display:flex; gap:6px; align-items:center; margin-bottom:8px;}
+  .bid-adjust{width:36px; flex-shrink:0; height:36px; border-radius:6px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Space Mono',monospace; font-weight:700; font-size:13px; cursor:pointer; transition:.15s;}
+  .bid-adjust:hover:not(:disabled){border-color:var(--amber); color:var(--amber);}
+  .bid-adjust:disabled{opacity:.3; cursor:not-allowed;}
+  .bid-input{flex:1; min-width:0; width:0; height:36px; border-radius:6px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Space Mono',monospace; font-weight:700; font-size:14px; text-align:center; padding:0 4px;}
+  .bid-input:focus{outline:none; border-color:var(--amber);}
+  .bid-input:disabled{opacity:.4;}
+  .bid-btn{width:100%; padding:11px; border-radius:8px; border:none; background:var(--amber); color:#1a1200; font-family:'Oswald',sans-serif; font-weight:600; font-size:13px; letter-spacing:1px; cursor:pointer; transition:.15s;}
+  .bid-btn:hover:not(:disabled){filter:brightness(1.08);}
+  .bid-btn:disabled{background:var(--line); color:var(--stone); cursor:not-allowed;}
+  .bid-error{color:var(--red); font-size:11px; margin-top:4px; min-height:14px;}
+
+  .kick-btn{flex-shrink:0; padding:6px 12px; border-radius:6px; border:1px solid var(--red); background:transparent; color:var(--red); font-family:'Inter',sans-serif; font-weight:600; font-size:11px; letter-spacing:0.5px; cursor:pointer; transition:.15s;}
+  .kick-btn:hover{background:var(--red); color:var(--white);}
+
+  .ticker{background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; padding:12px 16px; font-size:12.5px; color:var(--stone); font-family:'Space Mono',monospace; max-height:90px; overflow-y:auto;}
+  .ticker div{padding:3px 0; border-bottom:1px solid var(--line);}
+  .ticker div:last-child{border-bottom:none;}
+  .ticker b{color:var(--white);}
+
+  #resultsScreen{display:none;}
+  /* The results page is a reading column, not a dashboard. At the full
+     1000px wrap width a 560px pitch sat marooned in the middle of each
+     squad card with 220px of dead space either side. The simulation
+     table already scrolls inside its own wrapper, so nothing here needs
+     the extra width. */
+  #resultsScreen{max-width:760px; margin:0 auto;}
+  .results-title{text-align:center; font-family:'Oswald',sans-serif; font-weight:700; font-size:26px; letter-spacing:2px; margin-bottom:6px;}
+  .results-mode{
+    text-align:center; margin-bottom:28px; font-family:'Space Mono',monospace;
+    font-size:12px; color:var(--stone);
+  }
+  .results-mode b{color:var(--mode-accent, var(--amber)); font-weight:700;}
+  .squad-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; margin-bottom:16px;}
+  .squad-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;}
+  .squad-head .rank{font-family:'Space Mono',monospace; color:var(--amber); font-size:13px; margin-right:8px;}
+  .squad-head h3{font-family:'Oswald',sans-serif; font-size:17px; letter-spacing:1px;}
+  .squad-head .spend{font-family:'Space Mono',monospace; color:var(--stone); font-size:13px;}
+  .squad-avg{text-align:center; color:var(--amber); font-size:15px; font-family:'Space Mono',monospace; font-weight:700; margin-bottom:12px;}
+  /* A PORTRAIT pitch - which is how these squads were always laid out
+     (the slot coordinates put the keeper at y:95 and the striker at
+     y:8, i.e. goals at the bottom and top). It was being drawn into a
+     full-width box only 400px tall, so a vertical formation was
+     stretched sideways into a letterbox and read as a horizontal pitch;
+     the halfway line was drawn vertically too (a 90deg gradient, giving
+     a stripe DOWN the middle), which completed the illusion. Both are
+     fixed here: a real portrait aspect ratio, capped and centred, with
+     the halfway line running across it.
+     min-height stays as the fallback for engines without aspect-ratio,
+     where the box would otherwise collapse around absolute children. */
+  .formation-pitch{position:relative; border:1px solid var(--line); border-radius:12px; padding:20px;
+    width:100%; max-width:560px; margin:0 auto; aspect-ratio:4/5; min-height:400px;
+    background:
+      linear-gradient(180deg, transparent 0%, transparent 49.6%, rgba(255,255,255,0.05) 49.6%, rgba(255,255,255,0.05) 50.4%, transparent 50.4%, transparent 100%),
+      linear-gradient(90deg, rgba(62,207,107,0.08) 0%, rgba(62,207,107,0.15) 50%, rgba(62,207,107,0.08) 100%),
+      radial-gradient(ellipse at 50% 50%, rgba(62,207,107,0.12), rgba(19,47,34,0.95));}
+
+  .formation-pitch::before{content:''; position:absolute; top:50%; left:50%; width:100px; height:100px;
+    border:1px solid rgba(255,255,255,0.06); border-radius:50%; transform:translate(-50%,-50%); z-index:0;}
+
+  .formation-pitch::after{content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+    background:
+      linear-gradient(0deg, transparent 0%, transparent 15%, rgba(62,207,107,0.02) 15%, rgba(62,207,107,0.02) 16%, transparent 16%),
+      linear-gradient(0deg, transparent 84%, rgba(62,207,107,0.02) 84%, rgba(62,207,107,0.02) 85%, transparent 85%);
+    pointer-events:none; z-index:1;}
+
+  /* Sized to the tightest row any formation produces: 5-3-2's back five
+     sit 18% apart, which on a 560px pitch is ~101px - so a card can be
+     at most that wide before neighbours collide. */
+  .pitch-player{position:absolute; background:rgba(19,47,34,0.9); border:1px solid rgba(62,207,107,0.4);
+    backdrop-filter:blur(4px); border-radius:8px; padding:7px 8px; text-align:center; min-width:74px; max-width:92px;
+    min-height:70px; display:flex; flex-direction:column; justify-content:center; gap:2px;
+    transform:translate(-50%,-50%); z-index:2; box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+  .pitch-player .pos{color:var(--amber); font-size:10px; font-family:'Space Mono',monospace;}
+  .pitch-player .name{font-weight:600; font-size:11px; line-height:1.25; overflow-wrap:break-word; word-break:break-word;}
+  .pitch-player .nat{color:var(--stone); font-size:9.5px; overflow-wrap:break-word; word-break:break-word;}
+  .pitch-player .nat:empty{display:none;}
+  .pitch-player .stats{color:var(--stone); font-size:10px; font-family:'Space Mono',monospace;}
+  .pitch-player .rating{color:var(--amber); font-weight:700;}
+  .restart-btn{display:block; margin:30px auto 0; padding:13px 28px; border:1px solid var(--line); background:none; color:var(--stone); border-radius:9px; font-size:13px; cursor:pointer;}
+  .restart-btn:hover{border-color:var(--amber); color:var(--amber);}
+  .results-actions{display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap;}
+  .results-actions .restart-btn{margin:0;}
+
+  /* Home screen "how it works" - the three-line answer to "what IS this?"
+     that has to land before someone will pick a mode. */
+  .home-how{list-style:none; margin:0 0 24px; padding:14px 16px; background:var(--bg-alt); border:1px solid var(--line); border-radius:10px;}
+  .home-how li{display:flex; gap:11px; align-items:flex-start; font-size:12.5px; line-height:1.55; color:var(--stone); padding:5px 0;}
+  .home-how li + li{border-top:1px solid var(--line); margin-top:5px; padding-top:10px;}
+  .home-how .n{flex:none; width:20px; height:20px; border-radius:50%; background:rgba(255,176,32,0.14); color:var(--amber); font-family:'Space Mono',monospace; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px;}
+  .home-how b{color:var(--white); font-weight:600;}
+
+  .export-section{text-align:center; margin:30px 0; padding:20px; background:var(--card); border:1px solid var(--line); border-radius:12px;}
+  .export-section h3{font-family:'Oswald',sans-serif; font-size:16px; letter-spacing:1px; margin-bottom:16px; color:var(--amber);}
+  .export-btns{display:flex; gap:12px; justify-content:center; flex-wrap:wrap;}
+  .export-btn{padding:12px 24px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:.15s;}
+  .export-btn:hover{border-color:var(--amber); color:var(--amber);}
+
+  /* ---------- Statistics: collapsed, and a list rather than a dashboard
+     They were grids of bordered boxes - one per participant plus a
+     global one - which pushed the squads (the thing people are actually
+     here to see) most of a screen down, for numbers nobody reads on the
+     first pass. Now a disclosure containing plain label/value rows. */
+  .stats-disclosure > summary{
+    display:flex; align-items:center; gap:8px; cursor:pointer; list-style:none;
+    font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:1.5px;
+    text-transform:uppercase; color:var(--stone); transition:.15s;
+  }
+  .stats-disclosure > summary::-webkit-details-marker{display:none;}
+  .stats-disclosure > summary:hover{color:var(--white);}
+  /* Own marker, so it points the same way in every browser. */
+  .stats-disclosure > summary::before{
+    content:'›'; flex:none; font-family:'Inter',sans-serif; font-size:15px; line-height:1;
+    transform:rotate(90deg); transition:transform .15s; opacity:.7;
+  }
+  .stats-disclosure[open] > summary::before{transform:rotate(270deg);}
+  .stats-disclosure > summary .sd-title{flex:1;}
+  .stats-disclosure > summary .sd-hint{
+    flex:none; font-family:'Inter',sans-serif; font-size:11px;
+    letter-spacing:0; text-transform:none; opacity:.75;
+  }
+  .stats-disclosure > summary .sd-hint::after{content:'Show';}
+  .stats-disclosure[open] > summary .sd-hint::after{content:'Hide';}
+
+  .stat-rows{display:flex; flex-direction:column; margin-top:12px;}
+  .stat-row{
+    display:flex; justify-content:space-between; align-items:baseline; gap:14px;
+    padding:7px 0; font-size:12.5px; border-top:1px solid var(--line);
+  }
+  .stat-row:first-child{border-top:none;}
+  .stat-row .k{color:var(--stone); white-space:nowrap;}
+  .stat-row .v{font-family:'Space Mono',monospace; color:var(--amber); font-weight:700; text-align:right;}
+  .stat-row .v .sub{color:var(--stone); font-weight:400; font-size:11px; white-space:nowrap;}
+
+  /* The per-squad one is quieter still - it sits inside a squad card. */
+  .squad-stats{margin:0 0 14px;}
+  .squad-stats > summary{font-size:11px; letter-spacing:1px;}
+
+  .global-stats{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 20px; margin-bottom:20px;}
+
+  /* ---- Post-draft match simulation ---- */
+  .sim-section{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:20px;}
+  .sim-section h3{font-family:'Oswald',sans-serif; font-size:18px; letter-spacing:1px; margin-bottom:6px; text-align:center; color:var(--amber);}
+  .sim-intro{text-align:center; color:var(--stone); font-size:12px; margin-bottom:16px; line-height:1.6;}
+  .sim-mode-row{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:16px;}
+  .sim-mode-btn{padding:12px 18px; border-radius:10px; border:1px solid var(--line); background:var(--bg-alt);
+    color:var(--white); font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;
+    transition:.15s; text-align:center; min-width:150px;}
+  .sim-mode-btn .sim-mode-sub{display:block; font-size:10px; font-weight:400; color:var(--stone); margin-top:3px;}
+  .sim-mode-btn:hover:not(:disabled){border-color:var(--amber);}
+  .sim-mode-btn.active{border-color:var(--amber); color:var(--amber); background:rgba(255,176,32,0.1);}
+  .sim-mode-btn.active .sim-mode-sub{color:var(--amber); opacity:.75;}
+  .sim-mode-btn:disabled{opacity:.45; cursor:not-allowed;}
+  .sim-run-row{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .sim-note{text-align:center; color:var(--stone); font-size:11px; margin-top:12px; font-style:italic;}
+  .sim-output{margin-top:20px;}
+  .sim-output:empty{margin-top:0;}
+
+  .sim-block-title{font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--green); margin:22px 0 10px; text-align:center;}
+  .sim-block-title:first-child{margin-top:0;}
+
+  /* Champion banner */
+  .sim-champion{text-align:center; background:linear-gradient(180deg, rgba(255,176,32,0.16), rgba(255,176,32,0.04));
+    border:1px solid rgba(255,176,32,0.4); border-radius:12px; padding:18px; margin-bottom:18px;}
+  .sim-champion .trophy{font-size:34px; line-height:1;}
+  .sim-champion .label{font-size:10px; text-transform:uppercase; letter-spacing:2px; color:var(--stone); margin:8px 0 4px;}
+  .sim-champion .who{font-family:'Oswald',sans-serif; font-size:22px; letter-spacing:1px; color:var(--amber);}
+  .sim-champion .sub{font-size:11px; color:var(--stone); margin-top:6px;}
+
+  /* Match cards */
+  .sim-match{background:var(--bg-alt); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px;}
+  .sim-match-row{display:flex; align-items:center; gap:10px;}
+  .sim-team{flex:1; min-width:0; font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sim-team.away{text-align:right;}
+  .sim-team.win{color:var(--white);}
+  .sim-team.lose{color:var(--stone); opacity:.75;}
+  .sim-score{font-family:'Space Mono',monospace; font-size:17px; font-weight:700; color:var(--amber);
+    padding:2px 12px; background:var(--card); border-radius:6px; white-space:nowrap;}
+  .sim-match-meta{text-align:center; font-size:10px; color:var(--stone); margin-top:6px; letter-spacing:.5px;}
+  .sim-events{margin-top:8px; padding-top:8px; border-top:1px solid var(--line);
+    font-family:'Space Mono',monospace; font-size:10.5px; color:var(--stone); line-height:1.8;}
+  .sim-events .ev-min{color:var(--amber); display:inline-block; min-width:34px;}
+  .sim-events .ev-side{color:var(--green);}
+
+  /* League table */
+  .sim-table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  table.sim-table{width:100%; border-collapse:collapse; font-size:12px; min-width:430px;}
+  table.sim-table th{font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:1px; text-transform:uppercase;
+    color:var(--stone); text-align:center; padding:8px 6px; border-bottom:1px solid var(--line); font-weight:500;}
+  table.sim-table th.team-col, table.sim-table td.team-col{text-align:left; padding-left:10px;}
+  table.sim-table td{padding:9px 6px; text-align:center; border-bottom:1px solid rgba(245,247,242,0.04);
+    font-family:'Space Mono',monospace;}
+  table.sim-table td.team-col{font-family:'Inter',sans-serif; font-weight:600; max-width:150px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  table.sim-table td.pts{color:var(--amber); font-weight:700;}
+  table.sim-table tr.champ td{background:rgba(255,176,32,0.09);}
+  table.sim-table tr.champ td.team-col{color:var(--amber);}
+  table.sim-table .pos-num{color:var(--stone); font-size:11px;}
+
+  /* ---- Live broadcast playback ---- */
+  .sim-live{background:var(--bg-alt); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px;}
+  .sim-live-head{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;}
+  .sim-live-stage{font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber);}
+  .sim-live-progress{font-family:'Space Mono',monospace; font-size:11px; color:var(--stone);}
+  .sim-skip-btn{padding:8px 16px; border-radius:8px; border:1px solid var(--line); background:var(--card);
+    color:var(--white); font-family:'Inter',sans-serif; font-size:12px; font-weight:600; cursor:pointer; transition:.15s;}
+  .sim-skip-btn:hover{border-color:var(--amber); color:var(--amber);}
+
+  /* Live scoreboard */
+  .sim-scoreboard{display:flex; align-items:center; justify-content:center; gap:14px; padding:14px 10px;
+    background:var(--card); border:1px solid var(--line); border-radius:10px; margin-bottom:12px;}
+  .sim-sb-team{flex:1; min-width:0; font-family:'Inter',sans-serif; font-size:13px; font-weight:700; text-align:center;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sim-sb-score{font-family:'Space Mono',monospace; font-size:26px; font-weight:700; color:var(--amber); white-space:nowrap;}
+  .sim-sb-score.flash{animation:sbFlash .6s ease;}
+  @keyframes sbFlash{0%{transform:scale(1);}35%{transform:scale(1.35); color:var(--green);}100%{transform:scale(1);}}
+  .sim-sb-clock{font-family:'Space Mono',monospace; font-size:12px; color:var(--stone); text-align:center; margin-top:2px;}
+
+  /* Commentary feed */
+  .sim-feed{max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:0;}
+  .sim-feed-line{display:flex; gap:10px; padding:7px 4px; border-bottom:1px solid rgba(245,247,242,0.05);
+    font-size:12.5px; line-height:1.5; animation:feedIn .3s ease;}
+  @keyframes feedIn{from{opacity:0; transform:translateY(-6px);}to{opacity:1; transform:none;}}
+  .sim-feed-min{font-family:'Space Mono',monospace; font-size:11px; color:var(--amber); min-width:32px; flex-shrink:0;}
+  .sim-feed-txt{flex:1; min-width:0;}
+  .sim-feed-line.goal{background:rgba(62,207,107,0.09);}
+  .sim-feed-line.goal .sim-feed-txt{color:var(--green);}
+  .sim-feed-line.card .sim-feed-txt{color:var(--amber);}
+  .sim-feed-line.kickoff .sim-feed-txt,
+  .sim-feed-line.halftime .sim-feed-txt,
+  .sim-feed-line.fulltime90 .sim-feed-txt,
+  .sim-feed-line.shootout .sim-feed-txt{color:var(--stone); font-style:italic;}
+  .sim-feed-line.final{background:rgba(255,176,32,0.1);}
+  .sim-feed-line.final .sim-feed-txt{color:var(--amber); font-weight:600;}
+
+  /* Icon column, driven by the event kind rather than the translated
+     sentence - see SIM_EVENT_ICONS. Fixed width so the text of every
+     line starts at the same place and the feed scans vertically. */
+  .sim-feed-icon{flex-shrink:0; width:18px; text-align:center;}
+  .sim-feed-line.red{background:rgba(255,92,92,0.10);}
+  .sim-feed-line.red .sim-feed-txt{color:var(--red); font-weight:600;}
+  .sim-feed-line.yellow .sim-feed-txt{color:var(--amber);}
+
+  /* Speed controls, alongside Skip in the live header. 1x/2x only change
+     how fast an already-decided match is revealed. */
+  .sim-speed{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .sim-speed-btn{padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card);
+    color:var(--stone); font-family:'Space Mono',monospace; font-size:12px; cursor:pointer; transition:.15s;}
+  .sim-speed-btn:hover{border-color:var(--amber); color:var(--amber);}
+  .sim-speed-btn.active{border-color:var(--amber); background:var(--amber); color:var(--bg); font-weight:700;}
+
+  /* "Playing at home" marker. Small and quiet on purpose - it is context,
+     not a result, and it sits next to the thing people are actually
+     reading. Absent entirely on a neutral match. */
+  .sim-host-tag{display:inline-block; font-family:'Space Mono',monospace; font-size:8.5px;
+    font-weight:700; line-height:1; padding:2px 4px; border-radius:3px; vertical-align:middle;
+    color:var(--stone); background:rgba(245,247,242,0.09); letter-spacing:0.5px;}
+
+  /* Second leg of a two-legged tie: what the first leg finished, stated
+     once, small, directly under the live score. Deliberately one line -
+     the point is to make the aggregate obvious at a glance, not to open
+     a second scoreboard. */
+  .sim-firstleg{text-align:center; font-family:'Space Mono',monospace; font-size:11px;
+    color:var(--stone); padding:6px 4px 0;}
+
+  /* Goal scorers under the scoreboard: one row per player, their minutes
+     collected onto it ("Messi 20', 31'"). */
+  .sim-scorers{display:flex; gap:10px; padding:0 4px 10px; margin-bottom:10px;
+    border-bottom:1px solid var(--line);}
+  .sim-scorers:empty{display:none;}
+  .sim-scorers-col{flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;}
+  .sim-scorers-col.right{text-align:right;}
+  .sim-scorer{font-family:'Inter',sans-serif; font-size:11.5px; color:var(--white);}
+  .sim-scorer span{font-family:'Space Mono',monospace; color:var(--stone); font-size:10.5px;}
+
+  /* Live possession / xG: the two figures mirrored around a share bar. */
+  .sim-livestats{display:flex; flex-direction:column; gap:8px; margin-bottom:12px;}
+  .sim-stat-row{display:flex; align-items:center; gap:10px;}
+  .sim-stat-val{font-family:'Space Mono',monospace; font-size:12px; color:var(--white);
+    min-width:48px; flex-shrink:0;}
+  .sim-stat-row .sim-stat-val:last-child{text-align:right;}
+  .sim-stat-mid{flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; align-items:center;}
+  .sim-stat-label{font-family:'Oswald',sans-serif; font-size:9.5px; letter-spacing:1.2px;
+    text-transform:uppercase; color:var(--stone);}
+  .sim-stat-bar{width:100%; height:5px; border-radius:3px; background:rgba(245,247,242,0.10); overflow:hidden;}
+  .sim-stat-bar i{display:block; height:100%; background:var(--amber); transition:width .35s ease;}
+
+  /* Live standings: four columns instead of the final table's ten, so it
+     fits a phone without the horizontal scroll .sim-table needs. Sits
+     under the feed and stays collapsed until asked for. */
+  .sim-standings-slot{margin-top:10px;}
+  .sim-standings summary .sim-standings-count{flex:none; font-family:'Space Mono',monospace;
+    font-size:10px; color:var(--stone); text-transform:none; letter-spacing:0; margin-right:10px;}
+  table.sim-standings-table{width:100%; border-collapse:collapse; font-size:11.5px; margin-top:8px;}
+  table.sim-standings-table th{font-family:'Oswald',sans-serif; font-size:9px; letter-spacing:0.8px;
+    text-transform:uppercase; color:var(--stone); font-weight:500; text-align:center;
+    padding:4px 3px; border-bottom:1px solid var(--line);}
+  table.sim-standings-table td{padding:5px 3px; text-align:center;
+    font-family:'Space Mono',monospace; border-bottom:1px solid rgba(245,247,242,0.04);}
+  table.sim-standings-table th.team-col, table.sim-standings-table td.team-col{
+    text-align:left; padding-left:6px; font-family:'Inter',sans-serif; font-weight:600;
+    max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  table.sim-standings-table td.pos-num{color:var(--stone); font-size:10px;}
+  table.sim-standings-table td.pts{color:var(--amber); font-weight:700;}
+  .sim-standings-dot{display:inline-block; width:6px; height:6px; border-radius:50%;
+    margin-right:5px; flex-shrink:0;}
+  /* The two squads currently on the pitch, so the table can be read
+     without cross-checking the scoreboard above it. */
+  table.sim-standings-table tr.playing td{background:rgba(255,176,32,0.08);}
+  table.sim-standings-table tr.playing td.team-col{color:var(--amber);}
+
+  /* Mobile: the live panel is the busiest thing on the results screen, so
+     the feed gets shorter and the header wraps rather than squeezing the
+     controls into unreadable slivers. Priority order on a small screen is
+     score, current event, controls, then the numbers. */
+  @media (max-width:520px){
+    .sim-live{padding:12px;}
+    .sim-live-head{gap:8px;}
+    .sim-speed{width:100%; justify-content:flex-end;}
+    .sim-feed{max-height:200px;}
+    .sim-stat-val{min-width:42px; font-size:11px;}
+    .sim-scorer{font-size:11px;}
+  }
+
+  /* ---- Post-match summary ----
+     Collapsed by default (see simRenderMatchDetail) so a fifteen-match
+     bracket stays a results screen rather than fifteen stat sheets. */
+  .sim-detail{margin-top:10px;}
+  .sim-detail-body{padding-top:10px; display:flex; flex-direction:column; gap:6px;}
+  .sim-block-sub{font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:1.4px;
+    text-transform:uppercase; color:var(--stone); margin:8px 0 2px;}
+  .sim-statpanel{display:flex; flex-direction:column; gap:8px;}
+
+  .sim-motm{display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:9px 11px; border-radius:9px; background:rgba(255,176,32,0.10);
+    border:1px solid rgba(255,176,32,0.28);}
+  .sim-motm-label{font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:1.2px;
+    text-transform:uppercase; color:var(--amber);}
+  .sim-motm-who{font-family:'Inter',sans-serif; font-size:13px; font-weight:700; flex:1; min-width:0;}
+  .sim-motm-rating{font-family:'Space Mono',monospace; font-size:14px; font-weight:700; color:var(--amber);}
+
+  .sim-ratings{display:flex; gap:12px; flex-wrap:wrap;}
+  .sim-rate-col{flex:1 1 160px; min-width:0; display:flex; flex-direction:column; gap:2px;}
+  .sim-rate-team{display:flex; align-items:center; gap:6px; font-family:'Inter',sans-serif;
+    font-size:11.5px; font-weight:700; color:var(--stone); margin-bottom:4px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sim-rate-dot{width:7px; height:7px; border-radius:50%; flex-shrink:0;}
+  .sim-rate-row{display:flex; align-items:center; gap:8px;
+    padding:3px 0; border-bottom:1px solid rgba(245,247,242,0.04);}
+  /* Position code in its line's colour, matching the Squad Ratings bars
+     above (attack red, midfield amber, defence green, keeper blue) so the
+     two blocks can be read against each other without a legend. Fixed
+     width keeps every name starting at the same x, which is what makes
+     the column scan like a team sheet. */
+  .sim-rate-pos{font-family:'Space Mono',monospace; font-size:9.5px; font-weight:700;
+    letter-spacing:0.5px; width:30px; flex-shrink:0; text-align:center;
+    padding:2px 0; border-radius:4px; text-transform:uppercase;}
+  .sim-rate-pos.att{color:var(--red);   background:rgba(255,92,92,0.13);}
+  .sim-rate-pos.mid{color:var(--amber); background:rgba(255,176,32,0.13);}
+  .sim-rate-pos.def{color:var(--green); background:rgba(62,207,107,0.13);}
+  .sim-rate-pos.gk {color:var(--blue);  background:rgba(92,168,255,0.13);}
+  .sim-rate-name{font-family:'Inter',sans-serif; font-size:11.5px; min-width:0; flex:1;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sim-rate-num{font-family:'Space Mono',monospace; font-size:11.5px; color:var(--stone); flex-shrink:0;}
+  .sim-rate-num.hot{color:var(--green); font-weight:700;}
+  .sim-rate-num.cold{color:var(--red);}
+
+  .sim-analysis{list-style:none; display:flex; flex-direction:column; gap:6px; padding:0;}
+  .sim-analysis li{font-family:'Inter',sans-serif; font-size:12px; line-height:1.55;
+    color:var(--white); padding-left:14px; position:relative;}
+  .sim-analysis li::before{content:'▸'; position:absolute; left:0; color:var(--amber);}
+
+  /* Strength readout */
+  .sim-strength-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:10px;}
+  .sim-strength-card{background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; padding:12px;}
+  .sim-strength-name{font-family:'Inter',sans-serif; font-size:12px; font-weight:700; margin-bottom:8px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sim-bar-row{display:flex; align-items:center; gap:8px; margin-bottom:5px;}
+  .sim-bar-label{font-family:'Space Mono',monospace; font-size:9px; color:var(--stone); width:26px; flex-shrink:0;}
+  .sim-bar-track{display:block; flex:1; height:6px; background:rgba(245,247,242,0.07); border-radius:3px; overflow:hidden;}
+  /* display:block matters: this is a <span>, and width/height are ignored
+     on an inline box - so the fill measured 0x0 and every one of these
+     bars rendered as an empty track. The track above only escaped the
+     same fate because being a flex item blockifies it. */
+  .sim-bar-fill{display:block; height:100%; border-radius:3px;}
+  .sim-bar-val{font-family:'Space Mono',monospace; font-size:10px; color:var(--white); width:22px; text-align:right; flex-shrink:0;}
+
+  /* Awards. Same card language as the strength cards above, with the
+     amber accent the champion banner uses, since these are the other
+     "who won something" blocks on the page. */
+  .sim-awards-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px;}
+  .sim-award{background:var(--bg-alt); border:1px solid rgba(255,176,32,0.28); border-radius:8px;
+    padding:11px 12px; text-align:center;}
+  .sim-award-label{font-size:10px; letter-spacing:1.2px; text-transform:uppercase; color:var(--stone); margin-bottom:6px;}
+  .sim-award-who{font-family:'Oswald',sans-serif; font-size:15px; letter-spacing:.5px; color:var(--amber);
+    line-height:1.25; overflow-wrap:break-word;}
+  .sim-award-sub{font-size:10.5px; color:var(--stone); margin-top:4px; line-height:1.45; overflow-wrap:break-word;}
+  .sim-award .dot, .sim-motm-list .dot{display:inline-block; width:7px; height:7px; border-radius:50%;
+    margin-right:5px; vertical-align:middle;}
+  .sim-motm-list{margin-top:10px;}
+
+  /* Footer */
+  .footer{background:var(--card); border-top:1px solid var(--line); padding:20px; margin-top:40px; text-align:center;}
+  .footer-links{display:flex; gap:20px; justify-content:center; flex-wrap:wrap; margin-bottom:12px;}
+  .footer-link{color:var(--stone); font-size:12px; text-decoration:none; transition:.15s; cursor:pointer;}
+  .footer-link:hover{color:var(--amber);}
+
+  /* ---- Language picker (home screen, top of the card) ---- */
+  .lang-picker{position:relative; display:flex; justify-content:flex-end; margin-bottom:6px;}
+  .lang-btn{
+    display:inline-flex; align-items:center; gap:7px;
+    padding:6px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--bg-alt); color:var(--stone);
+    font-family:'Inter',sans-serif; font-size:12px; cursor:pointer; transition:.15s;
+  }
+  .lang-btn:hover{border-color:var(--amber); color:var(--amber);}
+  .lang-globe{font-size:13px; line-height:1; opacity:.8;}
+  .lang-caret{font-size:9px; opacity:.7;}
+  .lang-menu{
+    position:absolute; top:100%; inset-inline-end:0; margin-top:6px; z-index:40;
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:5px; min-width:168px; display:none;
+    box-shadow:0 10px 26px rgba(0,0,0,.45);
+  }
+  .lang-picker.open .lang-menu{display:block;}
+  .lang-option{
+    display:flex; align-items:center; gap:9px; width:100%;
+    padding:9px 10px; border:none; border-radius:7px; background:none;
+    color:var(--white); font-family:'Inter',sans-serif; font-size:13px;
+    cursor:pointer; text-align:start; transition:.12s;
+  }
+  .lang-option:hover{background:var(--bg-alt); color:var(--amber);}
+  .lang-option.active{color:var(--amber);}
+  /* Every language label is written in its own script, so it must never
+     inherit the page's direction - "العربية" in an LTR run and vice versa. */
+  .lang-option .lang-name, .lang-btn .lang-name{unicode-bidi:isolate;}
+  .lang-option{justify-content:flex-start;}
+
+  /* ---- Home toolbar: How to Play + language ----
+     One quiet row above the welcome heading. Both are escape hatches
+     rather than actions, so they are sized and coloured to be findable
+     without pulling attention off the three play buttons. */
+  .home-toolbar{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;}
+  .home-toolbar .lang-picker{margin-bottom:0;}
+  .help-btn{
+    display:inline-flex; align-items:center; gap:7px;
+    padding:6px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--bg-alt); color:var(--stone);
+    font-family:'Inter',sans-serif; font-size:12px; cursor:pointer; transition:.15s;
+  }
+  /* In the pseudo-element rather than the markup: data-i18n replaces the
+     button's textContent wholesale, so a real child node would be wiped
+     the first time the language was applied. */
+  .help-btn::before{
+    content:'?'; flex:none;
+    width:16px; height:16px; border-radius:50%;
+    background:rgba(255,176,32,0.14); color:var(--amber);
+    font-family:'Space Mono',monospace; font-size:11px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .help-btn:hover{border-color:var(--amber); color:var(--amber);}
+
+  /* ---- First-run tutorial ----
+     Same surface as the other modals (fixed, blurred backdrop, centred
+     card), one step above the pool picker so it can never open behind
+     anything. */
+  .tut-overlay{position:fixed; inset:0; background:rgba(6,17,12,0.86); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:600; padding:20px;}
+  .tut-overlay.show{display:flex;}
+  .tut-box{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    width:100%; max-width:420px; max-height:88vh; overflow-y:auto;
+    box-shadow:0 24px 60px rgba(0,0,0,0.55);
+  }
+  .tut-panel{position:relative; padding:26px 24px 22px; text-align:center;}
+  .tut-close{
+    position:absolute; top:12px; inset-inline-end:12px;
+    background:none; border:none; color:var(--stone); font-size:17px; line-height:1;
+    padding:4px 6px; cursor:pointer; transition:.15s;
+  }
+  .tut-close:hover{color:var(--white);}
+  .tut-count{font-family:'Space Mono',monospace; font-size:11px; letter-spacing:1px; color:var(--stone); margin-bottom:8px;}
+  .tut-title{font-family:'Oswald',sans-serif; font-size:19px; letter-spacing:1px; margin-bottom:9px;}
+  .tut-text{font-size:13.5px; line-height:1.65; color:var(--stone);}
+  .tut-dots{display:flex; justify-content:center; gap:6px; margin:20px 0 18px;}
+  .tut-dot{width:6px; height:6px; border-radius:50%; background:var(--line); transition:.2s;}
+  .tut-dot.on{background:var(--amber); transform:scale(1.25);}
+  .tut-nav{display:flex; gap:10px;}
+  .tut-btn{
+    flex:1; padding:13px 10px; border-radius:9px;
+    border:1px solid var(--line); background:var(--bg-alt); color:var(--white);
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:13px; letter-spacing:1.5px;
+    text-transform:uppercase; cursor:pointer; transition:.15s;
+  }
+  .tut-btn:hover:not(:disabled){border-color:var(--amber); color:var(--amber);}
+  .tut-btn:disabled{opacity:.32; cursor:default;}
+  .tut-btn.primary{background:var(--amber); color:#1a1200; border-color:var(--amber);}
+  .tut-btn.primary:hover{filter:brightness(1.08); color:#1a1200;}
+  .tut-skip{
+    display:block; margin:12px auto 0; padding:4px 8px;
+    background:none; border:none; color:var(--stone);
+    font-family:'Inter',sans-serif; font-size:12px; cursor:pointer; transition:.15s;
+  }
+  .tut-skip:hover{color:var(--white); text-decoration:underline;}
+
+  /* Language step */
+  .tut-panel-lang{padding-top:30px;}
+  .tut-globe{font-size:26px; color:var(--amber); margin-bottom:12px; opacity:.9;}
+  .tut-lang-grid{display:flex; flex-direction:column; gap:8px; margin:20px 0;}
+  .tut-lang-opt{
+    padding:13px 14px; border-radius:9px;
+    border:1px solid var(--line); background:var(--bg-alt); color:var(--white);
+    font-family:'Inter',sans-serif; font-size:14.5px; cursor:pointer; transition:.15s;
+  }
+  .tut-lang-opt:hover{border-color:var(--amber);}
+  .tut-lang-opt.active{border-color:var(--amber); background:rgba(255,176,32,0.12); color:var(--amber);}
+  .tut-continue{padding:14px;}
+
+  /* ---- Tutorial diagrams ----
+     Wordless on purpose (see js/tutorial.js): position codes, numerals
+     and shapes, so they are identical in all five languages and a new
+     language never leaves a diagram in English. */
+  .tut-art{
+    display:flex; align-items:center; justify-content:center;
+    min-height:104px; margin-bottom:20px; padding:16px 10px;
+    background:var(--bg-alt); border:1px solid var(--line); border-radius:11px;
+  }
+  .tut-queue{display:flex; align-items:center; gap:8px;}
+  .tut-queue-tail{display:flex; align-items:center; gap:6px; opacity:.42;}
+  .tut-chip{
+    display:flex; align-items:center; justify-content:center;
+    min-width:34px; height:34px; padding:0 7px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--stone);
+    font-family:'Space Mono',monospace; font-size:11px; font-weight:700;
+  }
+  .tut-chip.now{
+    min-width:46px; height:46px; font-size:14px;
+    background:var(--amber); border-color:var(--amber); color:#1a1200;
+    box-shadow:0 0 0 4px rgba(255,176,32,0.14);
+  }
+  .tut-budget{display:flex; flex-direction:column; align-items:center; gap:14px;}
+  .tut-budget-num{font-family:'Space Mono',monospace; font-size:27px; font-weight:700; color:var(--amber); letter-spacing:1px;}
+  .tut-m{font-size:.62em; opacity:.75; margin-inline-start:1px;}
+  .tut-pips{display:flex; gap:5px;}
+  .tut-pip{width:11px; height:14px; border-radius:3px; border:1px solid var(--line); background:var(--card);}
+  .tut-pip.filled{background:var(--amber); border-color:var(--amber);}
+  .tut-bidpanel{display:flex; align-items:center; gap:9px;}
+  .tut-step-btn{
+    display:flex; align-items:center; justify-content:center;
+    width:38px; height:38px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--stone);
+    font-family:'Space Mono',monospace; font-size:12px; font-weight:700;
+  }
+  .tut-step-btn.amber{background:var(--amber); border-color:var(--amber); color:#1a1200;}
+  .tut-bid-amount{min-width:64px; font-family:'Space Mono',monospace; font-size:21px; font-weight:700; color:var(--white);}
+  .tut-clock{
+    display:flex; align-items:center; justify-content:center;
+    width:34px; height:34px; margin-inline-start:5px; border-radius:50%;
+    border:2px solid var(--red); color:var(--red);
+    font-family:'Space Mono',monospace; font-size:13px; font-weight:700;
+  }
+  .tut-pitch{
+    display:flex; flex-direction:column-reverse; gap:9px;
+    width:132px; padding:9px 6px;
+    background:rgba(62,207,107,0.07); border:1px solid rgba(62,207,107,0.20); border-radius:7px;
+  }
+  .tut-pitch-row{display:flex; justify-content:space-evenly;}
+  .tut-slot{width:11px; height:11px; border-radius:50%; border:1px solid var(--stone); opacity:.55;}
+  .tut-slot.filled{background:var(--amber); border-color:var(--amber); opacity:1;}
+  .tut-match{display:flex; align-items:center; gap:14px;}
+  .tut-shirt{width:26px; height:30px; border-radius:5px;}
+  .tut-shirt.a{background:var(--amber);}
+  .tut-shirt.b{background:var(--blue);}
+  .tut-score{font-family:'Space Mono',monospace; font-size:26px; font-weight:700; color:var(--white); letter-spacing:2px;}
+  .tut-dash{color:var(--stone); margin:0 2px;}
+
+  /* ---- Live, in-context auction walkthrough ----
+     A dimmed backdrop, an amber ring around whichever real element is
+     being explained, and a small callout beside it - no cutout/spotlight
+     trick (that needs the target's box painted twice, and this element
+     changes every step), just a uniform dim plus a bright ring, which
+     reads just as clearly and is far simpler to keep in sync.
+     Position is written in JS (js/tutorial.js) as plain top/left in
+     pixels, in the same coordinate space as getBoundingClientRect() -
+     the overlay is a position:fixed box anchored at 0,0, so its
+     position:absolute children land at exactly the viewport coordinates
+     the target was measured at. */
+  .coach-overlay{position:fixed; inset:0; background:rgba(6,17,12,0.55); z-index:610; display:none;}
+  .coach-overlay.show{display:block;}
+  .coach-ring{
+    position:absolute; border:2px solid var(--amber); border-radius:12px;
+    box-shadow:0 0 0 4px rgba(255,176,32,0.16), 0 0 22px rgba(255,176,32,0.30);
+    pointer-events:none;
+    transition:top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+  }
+  .coach-card{
+    position:absolute; width:min(300px, calc(100vw - 28px));
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:16px 16px 14px; box-shadow:0 14px 34px rgba(0,0,0,0.5);
+    transition:top .25s ease, left .25s ease;
+  }
+  .coach-close{
+    position:absolute; top:9px; inset-inline-end:9px;
+    background:none; border:none; color:var(--stone); font-size:15px; line-height:1;
+    padding:4px 6px; cursor:pointer; transition:.15s;
+  }
+  .coach-close:hover{color:var(--white);}
+  .coach-count{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:1px; color:var(--stone); margin-bottom:7px;}
+  .coach-text{font-size:13.5px; line-height:1.55; color:var(--white); padding-inline-end:14px;}
+  .coach-text b{color:var(--amber);}
+  .coach-dots{display:flex; gap:5px; margin:13px 0 12px;}
+  .coach-dot{width:5px; height:5px; border-radius:50%; background:var(--line); transition:.2s;}
+  .coach-dot.on{background:var(--amber); transform:scale(1.3);}
+  .coach-next{
+    width:100%; padding:10px; border-radius:8px; border:1px solid var(--amber);
+    background:var(--amber); color:#1a1200; font-family:'Oswald',sans-serif; font-weight:600;
+    font-size:12.5px; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:.15s;
+  }
+  .coach-next:hover{filter:brightness(1.08);}
+
+  /* ---- Arabic / RTL ----
+     Only the things that genuinely read right-to-left flip. The pitch is
+     NOT one of them: a football pitch has a fixed geometry and mirroring
+     it would put the goalkeeper's box on the wrong side and move every
+     player away from where the formation says they stand. Numbers, prices
+     and scorelines are likewise left alone (see fmt()). */
+  html[dir="rtl"] .nav-arrow{display:inline-block; transform:scaleX(-1);}
+
+  /* What does NOT flip, and why.
+
+     Translating the interface is not the same as mirroring the game. A
+     lot of this screen is diagrammatic rather than textual - a pitch, a
+     scoreline, a bar chart, a stepper - and those read the same way in
+     every language. Flipping them produced real bugs: "6 v 6" came out
+     as "v 6 6", the minus button jumped to the right of the plus, and
+     the strength bars filled from the wrong end.
+
+     So: prose flips, instruments do not. Each block below is one kind of
+     instrument, pinned back to LTR. */
+
+  /* Diagrams: a pitch has a fixed geometry, and a timer ring is a dial. */
+  html[dir="rtl"] .formation-pitch,
+  html[dir="rtl"] .live-formation,
+  html[dir="rtl"] .live-pitch,
+  html[dir="rtl"] .sim-scoreboard,
+  /* The live panel mirrors the scoreboard above it - team A's figures on
+     the same side as team A's name, and a share bar that fills from A's
+     end. Flipping the numbers but not the scoreboard would put each
+     team's possession under the opponent's name. */
+  html[dir="rtl"] .sim-livestats,
+  html[dir="rtl"] .sim-scorers,
+  /* "A 2-1 B" is a scoreline, and scorelines do not mirror. */
+  html[dir="rtl"] .sim-firstleg,
+  /* Same reasoning after the whistle: the statistics table and the two
+     ratings columns are read against the scoreboard's team order, so they
+     hold that order. The Match Analysis below them is prose and flips
+     normally, which is the point of pinning these and not that. */
+  html[dir="rtl"] .sim-statpanel,
+  html[dir="rtl"] .sim-ratings,
+  /* A league table is a grid of numbers read against a position column -
+     the same instrument as the final table below it, which is already
+     pinned through .sim-table-wrap. */
+  html[dir="rtl"] .sim-standings-table,
+  html[dir="rtl"] .timer-ring{direction:ltr;}
+
+  /* The tutorial's diagrams are the same instruments in miniature - a
+     queue, a stepper, a pitch, a scoreline - so one rule covers the lot.
+     The prose around them (title, body, buttons) still flips normally. */
+  html[dir="rtl"] .tut-art{direction:ltr;}
+
+  /* Tokens shaped like a scoreline: "11 v 11", "6 v 6", "3 - 1", "01:30".
+     Left to the bidi algorithm these get reordered around the separator. */
+  html[dir="rtl"] .mode-badge,
+  html[dir="rtl"] .mc-chip,
+  html[dir="rtl"] .sim-score,
+  html[dir="rtl"] .sim-sb-score,
+  html[dir="rtl"] .bid-display .amount,
+  html[dir="rtl"] .timer-num,
+  html[dir="rtl"] .progress,
+  html[dir="rtl"] .squad-avg{direction:ltr; unicode-bidi:isolate;}
+
+  /* The bidding panel is an instrument panel: the owner's name sits at
+     the start, their money at the end, and the stepper runs -, value, +
+     with the plus on the right. That layout is what people's hands
+     learn, and it is the same in every language. */
+  html[dir="rtl"] .bidder-top,
+  html[dir="rtl"] .bidder-slots,
+  html[dir="rtl"] .bid-controls,
+  html[dir="rtl"] .live-squads-info,
+  html[dir="rtl"] .stage-controls{direction:ltr;}
+  /* ...but a participant's own name may be Arabic, so let it read in its
+     own direction inside that LTR row. */
+  html[dir="rtl"] .bidder-name, html[dir="rtl"] .bidder-budget{unicode-bidi:isolate;}
+
+  /* Bar charts fill from the start of the bar. Flipping the row put the
+     number on the wrong side and drained every bar backwards. */
+  html[dir="rtl"] .sim-bar-row,
+  html[dir="rtl"] .sim-strength-card{direction:ltr;}
+  html[dir="rtl"] .sim-strength-name{unicode-bidi:isolate;}
+
+  /* Participants keep the order they were given, left to right. This is
+     the same grid on every device in an online room, and #1 has to be
+     the same card for everyone. */
+  html[dir="rtl"] .bidder-grid,
+  html[dir="rtl"] #squadsWrap,
+  html[dir="rtl"] .sim-strength-grid,
+  html[dir="rtl"] .sim-awards-grid{direction:ltr;}
+
+  /* "Nationality • Club" is a fixed pairing, not a sentence: isolating
+     the two halves is not enough, because an RTL base direction then
+     orders the isolates right-to-left and prints the club first. The
+     line has to BE left-to-right. Same for anything else that reads as
+     "value · value". */
+  html[dir="rtl"] .player-name,
+  html[dir="rtl"] .player-nat,
+  html[dir="rtl"] .pitch-player .name,
+  html[dir="rtl"] .pitch-player .nat,
+  html[dir="rtl"] .pitch-player .stats,
+  html[dir="rtl"] .live-slot .name,
+  html[dir="rtl"] .player-info-name,
+  html[dir="rtl"] .player-info-nat,
+  html[dir="rtl"] .player-info-stats,
+  html[dir="rtl"] .sim-team,
+  html[dir="rtl"] .sim-award-who,
+  html[dir="rtl"] .sim-award-sub{direction:ltr; unicode-bidi:isolate;}
+
+  /* Genuinely mixed prose - an Arabic sentence with a Latin name in it.
+     These stay RTL and only isolate the name so it cannot be reordered
+     against the punctuation around it. */
+  html[dir="rtl"] .player-sub,
+  html[dir="rtl"] .stat-row .v,
+  html[dir="rtl"] .ticker div{unicode-bidi:isolate;}
+
+  /* The rating chip trails the name it belongs to; with the name pinned
+     LTR above, "left" is the correct side for that margin in both. */
+  html[dir="rtl"] .sim-match-row,
+  html[dir="rtl"] .sim-table-wrap{direction:ltr;}
+
+  /* Home-page socials. Deliberately small and monochrome until hovered -
+     it sits under the play buttons and must not compete with them.
+     Inline SVG rather than an icon font or remote images because the
+     published page runs under a CSP that blocks every external host. */
+  .socials{margin-bottom:22px;}
+  .socials-title{color:var(--stone); font-size:11px; letter-spacing:1.4px; text-transform:uppercase; margin-bottom:12px;}
+  .socials-row{display:flex; justify-content:center; gap:10px; flex-wrap:wrap;}
+  .social-btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:38px; height:38px; border-radius:9px;
+    border:1px solid var(--line); background:var(--bg-alt);
+    color:var(--stone); transition:.15s; text-decoration:none;
+  }
+  .social-btn svg{width:17px; height:17px; fill:currentColor; display:block;}
+  .social-btn:hover{color:var(--amber); border-color:var(--amber); transform:translateY(-2px);}
+  .social-btn:active{transform:translateY(0);}
+  @media (prefers-reduced-motion: reduce){
+    .social-btn{transition:none;}
+    .social-btn:hover{transform:none;}
+  }
+  .footer-version{color:var(--stone); font-size:11px; font-family:'Space Mono',monospace; opacity:0.6;}
+
+  /* Deliberately quieter than .start-btn - a pill, not a rectangle, no
+     fill, muted text - so it reads as an optional extra next to the
+     primary "how do you want to play" choices above it, not a fourth
+     mode. */
+  .install-app-btn{display:inline-flex; align-items:center; gap:7px; padding:10px 20px; border-radius:20px; border:1px solid var(--line); background:transparent; color:var(--stone); font-family:'Inter',sans-serif; font-weight:600; font-size:13px; cursor:pointer; transition:.15s;}
+  .install-app-btn:hover{border-color:var(--amber); color:var(--amber);}
+
+  /* Info Pages */
+  #aboutScreen, #privacyScreen, #termsScreen{display:none;}
+  .info-page{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:32px; max-width:800px; margin:0 auto;}
+  .info-page h2{font-family:'Oswald',sans-serif; font-size:24px; letter-spacing:2px; color:var(--amber); margin-bottom:20px; text-transform:uppercase;}
+  .info-page h3{font-family:'Oswald',sans-serif; font-size:18px; letter-spacing:1px; color:var(--green); margin:24px 0 12px;}
+  .info-page p{color:var(--white); line-height:1.7; margin-bottom:14px; font-size:14px;}
+  .info-page ul{color:var(--stone); line-height:1.8; margin:12px 0 12px 24px; font-size:14px;}
+  .info-page li{margin-bottom:8px;}
+  .back-link{display:inline-block; margin-bottom:20px; padding:10px 20px; border:1px solid var(--line); border-radius:8px; color:var(--stone); text-decoration:none; font-size:13px; transition:.15s; font-weight:500;}
+  .back-link:hover{border-color:var(--amber); color:var(--amber); transform:translateX(-2px);}
+  .back-link:active{transform:translateX(-4px);}
+  .info-page .back-link{margin-top:24px; margin-bottom:0;}
+  .changelog-item{background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; padding:14px; margin:12px 0;}
+  .changelog-version{font-family:'Space Mono',monospace; color:var(--amber); font-weight:700; font-size:13px; margin-bottom:6px;}
+  .changelog-date{color:var(--stone); font-size:11px; margin-bottom:8px;}
+
+  /* ================= MOBILE RESPONSIVENESS ================= */
+
+  /* Tablets and smaller (768px and below) */
+  @media (max-width: 768px) {
+    body{
+      padding:20px 16px 50px;
+    }
+
+    .setup-card, .stage, .info-page{
+      padding:24px;
+    }
+
+    .player-name{
+      font-size:28px;
+    }
+
+    .paused-overlay .text{
+      font-size:36px;
+    }
+
+    .sold-flash .word{
+      font-size:24px;
+    }
+
+    .bidder-grid{
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+
+    .footer{
+      padding:16px;
+    }
+
+    .footer-links{
+      flex-direction:column;
+      gap:12px;
+    }
+
+    /* Five icons at 44px still fit one row on a 320px screen (5x44 + 4x8
+       gap = 252), so they stay in a row rather than stacking - but at the
+       larger tap target the platform guidelines ask for. */
+    .social-btn{width:44px; height:44px;}
+    .social-btn svg{width:19px; height:19px;}
+
+    /* Online mobile layout: stack Auction Info, Bidding Controls, and
+       Live Squads vertically in that order (per the online-only grid
+       defined above) instead of the desktop two-column arrangement. */
+    #auctionScreen.online-mode{
+      grid-template-columns:1fr;
+      grid-template-areas:
+        "pool"
+        "status"
+        "info"
+        "bidding"
+        "squads"
+        "ticker";
+    }
+
+    /* Results screen pitch, mobile: only Position + Name stay on the
+       card itself (nationality/rating/price move into the tap-to-open
+       playerInfoOverlay panel below) so cards can shrink to a small,
+       non-overlapping chip instead of the desktop 4-line card.
+
+       Every card is exactly the same size here - a fixed width AND
+       height, not the min/max range this used to use. With a range, the
+       card grew to whatever its name needed and a long one ("Sergej
+       Milinković-Savić") wrapped to four lines, so a single pitch showed
+       cards of four different widths and four different heights and the
+       tall ones ran into their neighbours.
+
+       The width is a PERCENTAGE of the pitch rather than a pixel value
+       because the constraint it has to respect is a percentage: the
+       tightest row any formation produces is 5-3-2's back five at 18%
+       apart (4-2-3-1 is the tightest vertically, also 18%). At 16% wide
+       every card keeps a 2%-of-pitch gap from its neighbour at ANY
+       screen width, instead of being safe at one width and colliding at
+       another. Names are then fitted to the card by fitPitchName(). */
+    .formation-pitch{
+      min-height:300px;
+    }
+    .pitch-player{
+      width:16%; min-width:0; max-width:none;
+      height:44px; min-height:0;
+      padding:4px 3px; border-radius:7px; gap:1px;
+      cursor:pointer; -webkit-tap-highlight-color:transparent;
+    }
+    .pitch-player:active{
+      background:rgba(62,207,107,0.22); border-color:rgba(62,207,107,0.7);
+    }
+    .pitch-player .pos{font-size:8.5px; line-height:1.2;}
+    /* Exactly two lines' worth of box, always - so a one-line name and a
+       two-line name produce identically sized cards, and a longer one is
+       shortened by fitPitchName() rather than growing the card. Words are
+       never split mid-word (word-break:normal, overriding the desktop
+       rule); anything that still doesn't fit is handled in JS, which can
+       drop to a single name before it resorts to cutting characters. */
+    .pitch-player .name{
+      font-size:9.5px; line-height:1.15;
+      height:calc(9.5px * 1.15 * 2);
+      overflow:hidden;
+      overflow-wrap:normal; word-break:normal; hyphens:none;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .pitch-player .nat, .pitch-player .stats{display:none;}
+
+    /* The tutorial is the first thing a phone visitor sees, so it gets
+       the full width it can and keeps every step on one screen without
+       scrolling - a walkthrough you have to scroll is one people quit. */
+    .tut-overlay{padding:14px;}
+    .tut-panel{padding:22px 18px 18px;}
+    .tut-art{min-height:92px; margin-bottom:16px;}
+    .tut-title{font-size:17px;}
+    .tut-text{font-size:13px;}
+    .tut-lang-opt{padding:12px;}
+  }
+
+  /* Standard phones (414px and below) */
+  @media (max-width: 414px) {
+    body{
+      padding:16px 12px 40px;
+    }
+
+    .brand h1{
+      font-size:24px;
+      letter-spacing:2px;
+    }
+
+    .tagline{
+      font-size:12px;
+      margin-bottom:24px;
+    }
+
+    .setup-card, .stage, .squad-card, .info-page{
+      padding:20px;
+      border-radius:12px;
+    }
+
+    /* One pool per row on a phone - two columns squeezes the name and
+       the tagline into an unreadable stack. */
+    .pool-grid{grid-template-columns:1fr; gap:8px;}
+    .pool-card{padding:12px 13px;}
+    .pool-banner{padding:8px 11px; gap:8px;}
+    .pool-banner .pb-badge{font-size:11px; letter-spacing:1.4px;}
+    .pool-banner .pb-text{font-size:10.5px;}
+    .pool-modal-box{padding:16px; max-height:88vh;}
+
+    /* The trigger packs icon + name + badge + description + chevron into
+       one row - on an actual phone (vs. the 768px tablet breakpoint
+       above) that's too much for one line, so everything shrinks and the
+       name/description get real ellipsis truncation instead of trying to
+       cram the full text in. */
+    .pool-select{padding:9px 10px; gap:8px;}
+    .pool-select-icon{font-size:17px;}
+    .pool-select-name{font-size:12px; gap:6px;}
+    .pool-select-badge{font-size:8px; padding:2px 6px;}
+    .pool-select-meta{font-size:10px;}
+    .pool-select-chevron{font-size:10px;}
+
+    .player-name{
+      font-size:24px;
+    }
+
+    .player-rating{
+      font-size:13px;
+      padding:3px 8px;
+      margin-left:8px;
+    }
+
+    .timer-ring{
+      width:75px;
+      height:75px;
+    }
+
+    .timer-num{
+      font-size:18px;
+    }
+
+    .bid-display .amount{
+      font-size:26px;
+    }
+
+    .paused-overlay .text{
+      font-size:28px;
+      letter-spacing:2px;
+    }
+
+    .sold-flash .word{
+      font-size:20px;
+      letter-spacing:2px;
+    }
+
+    .countdown-banner .emoji{
+      font-size:36px;
+    }
+
+    .countdown-banner .text{
+      font-size:20px;
+    }
+
+    .countdown-banner .num{
+      font-size:42px;
+    }
+
+    /* Side by side, not stacked. As a column these two full-width buttons
+       cost 98 px and pushed the first PLACE BID button 22 px below the fold
+       on a 390x844 phone - so the one control that matters during a
+       thirty-second round could not be seen with the lot and the timer.
+       In a row they cost 44 px, and two secondary actions stop looking as
+       loud as the primary one. Tap targets are unaffected: the 44 px minimum
+       is a HEIGHT, and it is kept below. */
+    .stage-controls{
+      flex-direction:row;
+      flex-wrap:wrap;
+      width:100%;
+    }
+
+    .stage-controls .ctrl-btn{
+      flex:1 1 0;
+      min-width:0;
+      width:auto;
+      min-height:44px;
+      padding:12px 10px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .rerolls-indicator{
+      margin-top:4px;
+    }
+
+    .bidder-grid{
+      grid-template-columns:1fr;
+    }
+
+    .live-pitch{
+      height:140px;
+    }
+
+    .formation-pitch{
+      min-height:270px;
+    }
+
+    /* Width stays the percentage set at 768px (it's a percentage of the
+       pitch, so it already scales); only the type and the resulting fixed
+       height come down. */
+    .pitch-player{
+      height:40px;
+      padding:3px 3px;
+      border-radius:6px;
+    }
+
+    .pitch-player .pos{
+      font-size:8px;
+      line-height:1.2;
+    }
+
+    .pitch-player .name{
+      font-size:8.5px;
+      line-height:1.1;
+      height:calc(8.5px * 1.1 * 2);
+    }
+
+    .live-slot{
+      min-width:38px;
+      padding:2px 4px;
+    }
+
+    .live-slot .pos{
+      font-size:7px;
+    }
+
+    .live-slot .name{
+      font-size:8px;
+    }
+
+    .chip-btn{
+      min-height:44px;
+      padding:0 12px;
+      font-size:13px;
+    }
+
+    .toggle-switch{
+      min-width:48px;
+      min-height:26px;
+    }
+
+    .start-btn, .bid-btn{
+      min-height:48px;
+      font-size:14px;
+    }
+
+    .bid-adjust{
+      min-width:44px;
+      min-height:44px;
+      font-size:14px;
+    }
+
+    .bid-input{
+      min-height:44px;
+      font-size:13px;
+    }
+
+    /* Phone: the nav drops out of absolute positioning and flows at the
+       top of the auction screen instead. Absolutely positioned it sat
+       over the "Auction XI" brand (there is no positioned ancestor, so
+       it anchors to the page, not the screen) - fine for one button on a
+       wide viewport, but it hid the title once there were two. */
+    .auction-nav{
+      position:static;
+      justify-content:flex-end;
+      gap:6px;
+      margin-bottom:10px;
+    }
+
+    /* Labels drop so both stay comfortably inside a phone width, while
+       keeping a 44px tap target. */
+    .back-home-btn, .restart-auction-btn{
+      padding:10px 0;
+      font-size:15px;
+      min-width:44px;
+      text-align:center;
+    }
+
+    .nav-label{
+      display:none;
+    }
+
+    .sound-toggle-btn{
+      top:12px;
+      right:12px;
+      width:38px;
+      height:38px;
+      font-size:15px;
+    }
+
+    .chat-toggle-btn{
+      bottom:12px;
+      right:12px;
+      width:46px;
+      height:46px;
+      font-size:18px;
+    }
+
+    .chat-panel{
+      bottom:0;
+      right:0;
+      left:0;
+      width:auto;
+      max-width:none;
+      height:70vh;
+      max-height:70vh;
+      border-radius:16px 16px 0 0;
+    }
+
+    .status-bar{
+      flex-direction:column;
+      align-items:flex-start;
+      gap:8px;
+      margin-bottom:14px;
+    }
+
+    .live-pitch{
+      min-height:320px;
+    }
+
+    /* Narrow: let a long value drop under its label instead of being
+       squeezed into a sliver by the label beside it. */
+    .stat-row{
+      flex-direction:column; align-items:flex-start; gap:2px;
+    }
+    .stat-row .v{text-align:left;}
+
+    .export-btns{
+      flex-direction:column;
+      width:100%;
+    }
+
+    .export-btn{
+      width:100%;
+      min-height:44px;
+    }
+
+    #mpResultsActions{
+      flex-direction:column;
+      width:100%;
+    }
+
+    #mpResultsActions .restart-btn{
+      width:100%;
+      min-height:44px;
+    }
+
+    .mp-vote-count{
+      font-size:10px;
+      padding:2px 6px;
+    }
+
+    .mp-toast{
+      top:60px;
+      font-size:12px;
+      padding:12px 16px;
+    }
+
+    .confirm-box{
+      padding:20px;
+    }
+
+    .confirm-actions{
+      flex-direction:column-reverse;
+    }
+
+    .confirm-btn{
+      width:100%;
+      min-height:46px;
+    }
+
+    /* column-reverse would put Cancel on top and the destructive Quit at
+       the bottom; keep this one in written order so the safe choice stays
+       nearest the thumb and Quit isn't the easiest thing to hit. */
+    .mp-return-actions{flex-direction:column;}
+    .confirm-note{text-align:center;}
+
+    .info-page h2{
+      font-size:20px;
+    }
+
+    .info-page h3{
+      font-size:16px;
+    }
+
+    .info-page p, .info-page ul, .info-page li{
+      font-size:13px;
+    }
+  }
+
+  /* Small phones - iPhone SE (375px and below) */
+  @media (max-width: 375px) {
+    body{
+      padding:12px 10px 40px;
+    }
+
+    .brand h1{
+      font-size:22px;
+      letter-spacing:1.5px;
+    }
+
+    .setup-card, .stage, .squad-card, .global-stats, .export-section{
+      padding:16px;
+    }
+
+    .pool-select{padding:8px 9px; gap:7px;}
+    .pool-select-icon{font-size:16px;}
+    .pool-select-name{font-size:11px; gap:5px;}
+    .pool-select-badge{font-size:7.5px; padding:1px 5px;}
+    .pool-select-meta{font-size:9.5px;}
+    .pool-select-chevron{font-size:9.5px;}
+
+    .pool-banner{padding:7px 9px; gap:6px;}
+    .pool-banner .pb-icon{font-size:15px;}
+    .pool-banner .pb-badge{font-size:10px; letter-spacing:1.1px;}
+    .pool-banner .pb-text{font-size:9.5px;}
+
+    .player-name{
+      font-size:22px;
+    }
+
+    .player-nat{
+      font-size:12.5px;
+    }
+
+    .player-sub{
+      font-size:12px;
+    }
+
+    .timer-ring{
+      width:70px;
+      height:70px;
+    }
+
+    .timer-num{
+      font-size:17px;
+    }
+
+    .bid-display .amount{
+      font-size:24px;
+    }
+
+    .paused-overlay .text{
+      font-size:24px;
+    }
+
+    .paused-overlay .resume-btn{
+      padding:12px 24px;
+      font-size:14px;
+    }
+
+    .live-pitch{
+      height:130px;
+    }
+
+    .live-slot{
+      min-width:36px;
+      padding:2px 3px;
+    }
+
+    .live-slot .pos{
+      font-size:7px;
+    }
+
+    .live-slot .name{
+      font-size:7px;
+    }
+
+    .chip-row{
+      gap:6px;
+    }
+
+    .chip-btn{
+      font-size:12px;
+      padding:0 10px;
+      height:40px;
+    }
+
+    .field-label{
+      font-size:11px;
+    }
+
+    .budget-note{
+      padding:12px 14px;
+      font-size:12px;
+    }
+
+    .budget-note .amt{
+      font-size:14px;
+    }
+
+    .formation-pitch{
+      min-height:250px;
+    }
+
+    .pitch-player{
+      height:37px;
+      padding:3px 2px;
+    }
+
+    .pitch-player .pos{
+      font-size:7.5px;
+      line-height:1.2;
+    }
+
+    .pitch-player .name{
+      font-size:8px;
+      line-height:1.05;
+      height:calc(8px * 1.05 * 2);
+    }
+
+    .results-title{
+      font-size:22px;
+      margin-bottom:20px;
+    }
+
+    .squad-head{
+      flex-direction:column;
+      align-items:flex-start;
+      gap:6px;
+    }
+
+    .squad-head h3{
+      font-size:16px;
+    }
+
+    .squad-head .spend{
+      font-size:12px;
+    }
+
+    .ticker{
+      font-size:11px;
+      max-height:80px;
+      padding:10px 12px;
+    }
+  }
+
+  /* ---- Loading screen ----
+     Sits above everything (including the tutorial, which can open behind
+     it on a first run) and is the only element in the app visible before
+     any script has executed. Painted from the markup, so a slow network
+     shows this rather than a bare page with live buttons on it. */
+  #bootOverlay{
+    position:fixed; inset:0; z-index:900;
+    display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(ellipse at 50% 30%, rgba(62,207,107,0.10), transparent 60%),
+      var(--bg);
+    transition:opacity .28s ease;
+  }
+  #bootOverlay.gone{opacity:0; pointer-events:none;}
+  .boot-box{display:flex; flex-direction:column; align-items:center; gap:14px; padding:24px; text-align:center;}
+  .boot-mark{font-size:38px; line-height:1; animation:bootBob 1.5s ease-in-out infinite;}
+  @keyframes bootBob{0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);}}
+  .boot-title{
+    font-family:'Oswald',sans-serif; font-size:24px; letter-spacing:5px;
+    color:var(--white); font-weight:600;
+  }
+  .boot-title span{color:var(--amber); margin-left:6px;}
+  .boot-msg{font-family:'Inter',sans-serif; font-size:12.5px; color:var(--stone); max-width:280px; line-height:1.5;}
+  .boot-bar{width:150px; height:3px; border-radius:2px; background:rgba(245,247,242,0.10); overflow:hidden;}
+  /* Indeterminate on purpose: a single fetch has no meaningful percentage
+     to report, and a fake one that jumps to 90% and waits is worse than
+     honest motion. */
+  .boot-bar i{
+    display:block; width:40%; height:100%; border-radius:2px; background:var(--amber);
+    animation:bootSlide 1.1s ease-in-out infinite;
+  }
+  @keyframes bootSlide{
+    0%{transform:translateX(-110%);} 100%{transform:translateX(360%);}
+  }
+  #bootOverlay.failed .boot-bar{display:none;}
+  #bootOverlay.failed .boot-mark{animation:none; opacity:.5;}
+  #bootOverlay.failed .boot-msg{color:var(--red);}
+  #bootRetryBtn{margin-top:4px;}
+
+  /* Tutorial step 4: one player swapped for another. Reads as "this can
+     still change" without naming reroll or passing - the text does that,
+     and the art has to work in every language. */
+  .tut-swap{display:flex; align-items:center; justify-content:center; gap:12px;}
+  .tut-swap .tut-chip.out{opacity:.35; text-decoration:line-through;}
+  .tut-swap-arrow{font-size:20px; color:var(--amber); line-height:1;}
+
+  /* Tutorial step 6: two possession-style bars under the scoreline, so
+     the closing step looks like the match report it is describing rather
+     than just a result. */
+  .tut-matchwrap{display:flex; flex-direction:column; align-items:center; gap:12px;}
+  .tut-matchbars{display:flex; flex-direction:column; gap:5px; align-items:center;}
+  .tut-matchbar{display:block; width:110px; height:4px; border-radius:2px;
+    background:rgba(245,247,242,0.10); overflow:hidden;}
+  .tut-matchbar i{display:block; height:100%; background:var(--amber); border-radius:2px;}
+  .tut-matchbar:last-child i{background:var(--stone);}
+
+  /* ---- Team of the Tournament ----
+     Reuses .formation-pitch so it reads as a squad, like the cards above
+     it, rather than as one more table. */
+  .sim-tott-note{font-family:'Inter',sans-serif; font-size:11.5px; color:var(--stone);
+    text-align:center; margin:-4px 0 10px;}
+  .sim-tott-pitch{margin-bottom:18px;}
+  /* Rating and squad colour ride along on the POSITION line rather than
+     taking a line of their own.
+
+     A pitch card is a flex column, and the narrow-screen rules give the
+     name a fixed two-line box. Adding a third line made the name
+     flex-shrink to five pixels - below a single line - so fitPitchName
+     trimmed every player to one letter and an ellipsis. Sharing the
+     position line costs nothing and keeps the rating visible at every
+     width, while the full team NAME still drops on small screens exactly
+     as it does on the squad cards. */
+  .sim-tott-pitch .pitch-player .pos{
+    display:flex; align-items:center; justify-content:center; gap:3px;
+  }
+  .tott-dot{display:inline-block; width:6px; height:6px; border-radius:50%; flex-shrink:0;}
+  .tott-avg{font-family:'Space Mono',monospace; color:var(--amber); font-weight:700;}
+
+/* ================= keyboard focus =================
+   One rule, because there were three :focus declarations in two thousand
+   lines of CSS carrying sixty animations - focus styling was incidental
+   rather than designed.
+
+   #chatInput and .bid-input do set outline:none on focus, but both swap the
+   border to amber in its place, so those stay as they are. .name-input input
+   removed the outline with nothing in its place; it is given the border
+   treatment below to match its neighbours.
+
+   :focus-visible rather than :focus, so a mouse click does not leave a ring
+   behind on every button it touches. The offset keeps it clear of the amber
+   fill on primary actions. */
+:focus-visible{
+  outline:2px solid var(--amber);
+  outline-offset:2px;
+  border-radius:4px;
+}
+/* Inputs already signal focus by changing their border, so they get the ring
+   without the offset pushing it onto neighbouring controls. */
+input:focus-visible, select:focus-visible, textarea:focus-visible{
+  outline-offset:0;
+}
+
+/* ================= short screens =================
+   Not a width problem - a HEIGHT one. A 360x640 phone is 200 px shorter than
+   the 844 px handset the layout was measured on, and that is the difference
+   between PLACE BID sitting on screen and sitting below it during a
+   thirty-second round.
+
+   Keyed on max-height so it catches a small phone AND a normal phone held in
+   landscape, which is the same problem. Nothing is removed here, only
+   tightened: the lot, the timer, the price and the button are all still
+   there, just less generously spaced. */
+@media (max-height: 720px){
+  .stage{padding:16px 16px 14px; margin-bottom:10px;}
+  .player-name{font-size:26px; margin-bottom:2px;}
+  .player-nat, .player-sub{font-size:11.5px;}
+  .timer-ring{width:64px; height:64px; margin:0 auto 8px;}
+  .timer-num{font-size:17px;}
+  .bid-display{margin-bottom:10px;}
+  .bid-display .amount{font-size:26px;}
+  .pos-badge{margin-bottom:6px;}
+  .stage-controls .ctrl-btn{min-height:40px; padding:9px 8px; font-size:11.5px;}
+  .bidder-card{padding:10px 12px;}
+  .status-bar{margin-bottom:8px;}
+  .brand h1{font-size:17px;}
+}
+
+
+/* ================= tap targets =================
+   Twenty-six interactive elements measured under 44x44 on a phone, the worst
+   being the four footer links at 15 px tall sitting 20 px apart.
+
+   Two techniques, and which one applies depends on whether the control has a
+   visible box:
+
+   BORDERLESS controls (footer links, the tutorial close and skip buttons, the
+   language and help chips) just grow. Their box is invisible, so padding
+   costs nothing visually - only the glyph's position moves, and where they
+   are absolutely positioned the offset is pulled back by the same amount so
+   the glyph stays put.
+
+   BORDERED controls (the round close and sound buttons) keep their drawn size
+   and get a transparent ::after that extends the hit area past the border.
+   Growing those boxes directly would visibly fatten a circle that is meant to
+   be small.
+
+   Nothing here changes a font size or a colour. */
+
+/* -- borderless: grow the box -- */
+/* Height is what makes the target, not width - so the horizontal padding
+   stays tight enough that all four links still sit on one row. At 8 px a side
+   they wrapped and left "Contact" orphaned on a line of its own. */
+.footer-links{gap:4px; margin-bottom:4px;}
+.footer-link{display:inline-flex; align-items:center; min-height:44px; padding:0 5px;}
+
+.tut-skip{padding:12px 16px; min-height:44px;}
+
+.lang-btn, .help-btn{min-height:44px; padding:11px 12px;}
+
+/* Absolutely positioned: grow, then pull the offset back so the glyph does
+   not appear to move. .tut-close was 26x25 at a 12 px inset; centred in a
+   44 px box the same glyph sits at a 3 px inset. */
+.tut-close{min-width:44px; min-height:44px; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  top:3px; inset-inline-end:3px;}
+.coach-close{min-width:44px; min-height:44px; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  top:0; inset-inline-end:0;}
+
+/* -- bordered: size them properly -- */
+/* A transparent ::after extension was tried first and did not survive a hit
+   test, so these are simply the right size. A close button in the corner of a
+   panel can afford 44 px. */
+.player-info-close{width:44px; height:44px; min-width:44px; min-height:44px;
+  box-sizing:border-box; font-size:15px;}
+
+/* -- one dimension short -- */
+.chip-btn{min-width:44px;}
+.tut-lang-opt{min-height:44px;}
+.coach-next{min-height:44px;}
+.back-link{min-height:44px; display:inline-flex; align-items:center;}
+.squad-toggle{min-height:44px;}
+.auction-nav .restart-auction-btn, .auction-nav .back-home-btn{min-height:44px;}
+
+/* The name field LOOKED 44 px tall and was not. The padding belonged to the
+   wrapper, so the visible box was the right size while only its middle 17 px
+   actually focused the input - you tapped the control and nothing happened.
+   Moving the vertical padding onto the input itself makes the whole box
+   tappable and leaves the drawn height unchanged. */
+.name-input{padding-top:0; padding-bottom:0;}
+.name-input input{min-height:44px; padding:12px 0;}
+
+@media (max-width:560px){
+  /* Back to the 44 px minimum. It was shrunk to 38 for the corner it sits in,
+     and a transparent ::after extension did not survive a hit test - a fixed
+     circle in a corner can simply be the right size. */
+  .sound-toggle-btn{width:44px; height:44px; font-size:16px;}
+}
+
+/* The share button on every squad card. Deliberately quiet - it sits under
+   eleven names somebody has just spent a draft assembling, and should look
+   like an offer rather than a call to action. */
+.squad-share-btn{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; min-height:44px; margin-top:12px; padding:11px 14px;
+  background:none; border:1px solid var(--line); border-radius:8px;
+  color:var(--stone); font-family:'Inter',sans-serif; font-size:12.5px;
+  letter-spacing:.4px; cursor:pointer; transition:.15s;
+}
+.squad-share-btn:hover:not(:disabled){color:var(--amber); border-color:var(--amber);}
+.squad-share-btn:disabled{opacity:.45; cursor:progress;}

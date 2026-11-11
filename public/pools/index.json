@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-08-05",
+  "defaultPoolId": "all_time",
+
+  "_instructions": {
+    "whatIsThis": "The catalogue of player pools the game offers. The pool picker in every draft mode is built from this file - nothing is hardcoded in index.html, so adding a pool here makes it appear in the game.",
+    "howToAddAPool": [
+      "1. Copy pools/world_cup_2026.json to pools/<your_id>.json and fill in its 'pool' block and 'players' array.",
+      "2. Add an entry to the 'pools' array below with the same id, and point 'file' at your new file.",
+      "3. That's it. The picker, the branding and the draft engine all read from these two places."
+    ],
+    "fields": {
+      "id": "Unique key. Also what gets saved in settings and synced to online rooms - never change it once people have used it.",
+      "name": "Full display name on the pool card.",
+      "shortName": "Compact name for badges and tight spaces. Falls back to 'name'.",
+      "icon": "One emoji shown on the card and in the in-game badge.",
+      "tagline": "One short line under the name on the card.",
+      "category": "Free-text grouping label ('core', 'tournament', 'themed', ...). Shown as a small tag.",
+      "order": "Sort order in the picker, ascending.",
+      "available": "false = shown as a locked 'Coming soon' card and NEVER fetched. Use it to announce a pool before the file exists.",
+      "file": "Path to the pool file, relative to index.html. Omit for pools that are not available yet.",
+      "theme": "Optional per-event branding. See the pool file for the full field list."
+    },
+    "note": "A pool being 'available' does not by itself make it playable. The game counts the real players in the file against the chosen formation and participant count, and will tell the user if a pool is too thin for the draft they set up. So you can ship a half-finished pool safely."
+  },
+
+  "pools": [
+    {
+      "id": "all_time",
+      "name": "All-Time Greats",
+      "shortName": "All-Time",
+      "icon": "⚽",
+      "tagline": "Every era, every legend, every position.",
+      "description": "The full database - modern stars and retired icons together. The classic Auction XI draft.",
+      "category": "core",
+      "order": 10,
+      "available": true,
+      "file": "players.json",
+      "theme": {
+        "accent": "#FFB020",
+        "accentInk": "#1A1200",
+        "badge": "ALL-TIME GREATS"
+      }
+    },
+    {
+      "id": "current_players",
+      "name": "Current Players",
+      "shortName": "Current",
+      "icon": "🔥",
+      "tagline": "Today's stars only. No legends, no reserves.",
+      "description": "A curated 2026-27 season database, built for recognizability rather than raw coverage. Active professionals only - no legends, no anonymous squad fillers.",
+      "category": "core",
+      "order": 15,
+      "available": true,
+      "file": "pools/current_players.json",
+      "theme": {
+        "accent": "#7C5CFF",
+        "accentInk": "#0F0A1F",
+        "badge": "CURRENT PLAYERS"
+      }
+    },
+    {
+      "id": "world_cup_2026",
+      "name": "World Cup 2026",
+      "shortName": "World Cup",
+      "icon": "🏆",
+      "tagline": "48 nations. One trophy. Draft the tournament.",
+      "description": "Only players heading to the 2026 World Cup. Build the eleven that lifts it.",
+      "category": "tournament",
+      "order": 20,
+      "available": true,
+      "file": "pools/world_cup_2026.json",
+      "theme": {
+        "accent": "#4FA3FF",
+        "accentInk": "#04121F",
+        "badge": "WORLD CUP 2026"
+      }
+    },
+    {
+      "id": "champions_league",
+      "name": "Champions League",
+      "shortName": "UCL",
+      "icon": "🌟",
+      "tagline": "The best of Europe, under the lights.",
+      "description": "Squads from this season's Champions League campaign.",
+      "category": "tournament",
+      "order": 30,
+      "available": false,
+      "theme": {
+        "accent": "#8E7BFF",
+        "accentInk": "#0C0820",
+        "badge": "CHAMPIONS LEAGUE"
+      }
+    },
+    {
+      "id": "copa_america",
+      "name": "Copa América",
+      "shortName": "Copa",
+      "icon": "🌎",
+      "tagline": "South America's oldest rivalry, drafted.",
+      "description": "The continental championship pool.",
+      "category": "tournament",
+      "order": 40,
+      "available": false,
+      "theme": {
+        "accent": "#3ECF6B",
+        "accentInk": "#03150B",
+        "badge": "COPA AMÉRICA"
+      }
+    },
+    {
+      "id": "wonderkids",
+      "name": "Wonderkids",
+      "shortName": "Wonderkids",
+      "icon": "🚀",
+      "tagline": "Under 21. Bid on what they'll become.",
+      "description": "Only the game's brightest young talent.",
+      "category": "themed",
+      "order": 50,
+      "available": false,
+      "theme": {
+        "accent": "#6EE7D8",
+        "accentInk": "#04201C",
+        "badge": "WONDERKIDS"
+      }
+    },
+    {
+      "id": "icons",
+      "name": "Legends of the Game",
+      "shortName": "Legends",
+      "icon": "👑",
+      "tagline": "Retired only. Settle the arguments.",
+      "description": "The icons, at their peak, in one auction.",
+      "category": "themed",
+      "order": 60,
+      "available": false,
+      "theme": {
+        "accent": "#FFD866",
+        "accentInk": "#1E1500",
+        "badge": "LEGENDS"
+      }
+    }
+  ]
+}

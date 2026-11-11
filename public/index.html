@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Auction XI - Football Auction Draft Game</title>
+<meta name="description" content="Auction XI is a free football auction draft game. Build your dream eleven by bidding against friends offline, online, or AI opponents, with a real 1,500+ player database, World Cup 2026 pools, and 5 tactical formations.">
+<!-- Open Graph / social sharing -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Auction XI">
+<meta property="og:title" content="Auction XI - Football Auction Draft Game">
+<meta property="og:description" content="Build your dream eleven by bidding against friends offline, online, or AI opponents, with a real 1,500+ player database and World Cup 2026 pools.">
+<meta property="og:image" content="og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Auction XI - Football Auction Draft Game">
+<meta name="twitter:description" content="Build your dream eleven by bidding against friends offline, online, or AI opponents, with a real 1,500+ player database and World Cup 2026 pools.">
+<meta name="twitter:image" content="og-image.png">
+
+<link rel="icon" type="image/png" href="favicon.png">
+
+<!-- PWA / Add to Home Screen -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B1F17">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Auction XI">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Auction XI",
+  "description": "A free football auction draft game. Build your dream eleven by bidding against friends offline, online, or AI opponents.",
+  "applicationCategory": "Game",
+  "operatingSystem": "Any (web browser)",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+
+<link rel="stylesheet" href="fonts/fonts.css">
+
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<button class="sound-toggle-btn" id="globalSoundBtn" data-i18n-title="common.toggleSound" title="Toggle sound">🔊</button>
+<div class="mp-toast" id="mpToast"></div>
+
+<button class="chat-toggle-btn" id="chatToggleBtn" data-i18n-title="chat.toggle" title="Room chat">
+  💬<span class="chat-unread-badge" id="chatUnreadBadge" style="display:none;">0</span>
+</button>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-panel-head">
+    <span data-i18n="chat.title">Room Chat</span>
+    <button class="chat-panel-close" id="chatCloseBtn">✕</button>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-panel-input-row">
+    <input type="text" id="chatInput" data-i18n-placeholder="chat.placeholder" placeholder="Message..." maxlength="300" autocomplete="off">
+    <button id="chatSendBtn" data-i18n="chat.send">Send</button>
+  </div>
+</div>
+<div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle" data-i18n="dialog.areYouSure">Are you sure?</div>
+    <div class="confirm-text" id="confirmText"></div>
+    <div class="confirm-actions">
+      <button class="confirm-btn" id="confirmCancelBtn" data-i18n="common.cancel">Cancel</button>
+      <button class="confirm-btn danger" id="confirmOkBtn" data-i18n="common.confirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kick / Kick-and-Block: a dedicated 3-way panel (Cancel / Kick / Kick
+     and Block) rather than the generic 2-button confirm dialog above. -->
+<div class="confirm-overlay" id="kickConfirmOverlay" role="dialog" aria-modal="true" aria-labelledby="kickConfirmTitle">
+  <div class="confirm-box">
+    <div class="confirm-title" id="kickConfirmTitle" data-i18n="dialog.removePlayer">Remove player?</div>
+    <div class="confirm-text" id="kickConfirmText"></div>
+    <div class="confirm-actions" style="justify-content:center; flex-wrap:wrap;">
+      <button class="confirm-btn" id="kickConfirmCancelBtn" data-i18n="common.cancel">Cancel</button>
+      <button class="confirm-btn danger" id="kickConfirmKickBtn" data-i18n="dialog.kick">Kick</button>
+      <button class="confirm-btn danger" id="kickConfirmBlockBtn" data-i18n="dialog.kickBlock">Kick and Block</button>
+    </div>
+  </div>
+</div>
+
+<!-- Online only: leaving a live draft is two genuinely different actions,
+     so the back button asks which rather than assuming. Same 3-way shape
+     as the kick panel above - see mpShowReturnMenu(). -->
+<div class="confirm-overlay" id="mpReturnOverlay" role="dialog" aria-modal="true" aria-labelledby="mpReturnTitle">
+  <div class="confirm-box">
+    <div class="confirm-title" id="mpReturnTitle" data-i18n="dialog.leaveDraft">Leave the draft?</div>
+    <div class="confirm-text" id="mpReturnText"></div>
+    <div class="confirm-actions mp-return-actions">
+      <button class="confirm-btn" id="mpReturnCancelBtn" data-i18n="common.cancel">Cancel</button>
+      <button class="confirm-btn" id="mpReturnRoomBtn" data-i18n="dialog.backToRoom">Back to Room</button>
+      <button class="confirm-btn danger" id="mpReturnHomeBtn" data-i18n="dialog.quitHome">Quit to Home</button>
+    </div>
+    <div class="confirm-note" id="mpReturnNote"></div>
+  </div>
+</div>
+
+<!-- Results screen, mobile: tapping a pitch player (which only shows
+     Position + Name at that width) opens this floating panel with the
+     full details - see showPlayerInfoPanel()/hidePlayerInfoPanel(). -->
+<div class="confirm-overlay player-info-overlay" id="playerInfoOverlay" role="dialog" aria-modal="true" aria-labelledby="playerInfoName">
+  <div class="confirm-box player-info-card">
+    <button class="player-info-close" id="playerInfoCloseBtn" data-i18n-aria="common.close" aria-label="Close">✕</button>
+    <div class="player-info-pos" id="playerInfoPos"></div>
+    <div class="player-info-name" id="playerInfoName"></div>
+    <div class="player-info-nat" id="playerInfoNat"></div>
+    <div class="player-info-stats" id="playerInfoStats"></div>
+  </div>
+</div>
+
+<!-- Pool picker: one shared modal for every screen that can choose a
+     pool (offline setup and the online waiting room), so the grid of
+     cards exists in exactly one place no matter how many screens can
+     open it. See renderAllPoolPickers()/openPoolModal() in the script. -->
+<div class="pool-modal-overlay" id="poolModalOverlay" role="dialog" aria-modal="true" aria-labelledby="poolModalTitle">
+  <div class="pool-modal-box">
+    <div class="pool-modal-head">
+      <span class="pool-modal-title" id="poolModalTitle" data-i18n="pool.choose">Choose Player Pool</span>
+      <button type="button" class="pool-modal-close" id="poolModalCloseBtn" data-i18n-aria="common.close" aria-label="Close">✕</button>
+    </div>
+    <div class="pool-modal-body">
+      <div class="pool-grid" id="poolModalGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- First run: pick a language, then a five-step explanation of what an
+     auction draft actually is. Built entirely by js/tutorial.js so the
+     panel can be repainted into another language mid-step; the markup is
+     just the shell. -->
+<div class="tut-overlay" id="tutorialOverlay" role="dialog" aria-modal="true">
+  <div class="tut-box" id="tutorialBox"></div>
+</div>
+
+<!-- Live, in-context walkthrough for someone's first real bidding round -
+     a ring drawn around the actual element being explained (the player,
+     the timer, the bid controls) plus a small callout next to it, rather
+     than a modal describing them from nowhere. See js/tutorial.js. -->
+<div class="coach-overlay" id="coachOverlay" role="dialog" aria-modal="true" aria-live="polite">
+  <div class="coach-ring" id="coachRing"></div>
+  <div class="coach-card" id="coachCard"></div>
+</div>
+
+<div class="wrap">
+  <div class="brand"><h1>Auction <span>XI</span></h1></div>
+  <p class="tagline" data-i18n="app.tagline">Build your eleven. Spend it wisely. Nobody gets a refund.</p>
+
+  <!-- LOADING SCREEN
+       Visible from the very first paint (no display:none, no JS needed to
+       show it) and taken down only once there are players to draft. The
+       home screen underneath is fully interactive the moment it renders,
+       so without this the three play buttons invited a click while a
+       third of a megabyte of player data was still downloading - and the
+       draft that followed had nothing to offer. -->
+  <div id="bootOverlay">
+    <div class="boot-box">
+      <div class="boot-mark">⚽</div>
+      <div class="boot-title">AUCTION<span>XI</span></div>
+      <div class="boot-msg" id="bootMsg" data-i18n="common.loadingPlayers">Loading players…</div>
+      <div class="boot-bar" id="bootBar"><i></i></div>
+      <button type="button" class="restart-btn" id="bootRetryBtn" style="display:none;" data-i18n="common.retry">Try again</button>
+    </div>
+  </div>
+
+  <!-- HOME SCREEN -->
+  <div id="homeScreen" style="display:none;">
+    <div class="setup-card">
+      <!-- Compact and top-aligned on purpose: someone who cannot read the
+           page needs to find the language, and someone who skipped the
+           tutorial by mistake needs to find it back, both without
+           scrolling - but neither may compete with the three play
+           buttons, so both are quiet and share one row. -->
+      <div class="home-toolbar">
+        <button type="button" class="help-btn" id="howToPlayBtn" data-i18n="tutorial.howToPlay">
+          How to Play
+        </button>
+        <div class="lang-picker" id="langPicker"></div>
+      </div>
+      <h2 data-i18n="home.welcome" style="text-align:center; font-family:'Oswald',sans-serif; font-size:22px; letter-spacing:1px; margin-bottom:10px;">Welcome to Auction XI</h2>
+
+      <!-- What the GAME is, before the modes. This screen used to explain
+           only how to play (online / shared / AI), which left anyone who
+           had never seen an auction draft choosing between three options
+           they had no way to evaluate. Deliberately budget- and
+           squad-size-agnostic so it stays true in both game modes. -->
+      <ol class="home-how">
+        <li><span class="n">1</span><span data-i18n-html="home.how1">Footballers come up <b>one at a time</b>. Everyone starts with the same budget.</span></li>
+        <li><span class="n">2</span><span data-i18n-html="home.how2">Bid against each other — when the timer runs out, the <b>highest bid signs the player</b>.</span></li>
+        <li><span class="n">3</span><span data-i18n-html="home.how3">Fill every position in your formation, then see <b>who built the better team</b>.</span></li>
+      </ol>
+
+      <p data-i18n="home.choose" style="text-align:center; color:var(--stone); font-size:13px; margin-bottom:20px;">Choose how you want to play</p>
+
+      <button class="start-btn" onclick="AI_MODE=false; aiStopThinking(); track('mode_selected',{mode:'online'}); showScreen('lobbyScreen');" style="margin-bottom:16px;">
+        <span data-i18n="home.playFriends">🌐 Play with Friends</span>
+      </button>
+
+      <button class="start-btn" onclick="openSharedSetup();" style="background:var(--bg-alt); color:var(--white); border:1px solid var(--line); margin-bottom:16px;">
+        <span data-i18n="home.playShared">📺 Play on Shared Screen</span>
+      </button>
+
+      <button class="start-btn" onclick="openAISetup();" style="background:var(--bg-alt); color:var(--white); border:1px solid var(--line);">
+        <span data-i18n="home.playAI">🤖 Play against AI</span>
+      </button>
+
+      <p data-i18n-html="home.modeExplain" style="text-align:center; color:var(--stone); font-size:12px; margin-top:24px; line-height:1.6;">
+        <b>Play with Friends:</b> Create or join a room for online multiplayer<br>
+        <b>Shared Screen:</b> Pass-and-play mode on one device<br>
+        <b>Against AI:</b> Draft solo against computer managers
+      </p>
+
+      <div id="installAppRow" style="text-align:center; margin-top:22px; display:none;">
+        <button class="install-app-btn" id="installAppBtn" data-i18n="home.install">📲 Add to Home Screen</button>
+      </div>
+    </div>
+
+    <!-- Footer (moved from setupScreen) -->
+    <div style="text-align:center; margin-top:40px; padding-top:30px; border-top:1px solid var(--line);">
+      <!-- rel="noopener noreferrer" on every one: target="_blank" without
+           noopener hands the opened tab a live window.opener handle back
+           into this page. -->
+      <div class="socials">
+        <div class="socials-title" data-i18n="home.follow">Follow Auction XI</div>
+        <div class="socials-row">
+          <a class="social-btn" href="https://www.instagram.com/auctionxiofficial" target="_blank" rel="noopener noreferrer" title="Instagram" aria-label="Auction XI on Instagram">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41 1.27-.06 1.65-.07 4.85-.07M12 0C8.74 0 8.33.01 7.05.07 5.78.13 4.9.33 4.14.63c-.79.3-1.46.72-2.12 1.39C1.35 2.68.93 3.35.63 4.14.33 4.9.13 5.78.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.27.26 2.15.56 2.91.3.79.72 1.46 1.39 2.12.66.67 1.33 1.09 2.12 1.39.76.3 1.64.5 2.91.56C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.27-.06 2.15-.26 2.91-.56.79-.3 1.46-.72 2.12-1.39.67-.66 1.09-1.33 1.39-2.12.3-.76.5-1.64.56-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.27-.26-2.15-.56-2.91-.3-.79-.72-1.46-1.39-2.12C21.32 1.35 20.65.93 19.86.63c-.76-.3-1.64-.5-2.91-.56C15.67.01 15.26 0 12 0z"/><path d="M12 5.84a6.16 6.16 0 100 12.32 6.16 6.16 0 000-12.32zM12 16a4 4 0 110-8 4 4 0 010 8z"/><circle cx="18.41" cy="5.59" r="1.44"/></svg>
+          </a>
+          <a class="social-btn" href="https://www.facebook.com/share/1CC4gnwh2W/" target="_blank" rel="noopener noreferrer" title="Facebook" aria-label="Auction XI on Facebook">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.96h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07z"/></svg>
+          </a>
+          <a class="social-btn" href="https://www.tiktok.com/@auctionxi" target="_blank" rel="noopener noreferrer" title="TikTok" aria-label="Auction XI on TikTok">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.6 5.82A4.28 4.28 0 0115.54 3h-3.09v12.4a2.59 2.59 0 01-2.59 2.5 2.59 2.59 0 01-2.59-2.59 2.59 2.59 0 013.31-2.49v-3.2a5.72 5.72 0 00-.72-.05A5.79 5.79 0 004.07 15.4a5.79 5.79 0 005.79 5.79 5.79 5.79 0 005.79-5.79V9.01a7.35 7.35 0 004.29 1.37V7.29a4.29 4.29 0 01-3.34-1.47z"/></svg>
+          </a>
+          <a class="social-btn" href="https://x.com/auctionxiapp" target="_blank" rel="noopener noreferrer" title="X" aria-label="Auction XI on X">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.41l-5.8-7.58-6.64 7.58H.46l8.6-9.83L0 1.15h7.59l5.24 6.93zm-1.29 19.5h2.04L6.49 3.24H4.3z"/></svg>
+          </a>
+          <a class="social-btn" href="https://www.reddit.com/u/auctionxi/" target="_blank" rel="noopener noreferrer" title="Reddit" aria-label="Auction XI on Reddit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M24 11.78a2.6 2.6 0 00-4.4-1.87 12.8 12.8 0 00-6.96-2.22l1.18-5.56 3.86.82a1.86 1.86 0 103.71-.12 1.86 1.86 0 00-3.51-.85l-4.31-.92a.42.42 0 00-.5.32l-1.32 6.2a12.83 12.83 0 00-7.05 2.22 2.6 2.6 0 10-2.86 4.24 5.1 5.1 0 00-.06.8c0 4.07 4.74 7.37 10.59 7.37s10.59-3.3 10.59-7.37a5.1 5.1 0 00-.06-.79A2.6 2.6 0 0024 11.78zM6.03 13.63a1.86 1.86 0 113.71 0 1.86 1.86 0 01-3.71 0zm10.37 4.93c-1.27 1.27-3.7 1.36-4.41 1.36-.71 0-3.14-.1-4.4-1.36a.48.48 0 01.68-.68c.8.8 2.51 1.09 3.73 1.09 1.22 0 2.93-.29 3.73-1.09a.48.48 0 01.68.68zm-.29-3.07a1.86 1.86 0 110-3.72 1.86 1.86 0 010 3.72z"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-bottom:12px;">
+        <a href="#" class="footer-link" data-i18n="home.about" onclick="showScreen('aboutScreen'); return false;">About</a>
+        <a href="#" class="footer-link" data-i18n="home.privacy" onclick="showScreen('privacyScreen'); return false;">Privacy Policy</a>
+        <a href="#" class="footer-link" data-i18n="home.terms" onclick="showScreen('termsScreen'); return false;">Terms of Service</a>
+        <a href="#" class="footer-link" data-i18n="home.contact" onclick="showScreen('aboutScreen'); return false;">Contact</a>
+      </div>
+      <div style="color:var(--stone); font-size:12px;">Auction XI · Local edition v1.0.0</div>
+    </div>
+  </div>
+
+  <!-- LOBBY SCREEN -->
+  <div id="lobbyScreen" style="display:none;">
+    <div class="setup-card">
+      <a href="#" class="back-link" onclick="showScreen('homeScreen'); return false;"><span class="nav-arrow">←</span> <span data-i18n="common.backHome">Back to Home</span></a>
+
+      <h2 data-i18n="lobby.title" style="text-align:center; font-family:'Oswald',sans-serif; font-size:20px; letter-spacing:1px; margin-bottom:20px;">Multiplayer Lobby</h2>
+
+      <input type="text" id="hostNameInput" class="input-field" data-i18n-placeholder="lobby.yourName" placeholder="Your Name" autocomplete="off" style="width:100%; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; padding:12px 14px; color:var(--white); font-family:'Inter',sans-serif; font-size:14px; margin-bottom:16px;">
+
+      <button class="start-btn" id="createRoomBtn" onclick="createMultiplayerRoom()" data-i18n="lobby.createRoom">Create New Room</button>
+
+      <div data-i18n="lobby.or" style="text-align:center; margin:20px 0; color:var(--stone); font-size:13px;">or</div>
+
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <input type="text" id="joinRoomCode" data-i18n-placeholder="lobby.enterCode" placeholder="Enter 6-Character Room Code" maxlength="6" autocomplete="off" style="flex:1; min-width:0; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; padding:12px 14px; color:var(--white); font-family:'Space Mono',monospace; font-size:14px; text-align:center; text-transform:uppercase;">
+        <button class="copy-icon-btn" id="pasteRoomCodeBtn" type="button" data-i18n-title="lobby.pasteCode" data-i18n-aria="lobby.pasteCode" title="Paste room code" aria-label="Paste room code">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1"></rect></svg>
+        </button>
+      </div>
+      <input type="text" id="joinNameInput" data-i18n-placeholder="lobby.yourName" placeholder="Your Name" autocomplete="off" style="width:100%; background:var(--bg-alt); border:1px solid var(--line); border-radius:8px; padding:12px 14px; color:var(--white); font-family:'Inter',sans-serif; font-size:14px; margin-bottom:16px;">
+
+      <button class="start-btn" id="joinRoomBtn" style="background:var(--bg-alt); color:var(--white); border:1px solid var(--line);" onclick="joinMultiplayerRoom()" data-i18n="lobby.joinRoom">Join Room</button>
+
+      <div id="lobbyError" style="display:none; background:rgba(255,92,92,0.1); border:1px solid rgba(255,92,92,0.3); color:var(--red); padding:12px; border-radius:8px; margin-top:16px; font-size:13px;"></div>
+    </div>
+  </div>
+
+  <!-- WAITING ROOM SCREEN -->
+  <div id="waitingScreen" style="display:none;">
+    <div class="setup-card">
+      <h2 data-i18n="waiting.created" style="text-align:center; font-family:'Oswald',sans-serif; font-size:18px; letter-spacing:1px; margin-bottom:10px;">Room Created!</h2>
+      <p data-i18n="waiting.share" style="text-align:center; color:var(--stone); font-size:13px; margin-bottom:20px;">Share this code with your friends</p>
+
+      <!-- Room Information Card -->
+      <div style="background:var(--bg-alt); border:1px solid var(--line); border-radius:12px; padding:20px; margin:20px 0;">
+        <div style="display:grid; gap:16px;">
+          <!-- Room Code -->
+          <div>
+            <div data-i18n="waiting.roomCode" style="font-size:11px; color:var(--stone); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Room Code</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+              <div style="font-family:'Space Mono',monospace; font-size:28px; font-weight:700; color:var(--amber); letter-spacing:6px;" id="displayRoomCode">------</div>
+              <button class="copy-icon-btn" id="copyRoomBtn" onclick="copyRoomCode()" data-i18n-title="waiting.copyCode" data-i18n-aria="waiting.copyCode" title="Copy room code" aria-label="Copy room code">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Room Stats -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+              <div data-i18n="waiting.players" style="font-size:11px; color:var(--stone); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Players</div>
+              <div style="font-family:'Space Mono',monospace; font-size:18px; font-weight:700; color:var(--white);">
+                <span id="roomPlayerCount">0</span> / <span id="roomMaxPlayers">6</span>
+              </div>
+            </div>
+            <div>
+              <div data-i18n="waiting.host" style="font-size:11px; color:var(--stone); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Host</div>
+              <div style="font-size:14px; font-weight:600; color:var(--white);">
+                <span id="roomHostName">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Status -->
+          <div>
+            <div data-i18n="waiting.statusLabel" style="font-size:11px; color:var(--stone); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Status</div>
+            <div id="roomStatus" data-i18n="waiting.waitingForPlayers" style="font-size:13px; font-weight:600; color:var(--amber);">Waiting for players</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(255,176,32,0.1); border:1px solid rgba(255,176,32,0.3); border-radius:8px; padding:14px; margin-bottom:20px; font-size:13px; line-height:1.6;">
+        <span data-i18n="waiting.hint">Players can join by entering this code. Once everyone has joined, the host can configure settings and start the auction.</span>
+      </div>
+
+      <!-- Shown to everyone, host included, so guests can see which pool
+           the host has chosen without being able to change it. -->
+      <div id="waitingPoolBanner"></div>
+
+      <!-- Settings (Host Only) -->
+      <div id="hostSettings" style="display:none;">
+        <span class="field-label" data-i18n="waiting.maxParticipants">Max Participants</span>
+        <div class="chip-row" id="waitingMaxParticipantsRow"></div>
+
+        <span class="field-label" data-i18n="field.playerPool">Player Pool</span>
+        <button type="button" class="pool-select" id="waitingPoolSelect"></button>
+        <div id="waitingPoolWarning"></div>
+
+        <span class="field-label" data-i18n="field.gameMode">Game mode</span>
+        <div class="mode-picker" id="waitingGameModeRow"></div>
+
+        <span class="field-label" data-i18n="field.formation">Formation</span>
+        <div class="chip-row" id="waitingFormationRow"></div>
+
+        <span class="field-label" data-i18n="field.auctionSettings">Auction Settings</span>
+
+        <span class="field-label" data-i18n="field.timer" style="font-size:11px; margin-top:16px; margin-bottom:8px;">Timer</span>
+        <div class="chip-row" id="waitingTimerRow"></div>
+        <div id="waitingCustomTimerSection" style="display:none; margin-bottom:20px;">
+          <input type="number" id="waitingCustomTimerInput" data-i18n-placeholder="field.customTimer" placeholder="Enter minutes (max 60)" min="1" max="60" autocomplete="off" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Space Mono',monospace; font-size:13px; margin-top:8px;">
+          <div id="waitingCustomTimerError" style="color:var(--red); font-size:11px; margin-top:4px; min-height:14px;"></div>
+        </div>
+
+        <span class="field-label" data-i18n="field.displayRatings" style="font-size:11px; margin-bottom:8px;">Display Ratings</span>
+        <div class="toggle-row">
+          <div class="toggle-switch" id="waitingRatingToggle"><div class="knob"></div></div>
+          <span class="toggle-label" data-i18n="field.showRatings">Show player ratings next to names</span>
+        </div>
+
+        <span class="field-label" data-i18n="field.rerolls" style="font-size:11px; margin-bottom:8px;">Rerolls</span>
+        <div class="chip-row" id="waitingRerollsRow"></div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <h3 style="font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--stone); margin-bottom:12px;"><span data-i18n="waiting.playersInRoom">Players in Room</span> (<span id="playerCount">0</span>) - <span id="readyCount" style="color:var(--amber);">0</span> <span data-i18n="waiting.readyCount">Ready</span></h3>
+        <div id="waitingPlayersList"></div>
+      </div>
+
+      <!-- Ready button for non-host players -->
+      <button class="start-btn" id="playerReadyBtn" onclick="toggleReady()" style="display:none; margin-top:20px; background:var(--green); color:#0B1F17;">
+        <span data-i18n="waiting.imReady">✓ I'm Ready</span>
+      </button>
+
+      <button class="start-btn" id="hostStartBtn" onclick="hostStartAuction()" style="display:none; margin-top:20px;">
+        <span data-i18n="waiting.startAuction">Start Auction</span>
+      </button>
+
+      <div id="readyWarning" style="display:none; background:rgba(255,176,32,0.1); border:1px solid rgba(255,176,32,0.3); color:var(--amber); padding:12px; border-radius:8px; margin-top:12px; font-size:12px; text-align:center;">
+        <span data-i18n="waiting.readyWarning">Waiting for all players to be ready...</span>
+      </div>
+
+      <button class="start-btn" onclick="leaveRoom()" style="margin-top:12px; background:var(--bg-alt); color:var(--white); border:1px solid var(--line);">
+        <span data-i18n="waiting.leaveRoom">Leave Room</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Keep original setupScreen but hide it by default -->
+  <div id="setupScreen" style="display:none;">
+    <div class="setup-card">
+      <a href="#" class="back-link" onclick="showScreen('homeScreen'); return false;"><span class="nav-arrow">←</span> <span data-i18n="common.backHome">Back to Home</span></a>
+
+      <div id="setupPoolBanner"></div>
+
+      <span class="field-label" data-i18n="field.playerPool">Player Pool</span>
+      <button type="button" class="pool-select" id="setupPoolSelect"></button>
+      <div id="setupPoolWarning"></div>
+
+      <span class="field-label" id="countLabel" data-i18n="setup.participants">Number of participants</span>
+      <div class="chip-row" id="countRow"></div>
+
+      <span class="field-label" data-i18n="field.gameMode">Game mode</span>
+      <!-- Cards, not chips: these are two different games, not two squad
+           sizes. Filled by buildGameModeCards() from each mode's own
+           config - see js/modes/*.js. -->
+      <div class="mode-picker" id="gameModeRow"></div>
+
+      <span class="field-label" data-i18n="field.formation">Formation</span>
+      <div class="chip-row" id="formationRow"></div>
+      <!-- The slots this formation actually auctions, in the exact
+           wording the auction uses (LCB/RCB, not two bare CBs). -->
+      <div class="formation-slots" id="formationSlots"></div>
+
+      <span class="field-label" id="namesLabel" data-i18n="setup.names">Names</span>
+      <div class="names-grid" id="namesGrid"></div>
+
+      <div class="budget-note">
+        <span data-i18n="setup.budgetPer" style="color:var(--stone); font-size:13px;">Budget per participant</span>
+        <!-- Written by updateFormationNote(); it is mode-dependent and
+             was hardcoded to Classic's 1,000M, which read as a flat lie
+             on a 6v6 setup screen. -->
+        <span class="amt" id="budgetAmt">1,000M</span>
+      </div>
+
+      <span class="field-label" data-i18n="field.auctionSettings">Auction Settings</span>
+
+      <span class="field-label" data-i18n="field.timer" style="font-size:11px; margin-top:16px; margin-bottom:8px;">Timer</span>
+      <div class="chip-row" id="timerRow"></div>
+      <div id="customTimerSection" style="display:none; margin-bottom:20px;">
+        <input type="number" id="customTimerInput" data-i18n-placeholder="field.customTimer" placeholder="Enter minutes (max 60)" min="1" max="60" autocomplete="off" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--bg-alt); color:var(--white); font-family:'Space Mono',monospace; font-size:13px; margin-top:8px;">
+        <div id="customTimerError" style="color:var(--red); font-size:11px; margin-top:4px; min-height:14px;"></div>
+      </div>
+
+      <span class="field-label" data-i18n="field.displayRatings" style="font-size:11px; margin-bottom:8px;">Display Ratings</span>
+      <div class="toggle-row">
+        <div class="toggle-switch" id="ratingToggle"><div class="knob"></div></div>
+        <span class="toggle-label" data-i18n="field.showRatings">Show player ratings next to names</span>
+      </div>
+
+      <!-- Hidden entirely in AI mode, which has no rerolls (see applySetupMode). -->
+      <div id="rerollsSetting">
+        <span class="field-label" data-i18n="field.rerolls" style="font-size:11px; margin-bottom:8px;">Rerolls</span>
+        <div class="chip-row" id="rerollsRow"></div>
+      </div>
+
+      <button class="start-btn" id="startBtn" data-i18n="setup.start">Start Auction</button>
+      <p class="formation-note" id="formationNote"></p>
+    </div>
+  </div>
+
+  <div id="auctionScreen">
+    <!-- Laid out as a flex row rather than two absolutely-positioned
+         buttons, so their widths can change (or a third be added) without
+         re-deriving right-offsets that silently overlap.
+         Restart is offline/AI only - see applyAuctionScreenMode. -->
+    <div class="auction-nav">
+      <button class="restart-auction-btn" id="restartAuctionBtn" data-i18n-title="auction.restartTitle" title="Restart with the same settings">↻<span class="nav-label" data-i18n="auction.restart"> Restart</span></button>
+      <button class="back-home-btn" id="backHomeBtn"><span class="nav-arrow">←</span><span class="nav-label" data-i18n="common.backHome"> Back to Home</span></button>
+    </div>
+    <div id="auctionPoolBanner"></div>
+    <div class="status-bar">
+      <div>
+        <div class="pos-line">
+          <span class="mode-badge" id="modeBadge">11 v 11</span>
+          <span class="pos-tag" id="posTag">—</span>
+        </div>
+        <div class="phase-tag" id="phaseTag">—</div>
+      </div>
+      <span class="progress" id="progressTag">—</span>
+    </div>
+    <div class="stage">
+      <div class="countdown-banner" id="countdownBanner">
+        <div class="emoji" id="countdownEmoji">🔥</div>
+        <div class="text" id="countdownText">GOING ONCE!</div>
+        <div class="num" id="countdownNum">5</div>
+      </div>
+      <div class="sold-flash" id="soldFlash">
+        <div class="word" id="soldWord">SOLD</div>
+        <div class="detail" id="soldDetail"></div>
+      </div>
+      <div class="flash-badge" id="flashBadge" data-i18n="auction.flashBadge" style="display:none;">⚡ Scouting Report — Elite Talent!</div>
+      <div class="blind-badge" id="blindBadge" data-i18n="auction.blindBadge" style="display:none;">🔒 Sealed Bid Round — one shot each, revealed when time's up!</div>
+      <div class="pos-badge" id="playerPos">GK</div>
+      <div class="player-name" id="playerName">—</div>
+      <div class="player-nat" id="playerNat"></div>
+      <div class="player-sub" id="playerSub">Starting price —</div>
+      <div class="timer-ring">
+        <svg viewBox="0 0 100 100">
+          <circle class="timer-track" cx="50" cy="50" r="42"></circle>
+          <circle class="timer-fill" id="timerFill" cx="50" cy="50" r="42"></circle>
+        </svg>
+        <div class="timer-num" id="timerNum">—</div>
+      </div>
+      <div class="bid-display">
+        <div class="label" id="bidDisplayLabel" data-i18n="auction.currentBid">Current bid</div>
+        <div class="amount" id="currentBid">—</div>
+        <div class="leader none" id="currentLeader" data-i18n="auction.noBids">No bids yet</div>
+      </div>
+      <div class="stage-controls">
+        <button class="ctrl-btn" id="pauseBtn" data-i18n="auction.pause">⏸ Pause</button>
+        <button class="ctrl-btn going" id="goingBtn">⏱ Skip the Timer</button>
+        <span class="mp-vote-count" id="mpGoingVoteCount" style="display:none;"></span>
+        <button class="ctrl-btn" id="rerollBtn">🔄 Reroll Player</button>
+        <span class="mp-vote-count" id="mpRerollVoteCount" style="display:none;"></span>
+        <div class="rerolls-indicator" id="rerollsIndicator"><span data-i18n="auction.rerollsLeft">Rerolls Left (this draft):</span> <span class="count" id="rerollsCount">3</span></div>
+      </div>
+    </div>
+    <div class="bidder-grid" id="bidderGrid"></div>
+
+    <div class="live-squads-panel" id="liveSquadsPanel">
+      <div class="live-squads-head" data-i18n="auction.liveSquads">Live Squads</div>
+      <div class="live-squads-info" id="liveSquadsInfo">— | Budget: —</div>
+      <div id="liveSquadsBody"></div>
+      <div class="live-squads-nav">
+        <button class="live-squads-nav-btn" id="liveSquadsPrevBtn" data-i18n="auction.prev">‹ Previous</button>
+        <button class="live-squads-nav-btn" id="liveSquadsNextBtn" data-i18n="auction.next">Next ›</button>
+      </div>
+    </div>
+
+    <div class="ticker" id="ticker"></div>
+  </div>
+
+  <div class="paused-overlay" id="pausedOverlay">
+    <div class="text" data-i18n="auction.paused">PAUSED</div>
+    <button class="resume-btn" id="resumeBtn" data-i18n="auction.resume">Resume Auction</button>
+  </div>
+
+  <div id="resultsScreen">
+    <div id="resultsPoolBanner"></div>
+    <div class="results-title" data-i18n="results.title">Final Squads</div>
+    <div class="results-mode" id="resultsMode"></div>
+
+    <!-- The simulation leads the results screen, above the squads.
+
+         It used to sit underneath every squad card, which meant that with
+         four participants you scrolled past four full pitches to reach
+         it - fine when it was a quick novelty, wrong now that it is a
+         live broadcast with statistics, ratings and awards. The squads
+         are a record of what you drafted and they are not going
+         anywhere; the match is the thing that happens next. -->
+    <div class="sim-section" id="simSection" style="display:none;">
+      <h3 data-i18n="results.matchSim">⚽ Match Simulation</h3>
+      <div class="sim-intro" id="simIntro">
+        Put the squads you just drafted against each other. Pick a format:
+      </div>
+      <!-- Filled by simRenderModeButtons(): the choice on offer depends on
+           how many squads there are (two squads get Final / Home & Away,
+           which is what a two-team "bracket" and "league" really are). -->
+      <div class="sim-mode-row" id="simModeRow"></div>
+      <div class="sim-run-row">
+        <button class="export-btn" id="simRunBtn" data-i18n="results.runSim">▶ Run Simulation</button>
+        <!-- Revealed only once a result is actually on screen - see
+             finish() in simStartPlayback. Sharing a scoreline before you
+             have watched it spoils your own match. -->
+        <button class="export-btn" id="simShareBtn" style="display:none;" data-i18n="sim.shareResult">📸 Share result</button>
+      </div>
+      <div class="sim-note" id="simNote"></div>
+      <div class="sim-output" id="simOutput"></div>
+    </div>
+
+    <!-- Collapsed by default. Six bordered stat boxes were the first
+         thing between the title and the squads people actually came to
+         look at, and none of them is worth that much vertical space on
+         first read - they are a thing you go and check, not a thing you
+         are shown. Native <details> so it needs no state handling and
+         stays keyboard-accessible. -->
+    <div class="global-stats" id="globalStats">
+      <details class="stats-disclosure" id="globalStatsDetails">
+        <summary>
+          <span class="sd-title" data-i18n="results.draftStats">Draft Statistics</span>
+          <span class="sd-hint"></span>
+        </summary>
+        <div class="stat-rows" id="globalStatsGrid"></div>
+      </details>
+    </div>
+
+    <div id="squadsWrap"></div>
+
+    <div class="export-section">
+      <h3 data-i18n="results.export">Export Draft Results</h3>
+      <div class="export-btns">
+        <button class="export-btn" id="exportJsonBtn" data-i18n="results.exportJson">📥 Export as JSON</button>
+        <button class="export-btn" id="exportTextBtn" data-i18n="results.exportText">📋 Export as Text</button>
+      </div>
+    </div>
+
+    <div id="offlineResultsActions" class="results-actions">
+      <button class="restart-btn" id="resultsHomeBtn" data-i18n="common.backHome">Back to Home</button>
+      <button class="restart-btn" id="restartBtn" data-i18n="results.runAnother" style="border-color:var(--amber); color:var(--amber);">Run another auction</button>
+    </div>
+
+    <div id="mpResultsActions" class="results-actions" style="display:none;">
+      <button class="restart-btn" id="mpBackHomeBtn" data-i18n="common.backHome">Back to Home</button>
+      <button class="restart-btn" id="mpPlayAgainBtn" data-i18n="results.playAgain" style="border-color:var(--amber); color:var(--amber);">Play Another Auction</button>
+    </div>
+  </div>
+
+  <div id="aboutScreen">
+    <div class="info-page">
+      <h2>About Auction XI</h2>
+
+      <h3>What is Auction XI?</h3>
+      <p>Auction XI is a football auction draft application that simulates a one-time, competitive squad-building experience. Build your dream eleven by bidding against friends in a dynamic, strategic auction where every decision matters.</p>
+
+      <h3>How it Works</h3>
+      <p>Every participant starts with the same budget. Players are presented one by one based on the selected formation, and participants bid to acquire them for their squad. When the timer runs out, the highest bid signs the player. Once everyone's formation is full, the squads are compared - and can be played off against each other in a match simulation.</p>
+
+      <h3>Game Modes</h3>
+      <p>Auction XI has two modes, and they play very differently:</p>
+      <ul>
+        <li><strong>Classic 11 v 11</strong> - a full eleven across 5 real formations, on a 1,000M budget with 5M bid steps. Players are priced by rating, and the best come out first: quality steps down phase by phase. Each slot is its own signing, so the left and right centre back are separate players (shown as LCB and RCB).</li>
+        <li><strong>6 v 6 Futsal</strong> - six a side on a 100M budget with 1M bid steps. Every player opens at 1M regardless of who they are, and the order is completely random, so a superstar can appear in the final round. Slots are interchangeable: any forward fills either forward spot. Matches are simulated as futsal, which means far more goals.</li>
+      </ul>
+
+      <h3>Key Features</h3>
+      <ul>
+        <li>Real player database with 1,500+ footballers from top leagues and legends</li>
+        <li>Curated player pools (all-time, World Cup 2026 and more) selectable in every mode</li>
+        <li>Player nationality shown on every player offered</li>
+        <li>Two game modes: Classic 11 v 11 and 6 v 6 Futsal, each with their own formations and economy</li>
+        <li>5 tactical formations in Classic (4-3-3, 4-2-3-1, 4-4-2, 3-4-3, 5-3-2)</li>
+        <li>Configurable auction timer (10s to unlimited)</li>
+        <li>Optional reroll system - a limited pool for the whole draft, voted on by the room online</li>
+        <li>Dynamic player progression for balanced drafts</li>
+        <li>Offline mode for sharing one screen with friends</li>
+        <li>Online multiplayer mode with real-time synced rooms</li>
+        <li>AI opponents mode for solo play</li>
+        <li>Live squad visualization on realistic football pitch</li>
+        <li>Budget management with position-based restrictions</li>
+        <li>Pause/resume functionality</li>
+        <li>Comprehensive draft statistics</li>
+        <li>Export results as JSON or shareable text</li>
+      </ul>
+
+      <h3>Version History</h3>
+      <div class="changelog-item">
+        <div class="changelog-version">v1.0.0</div>
+        <div class="changelog-date">July 2026</div>
+        <ul>
+          <li>Initial release with full auction system</li>
+          <li>Football pitch visualization with realistic positioning</li>
+          <li>Player placement animations</li>
+          <li>Export functionality (JSON & Text)</li>
+          <li>Enhanced statistics dashboard</li>
+          <li>Settings memory via localStorage</li>
+          <li>Sound effects with toggle</li>
+          <li>Progressive budget warnings</li>
+          <li>Final countdown animations</li>
+        </ul>
+      </div>
+
+      <h3>Contact</h3>
+      <p>For feedback, bug reports, or suggestions, please reach out via email at <strong>Local development build — see the project README</strong></p>
+
+      <a href="#" class="back-link" onclick="showScreen('homeScreen'); return false;">← Back to Home</a>
+    </div>
+  </div>
+
+  <div id="privacyScreen">
+    <div class="info-page">
+<h2>Privacy Policy</h2>
+<h3>Local and AI play</h3><p>Player data, fonts, and application assets are served by this application. Preferences and tutorial progress stay in browser storage. No analytics or advertising trackers are loaded.</p><h3>Multiplayer rooms</h3><p>Room codes, participant names, chat, squads, bids, and match results are shared with this application's own room server so connected devices can play together. Room snapshots are stored on the local server and expire after 24 hours without activity by default.</p><h3>Clearing data</h3><p>Clear this site's browser storage to reset preferences. Stop the server and remove its data directory to clear stored rooms. For questions about this local build, consult the project README.</p>
+<a href="#" class="back-link" onclick="showScreen('homeScreen'); return false;">← Back to Home</a>
+
+    </div>
+  </div>
+
+  <div id="termsScreen">
+    <div class="info-page">
+<h2>About this local build</h2>
+<p>This is a separately hosted local recreation of the Auction XI application, prepared for private development. It is not operated by the original Auction XI service.</p><h3>Application and player data</h3><p>The visual assets, game behavior, and player records were obtained from the publicly delivered application at auctionxi.app. Original source attribution and retrieval details are recorded in the project documentation. No connection to the original service's multiplayer database is used.</p><h3>Development</h3><p>The local repository contains the application, the independent room server, tests, and documentation. Hosting and GitHub publishing can be configured separately.</p>
+<a href="#" class="back-link" onclick="showScreen('homeScreen'); return false;">← Back to Home</a>
+
+    </div>
+  </div>
+</div>
+<!-- Game scripts. Plain classic scripts, loaded in dependency order -
+     they execute synchronously in document order, which is what keeps
+     the original single-script execution order intact. Do NOT add
+     defer/async or reorder these without checking load-time refs. -->
+<script src="js/i18n.js"></script> <!-- Localization: t(), locale loading, language picker -->
+<script src="js/realtime.js"></script>
+<script src="js/multiplayer-config.js"></script> <!-- Local server clock sync and multiplayer/chat state -->
+<script src="js/modes/classic.js"></script> <!-- Mode: classic 11 vs 11 -->
+<script src="js/modes/sixv6.js"></script> <!-- Mode: 6 vs 6 -->
+<script src="js/modes/registry.js"></script> <!-- Mode registry: owns FORMATION/BUDGET/BID_STEP etc -->
+<script src="js/config.js"></script> <!-- Shared config, nationality helpers -->
+<script src="js/players.js"></script> <!-- Player pools, player database, player selection/generation -->
+<script src="js/ai.js"></script> <!-- AI opponent managers (Play Against AI mode) -->
+<script src="js/setup.js"></script> <!-- Game state object, settings persistence, setup screen UI -->
+<script src="js/auction.js"></script> <!-- Start auction, round engine, bidding, timer -->
+<script src="js/results.js"></script> <!-- Results screen, match simulation, export -->
+<script src="js/ui.js"></script> <!-- Screen navigation, dialogs, zoom lock, PWA install -->
+<script src="js/multiplayer.js"></script> <!-- Online rooms, Firebase sync, host-authoritative engine -->
+
+<!-- Last on purpose: its window.load handler must run AFTER multiplayer.js
+     has decided whether to restore an in-progress room, so the tutorial
+     never lands on top of a live draft. -->
+<script src="js/tutorial.js"></script> <!-- First-run language choice + how-to-play walkthrough -->
+</body>
+</html>

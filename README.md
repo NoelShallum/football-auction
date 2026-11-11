@@ -1,0 +1,83 @@
+# Auction XI — local clone
+
+A self-contained recreation of the publicly delivered [Auction XI](https://auctionxi.app/) application, with a separate multiplayer server. Source code, player databases, fonts, icons, and translations are included. This checkout does not use the original site's Firebase project, analytics, or credentials.
+
+## Run locally
+
+Requires Node.js 22 or newer.
+
+```sh
+npm ci
+npm start
+```
+
+Open **http://localhost:3000**. For multiplayer, open separate browser profiles/devices, create a room, and join with its six-character code. Devices must reach the same server. On a local network, use the machine's LAN address and port 3000. For internet hosting, use HTTPS with WebSocket forwarding for `/_realtime`.
+
+```sh
+npm run dev       # restart the Node server when its files change
+npm run verify    # syntax/assets/data checks, functional tests, static build
+```
+
+No Firebase project, API keys, database installation, or GitHub account is required to run it. The only production npm dependency is `ws`. Settings are optional environment variables listed in [.env.example](.env.example); export them in the shell or pass them through your deployment system. The server does not automatically load `.env` files.
+
+## Included behavior
+
+- The original responsive dark-green/amber interface, onboarding, setup, auction, results, pitch layouts, player detail panels, sounds, vibration, and install controls.
+- Shared-screen play for 2–10 participants, solo play against AI for 2–6 total managers, and online rooms for 2–6 participants.
+- Classic 11 v 11, five formations, a 1,000M budget, 5M bid increments, progressive player selection, and automatic final-slot assignments.
+- 6 v 6 futsal, three formations, a 100M budget, 1M opening bids/increments, interchangeable position categories, and rating-weighted random selection.
+- Budget reserves, anti-sniping, pause/resume, passes, one sealed-bid round per draft, elite flash picks, and bounded rerolls.
+- Online ready states, host settings, chat, vote synchronization, seat reclamation, reconnects, removing/blocking participants, and replaying drafts.
+- Knockout, round-robin, and two-leg match formats, seeded results, commentary playback, player ratings, awards, and shareable PNG cards.
+- JSON/text exports, all five interface languages including Arabic RTL, and a service worker for cached offline play.
+
+| Player pool | Records | Source file |
+| --- | ---: | --- |
+| All-Time Greats | 1,501 | `public/players.json` |
+| Current Players | 840 | `public/pools/current_players.json` |
+| World Cup 2026 | 591 | `public/pools/world_cup_2026.json` |
+| **Total pool records** | **2,932** | |
+
+Records shared between pools stay separate. The four pools marked “coming soon” in the original application remain unavailable here as well.
+
+## Repository map
+
+```text
+public/                 Browser application, assets, player JSON, locales
+  js/modes/             Classic/futsal configuration and position rules
+  js/realtime.js        Local WebSocket transport and reference/listener API
+  js/multiplayer.js     Shared room lifecycle and host auction engine
+server/                 Static HTTP server, room ownership, persistence, bids
+test/                   DOM/game, multiplayer, server, and persistence tests
+scripts/                Source checks and reproducible static build
+docs/                   Detailed specification, architecture, provenance, QA
+data/                   Runtime room snapshots; ignored by Git
+dist/                   Generated static build; ignored by Git
+```
+
+Read [APPLICATION_SPEC.md](docs/APPLICATION_SPEC.md) for exact behavior and rules, [ARCHITECTURE.md](docs/ARCHITECTURE.md) for implementation details, and [VERIFICATION.md](docs/VERIFICATION.md) for the verification scope. [SOURCE_NOTES.md](docs/SOURCE_NOTES.md) records the source and intentional adaptations.
+
+## Multiplayer storage and deployment
+
+Room state is held in memory, written atomically to `data/rooms.json`, and restored on startup. Runtime snapshots are excluded from Git and created with owner-only file permissions. Inactive rooms expire after 24 hours by default. Reopening a stored room restores its data; the original application's host-disconnect and minimum-player rules still govern whether its auction can continue.
+
+The backend supports one Node process with a persistent data directory. For multiple replicas, replace the in-process store and broadcast layer with shared storage/pubsub. Participant names and room codes are the party game's identity model; there are no user accounts or cryptographically hidden bids. Room codes grant read access to a room, and the host remains authoritative for round settlement.
+
+`npm run build` creates `dist/` and refreshes the service-worker asset revision. To serve the build rather than the development files:
+
+```sh
+ASSET_DIRECTORY=dist npm start
+```
+
+A Dockerfile is included:
+
+```sh
+docker build -t auctionxi-local .
+docker run --rm -p 3000:3000 -v auctionxi-data:/app/data auctionxi-local
+```
+
+Static hosting alone supports shared-screen and AI play. Online multiplayer additionally requires the included server, or an equivalent backend implementing its protocol. Installability and service workers require localhost or HTTPS; networked multiplayer itself works over HTTP on a private LAN.
+
+## Git handoff
+
+This directory is a local Git repository on `main`. No remote is configured and nothing has been pushed. When GitHub access is provided, create the private repository and add its remote; the existing commit history can be pushed intact. Do not add `data/`, `.env`, or `node_modules/` to Git.

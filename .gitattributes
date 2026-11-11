@@ -1,0 +1,7 @@
+* text=auto eol=lf
+# Keep source database bytes exactly as downloaded, including CRLF.
+public/players.json -text whitespace=cr-at-eol
+public/pools/*.json -text whitespace=cr-at-eol
+*.png binary
+*.ttf binary
+*.woff2 binary
