@@ -15,7 +15,8 @@
     "test": "node --test --test-concurrency=1 test/*.test.mjs",
     "test:container": "node scripts/smoke-container.mjs",
     "verify": "npm run check && npm test && npm run build",
-    "build:artifact": "node scripts/build-artifact.mjs"
+    "build:artifact": "node scripts/build-artifact.mjs",
+    "build:static": "node scripts/build-static.mjs"
   },
   "dependencies": {
     "ws": "^8.18.3"

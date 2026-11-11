@@ -144,7 +144,9 @@ document.getElementById('playerInfoOverlay').onclick = (e) => {
 // Guarded as well as caught: in a sandboxed frame (a Claude artifact, say) merely
 // reading navigator.serviceWorker can throw, and that must not stop the load.
 try {
-  if(!window.AUCTION_NO_SERVER && 'serviceWorker' in navigator){
+  // window.AUCTION_NO_SERVICE_WORKER: set by hosts that cannot run one (the Claude
+  // artifact). Static hosts without a room server still register it, for offline play.
+  if(!window.AUCTION_NO_SERVICE_WORKER && 'serviceWorker' in navigator){
     window.addEventListener('load', () => {
       try { navigator.serviceWorker.register('sw.js').catch(() => {}); } catch(e){}
     });

@@ -66,6 +66,7 @@ for (const path of dataFiles) {
 }
 
 const shim = `window.AUCTION_NO_SERVER = true;
+window.AUCTION_NO_SERVICE_WORKER = true;
 (function(){
   var DATA = {${embedded.join(',\n')}};
   var real = window.fetch ? window.fetch.bind(window) : null;

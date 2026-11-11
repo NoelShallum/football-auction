@@ -84,6 +84,16 @@ docker run --rm -p 3000:3000 -v auctionxi-data:/app/data auctionxi-local
 
 Static hosting alone supports shared-screen and AI play. Online multiplayer additionally requires the included server, or an equivalent backend implementing its protocol. Installability and service workers require localhost or HTTPS; networked multiplayer itself works over HTTP on a private LAN.
 
+## Static hosting (Cloudflare Pages and similar)
+
+`npm run build:static` writes `dist-static/`: the normal build plus a flag that tells the page there is no room server, a `_headers` file (the Node server's security headers, minus WebSockets) and a real `404.html`. Upload it to any static host, for example:
+
+```sh
+npx wrangler pages deploy dist-static --project-name <name>
+```
+
+Shared-screen and against-AI play work in full, with the offline service worker. Online rooms need the Node server (they use WebSockets), so on a static host the online button hides itself and the page never opens a socket. Cloudflare compresses the 2.6 MB player pool automatically.
+
 ## Claude artifact
 
 `npm run build:artifact` writes `dist-artifact/index.html`: the whole game as one self-contained page (CSS, JavaScript, translations and all four player pools embedded, about 4.4 MB) in the shape the Claude Artifact tool publishes. Publish that file with the `downloads` capability so exports can be saved.

@@ -9,3 +9,4 @@ test-results/
 !.env.example
 .DS_Store
 dist-artifact/
+dist-static/

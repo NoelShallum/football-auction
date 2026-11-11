@@ -1,5 +1,10 @@
 # Local releases
 
+## Unreleased
+
+- `npm run build:static`: a ready-to-upload bundle for static hosts such as Cloudflare Pages (no-room-server flag, `_headers`, `404.html`).
+- The service worker now has its own opt-out flag (`AUCTION_NO_SERVICE_WORKER`, used by the artifact build), so static hosts keep offline play while still hiding online rooms.
+
 ## 1.1.0 — 2026-11-11
 
 - **Stadium Broadcast redesign.** New theme (`public/theme.css`): mown-pitch background, scorebug, a large player name over outlined position lettering, a paper-white bid card, broadcast line-up pitches, and a setup screen with a live match sheet.
