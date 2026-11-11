@@ -482,7 +482,8 @@
     "loading": "Chargement…",
     "hasNoPlayers": "« {pool} » ne contient encore aucun joueur.",
     "tooThin": "« {pool} » est trop restreint pour {n} participants avec cette formation - insuffisant à {detail}.",
-    "pickDifferent": "Choisissez un autre vivier, ou ajoutez-y des joueurs."
+    "pickDifferent": "Choisissez un autre vivier, ou ajoutez-y des joueurs.",
+    "loosenFilters": "Essayez d'assouplir les filtres."
   },
   "mp": {
     "invalidCode": "Veuillez entrer un code de salon valide à 6 caractères",

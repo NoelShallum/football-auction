@@ -223,6 +223,11 @@ async function createMultiplayerRoom() {
         roundSeconds: ROUND_SECONDS,
         showRatings: SHOW_RATINGS,
         rerollsMode: REROLLS_MODE,
+        // How players are drawn and who can come up. Always the EFFECTIVE
+        // draw order (never null): the host's mode default must not depend
+        // on what a guest's own saved settings happen to say.
+        drawOrder: effectiveDrawOrder(),
+        filters: DRAFT_FILTERS,
         maxParticipants: MP_MAX_PARTICIPANTS,
         // Only the id travels. Guests resolve it against their own copy
         // of pools/index.json for branding, and never fetch the pool
@@ -285,6 +290,10 @@ function mpAdoptRoomSettings(settings){
   RESET_SECONDS = ROUND_SECONDS === 0 ? 0 : Math.max(4, Math.round(ROUND_SECONDS * 0.4));
   SHOW_RATINGS = settings.showRatings || false;
   REROLLS_MODE = settings.rerollsMode || '3';
+  // Rooms created before these existed have neither: the mode's own draw
+  // order and no filters, which is exactly how those rooms were drafting.
+  setDrawOrder(settings.drawOrder);
+  setDraftFilters(settings.filters);
   MP_MAX_PARTICIPANTS = settings.maxParticipants || MP_MAX_PLAYERS;
 }
 
@@ -823,6 +832,8 @@ function setupMultiplayerListeners() {
       RESET_SECONDS = ROUND_SECONDS === 0 ? 0 : Math.max(4, Math.round(ROUND_SECONDS * 0.4));
       SHOW_RATINGS = settings.showRatings || false;
       REROLLS_MODE = settings.rerollsMode || '3';
+      setDrawOrder(settings.drawOrder);
+      setDraftFilters(settings.filters);
       if((settings.maxParticipants || MP_MAX_PLAYERS) !== MP_MAX_PARTICIPANTS){
         MP_MAX_PARTICIPANTS = settings.maxParticipants || MP_MAX_PLAYERS;
         updateWaitingPlayersList(mpParticipantsSnapshot);

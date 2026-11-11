@@ -24,6 +24,7 @@ function loadSettings(){
       // Absent/unknown = the mode's own default, which is what every save
       // from before this setting existed was already doing.
       setDrawOrder(settings.drawOrder);
+      setDraftFilters(settings.filters);
       SOUND_EFFECTS = settings.soundEffects !== undefined ? settings.soundEffects : true;
       // Only a preference at this point - loadPlayerDatabase() checks it
       // against the catalogue and falls back if the pool has since been
@@ -46,6 +47,7 @@ function saveSettings(){
       showRatings: SHOW_RATINGS,
       rerollsMode: REROLLS_MODE,
       drawOrder: DRAW_ORDER,   // null until the player picks one explicitly
+      filters: DRAFT_FILTERS,
       soundEffects: SOUND_EFFECTS,
       poolId: activePoolId
     };

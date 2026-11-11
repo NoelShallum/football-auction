@@ -482,7 +482,8 @@
     "loading": "Loading…",
     "hasNoPlayers": "\"{pool}\" has no players in it yet.",
     "tooThin": "\"{pool}\" is too thin for {n} participants in this formation - short at {detail}.",
-    "pickDifferent": "Pick a different pool, or add more players to it."
+    "pickDifferent": "Pick a different pool, or add more players to it.",
+    "loosenFilters": "Try loosening the filters."
   },
   "mp": {
     "invalidCode": "Please enter a valid 6-character room code",

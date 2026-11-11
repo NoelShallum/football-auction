@@ -117,6 +117,7 @@ async function setActivePool(id){
     playerDatabase = loaded.players;
     loadedPoolId = loaded.meta.id;
     applyPoolTheme(activePoolMeta);
+    sanitizeFiltersForPool();
     console.log(`Pool "${activePoolMeta.name}": ${playerDatabase.length} players`);
     return true;
   } catch(err){
@@ -136,6 +137,124 @@ async function ensureActivePoolLoaded(){
 
 function activePoolDraft(){
   return (activePoolMeta && activePoolMeta.draft) || POOL_DRAFT_DEFAULTS;
+}
+
+/* ================= DRAFT FILTERS =================
+
+   Narrow whoever can come up, on top of whichever pool is chosen:
+
+     era        'all' | 'present' | 'legends'
+     league     one league's name, or '' for any
+     nation     one nation's name, or '' for any
+     minRating  0 = automatic, otherwise a hard floor
+
+   Automatic matters for deep pools. A 10,000-player pool with no floor makes
+   "phase 1" a random 73-rated player, so a pool can declare tiers in its
+   `draft.autoMinRating` ([{upTo: participants, min: rating}, ...]) and the
+   floor tightens when fewer players are needed. Pools that declare none keep
+   exactly the behaviour they always had.
+
+   Everything the draft reads goes through draftablePlayers(), so selection,
+   the AI's replacement estimates and the "is this pool deep enough" check can
+   never disagree about who is in play. Online, only the host ever draws, so
+   the filters ride along in the room settings (see mpAdoptRoomSettings). */
+const ERA_FILTERS = ['all', 'present', 'legends'];
+const MIN_RATING_CHOICES = [0, 75, 80, 85];
+// The newest season the databases describe (all-time was last updated 2026-08).
+const PRESENT_SEASON_END = 2026;
+
+let DRAFT_FILTERS = { era: 'all', league: '', nation: '', minRating: 0 };
+
+// Clean any untrusted/stale input (a saved setting, a room payload) into a valid filter set.
+function normalizeDraftFilters(f){
+  f = f || {};
+  const min = Number(f.minRating);
+  return {
+    era: ERA_FILTERS.includes(f.era) ? f.era : 'all',
+    league: typeof f.league === 'string' ? f.league.slice(0, 80) : '',
+    nation: typeof f.nation === 'string' ? f.nation.slice(0, 80) : '',
+    minRating: MIN_RATING_CHOICES.includes(min) ? min : 0,
+  };
+}
+
+function setDraftFilters(f){
+  DRAFT_FILTERS = normalizeDraftFilters(f);
+  return DRAFT_FILTERS;
+}
+
+function draftFiltersActive(){
+  const f = DRAFT_FILTERS;
+  return f.era !== 'all' || !!f.league || !!f.nation || f.minRating > 0;
+}
+
+// Legends are the pools' explicitly retired icons; everyone else is judged by era or years.
+function playerIsLegend(p){ return p.era === 'Legend'; }
+
+function playerIsPresent(p){
+  if(p.era === 'Current' || p.era === '2026') return true;
+  if(p.era === 'Past' || p.era === 'Legend') return false;
+  const end = parseInt(String(p.years || '').split(/[-\u2013]/)[1], 10);
+  if(Number.isFinite(end)) return end >= PRESENT_SEASON_END;
+  return true;   // pools of active pros (e.g. Current Players) carry no era at all
+}
+
+// The rating floor in force for this many participants: the player's own choice,
+// else the pool's automatic tier, else none.
+function effectiveMinRating(numParticipants){
+  if(DRAFT_FILTERS.minRating > 0) return DRAFT_FILTERS.minRating;
+  const tiers = activePoolDraft().autoMinRating;
+  if(!Array.isArray(tiers) || !tiers.length) return 0;
+  const tier = tiers.find(t => numParticipants <= t.upTo) || tiers[tiers.length - 1];
+  return tier.min || 0;
+}
+
+let draftableCache = { key: null, list: [] };
+function draftablePlayers(numParticipants){
+  const f = DRAFT_FILTERS;
+  const floor = effectiveMinRating(numParticipants);
+  const key = [loadedPoolId, playerDatabase.length, f.era, f.league, f.nation, floor].join('|');
+  if(draftableCache.key === key) return draftableCache.list;
+  const list = playerDatabase.filter(p =>
+    p.rating >= floor &&
+    (f.era === 'all' || (f.era === 'legends' ? playerIsLegend(p) : playerIsPresent(p))) &&
+    (!f.league || p.league === f.league) &&
+    (!f.nation || primaryNationality(p.nationality) === f.nation));
+  draftableCache = { key, list };
+  return list;
+}
+
+/* What the filter controls can offer for the ACTIVE pool: leagues and nations
+   with how many players each has, and whether the era choices mean anything
+   here (a pool with no legends has no "Legends only"). */
+function draftFilterOptions(){
+  const leagues = {}, nations = {};
+  let legends = 0, present = 0;
+  playerDatabase.forEach(p => {
+    if(p.league) leagues[p.league] = (leagues[p.league] || 0) + 1;
+    const n = primaryNationality(p.nationality);
+    if(n) nations[n] = (nations[n] || 0) + 1;
+    if(playerIsLegend(p)) legends++;
+    if(playerIsPresent(p)) present++;
+  });
+  const rank = o => Object.entries(o).map(([name, count]) => ({name, count}))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  return {
+    leagues: rank(leagues), nations: rank(nations),
+    legends, present, total: playerDatabase.length,
+    // Present is only a real choice when the pool also holds players who are not
+    eraSplit: present > 0 && present < playerDatabase.length,
+  };
+}
+
+// After the pool changes, forget any filter the new pool cannot honour.
+function sanitizeFiltersForPool(){
+  const opts = draftFilterOptions();
+  const f = Object.assign({}, DRAFT_FILTERS);
+  if(f.league && !opts.leagues.some(l => l.name === f.league)) f.league = '';
+  if(f.nation && !opts.nations.some(n => n.name === f.nation)) f.nation = '';
+  if(f.era === 'legends' && !opts.legends) f.era = 'all';
+  if(f.era === 'present' && !opts.eraSplit) f.era = 'all';
+  setDraftFilters(f);
 }
 
 // Display metadata for whatever pool is active, safe to call before any
@@ -177,7 +296,8 @@ function poolReadinessMessage(numParticipants){
   if(cov.ok) return null;
   const worst = cov.missing.sort((a, b) => b.short - a.short).slice(0, 3)
     .map(r => `${r.code} (${r.have}/${r.need})`).join(', ');
-  return t('pool.tooThin', {pool: poolName(activePoolDisplay()), n: numParticipants, detail: worst});
+  const hint = draftFiltersActive() ? ' ' + t('pool.loosenFilters') : '';
+  return t('pool.tooThin', {pool: poolName(activePoolDisplay()), n: numParticipants, detail: worst}) + hint;
 }
 
 // Boots the pool system: read the catalogue, then activate the pool the
@@ -509,8 +629,10 @@ function getPositionPool(position, numParticipants){
   const pctFn = mode.categoryTopPercent;
   const keep = pctFn ? pctFn(activePoolId, numParticipants, position) : null;
 
+  const source = draftablePlayers(numParticipants);
+
   if(keep == null){
-    return playerDatabase
+    return source
       .filter(p => accepted.includes(p.position))
       .sort((a, b) => b.rating - a.rating);
   }
@@ -518,7 +640,7 @@ function getPositionPool(position, numParticipants){
   if(mode.topPercentPerBasePosition){
     const kept = [];
     accepted.forEach(rawPos => {
-      const list = playerDatabase
+      const list = source
         .filter(p => p.position === rawPos)
         .sort((a, b) => b.rating - a.rating);
       kept.push(...list.slice(0, Math.max(1, Math.ceil(list.length * keep))));
@@ -526,7 +648,7 @@ function getPositionPool(position, numParticipants){
     return kept.sort((a, b) => b.rating - a.rating);
   }
 
-  const ranked = playerDatabase
+  const ranked = source
     .filter(p => accepted.includes(p.position))
     .sort((a, b) => b.rating - a.rating);
   return ranked.slice(0, Math.max(1, Math.ceil(ranked.length * keep)));

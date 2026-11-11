@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApplication } from '../server/index.mjs';
-import { loadApp, until } from './helpers.mjs';
+import { loadApp, until, draftLocally } from './helpers.mjs';
 
 async function startShared(app, { mode = 'classic', count = 2, pool = 'all_time' } = {}) {
   await app.run(`setActivePool(${JSON.stringify(pool)})`);
@@ -254,4 +254,105 @@ test('online: an unsold player goes to the back of the pack for everyone, and a 
   const ids = host.json('state.participants.flatMap(p => p.squad.map(x => x.id))');
   assert.equal(new Set(ids).size, ids.length);
   assert.deepEqual(host.errors, []); assert.deepEqual(guest.errors, []);
+});
+
+/* ---------- draft filters ---------- */
+
+test('draft filters: era, league, nation and quality floor narrow who can come up, and junk is ignored', async t => {
+  const app = await loadApp(); t.after(() => app.close());
+  await app.run("setActivePool('ea_database')");
+  app.run("applyGameMode('classic')");
+  const count = (filters, n = 4) => { app.run(`setDraftFilters(${JSON.stringify(filters)})`); return app.run(`draftablePlayers(${n}).length`); };
+
+  const everyone = count({ minRating: 75 });
+  assert(count({ minRating: 85 }) < everyone, 'a higher floor means fewer players');
+  assert(app.run('draftablePlayers(4).every(p => p.rating >= 85)'));
+
+  const present = count({ era: 'present', minRating: 75 });
+  assert(present > 0 && present < everyone, 'present-day keeps only players active in the newest data');
+  assert(app.run("draftablePlayers(4).every(p => p.era === 'Current')"));
+
+  const epl = count({ league: 'Premier League', minRating: 75 });
+  assert(epl > 0 && epl < everyone);
+  assert(app.run("draftablePlayers(4).every(p => p.league === 'Premier League')"));
+
+  assert(count({ nation: 'Brazil', minRating: 75 }) > 0);
+  assert(app.run("draftablePlayers(4).every(p => primaryNationality(p.nationality) === 'Brazil')"));
+
+  assert.deepEqual(app.json("setDraftFilters({era:'nonsense', league: 5, nation: null, minRating: 99})"), { era: 'all', league: '', nation: '', minRating: 0 });
+});
+
+test('a deep pool tightens its automatic quality floor as fewer players are needed', async t => {
+  const app = await loadApp(); t.after(() => app.close());
+  await app.run("setActivePool('ea_database')");
+  app.run('setDraftFilters({})');
+  assert.equal(app.run('effectiveMinRating(2)'), 80);
+  assert.equal(app.run('effectiveMinRating(4)'), 80);
+  assert.equal(app.run('effectiveMinRating(5)'), 76);
+  assert.equal(app.run('effectiveMinRating(9)'), 72);
+  app.run('setDraftFilters({minRating: 85})');
+  assert.equal(app.run('effectiveMinRating(9)'), 85, 'an explicit floor wins over the automatic one');
+  // Pools without tiers behave exactly as before.
+  await app.run("setActivePool('current_players')");
+  app.run('setDraftFilters({})');
+  assert.equal(app.run('effectiveMinRating(9)'), 0);
+});
+
+test('era filters follow each pool\'s own data, and a pool switch drops filters it cannot honour', async t => {
+  const app = await loadApp(); t.after(() => app.close());
+  await app.run("setActivePool('all_time')");
+  const opts = app.json('draftFilterOptions()');
+  assert.equal(opts.legends, 621);
+  assert(opts.eraSplit, 'all-time mixes retired and active players');
+  app.run("setDraftFilters({era:'legends'})");
+  assert(app.run("draftablePlayers(4).length > 100 && draftablePlayers(4).every(p => p.era === 'Legend')"));
+
+  await app.run("setActivePool('current_players')");
+  assert.equal(app.run('DRAFT_FILTERS.era'), 'all', 'current players has no legends, so that filter was dropped');
+  assert.equal(app.json('draftFilterOptions()').legends, 0);
+
+  app.run("setDraftFilters({league:'Premier League'})");
+  await app.run("setActivePool('world_cup_2026')");
+  assert.equal(app.run('DRAFT_FILTERS.league'), '', 'World Cup players carry no league');
+});
+
+test('a pool that the filters leave too thin is reported with a hint to loosen them, and the draft will not start', async t => {
+  const app = await loadApp(); t.after(() => app.close());
+  await app.run("setActivePool('ea_database')");
+  app.run("applyGameMode('classic'); setDraftFilters({nation:'Iceland', minRating:85})");
+  const message = app.run('poolReadinessMessage(4)');
+  assert(message && /filter/i.test(message), message);
+  app.run("setDraftFilters({})");
+  assert.equal(app.run('poolReadinessMessage(4)'), null);
+});
+
+test('filters and draw order travel in the room settings and are adopted by everyone', async t => {
+  const app = await loadApp(); t.after(() => app.close());
+  app.run("applyGameMode('classic')");
+  app.run("mpAdoptRoomSettings({gameMode:'classic', formation:'4-3-3', drawOrder:'random', filters:{era:'present', minRating:80}})");
+  assert.equal(app.run('effectiveDrawOrder()'), 'random');
+  assert.equal(app.run('DRAFT_FILTERS.era'), 'present');
+  assert.equal(app.run('DRAFT_FILTERS.minRating'), 80);
+  // A room from before these settings existed drafts exactly as it always did.
+  app.run("mpAdoptRoomSettings({gameMode:'sixv6', formation:'2-1-2'})");
+  assert.equal(app.run('effectiveDrawOrder()'), 'random');   // 6v6's own default
+  assert.equal(app.run('draftFiltersActive()'), false);
+  app.run("mpAdoptRoomSettings({gameMode:'classic', formation:'4-3-3'})");
+  assert.equal(app.run('effectiveDrawOrder()'), 'phase');
+});
+
+test('the 10,000-player pool completes Classic drafts at small and large tables, on the ladder and at random', async t => {
+  for (const [count, order] of [[3, 'phase'], [8, 'phase'], [5, 'random']]) {
+    const app = await loadApp({ accelerate: true });
+    try {
+      app.run(`setDrawOrder('${order}')`);
+      await draftLocally(app, { mode: 'classic', count, pool: 'ea_database' });
+      assert.equal(app.run('state.participants.every(p => p.squad.length === 11 && p.budget >= 0)'), true, `${count} managers, ${order}`);
+      const ids = app.json('state.participants.flatMap(p => p.squad.map(x => x.id))');
+      assert.equal(new Set(ids).size, ids.length);
+      const synthetic = app.run('state.participants.some(p => p.squad.some(x => x.id == null))');
+      assert.equal(synthetic, false, 'no "Unknown Player" fallbacks');
+      assert.deepEqual(app.errors, []);
+    } finally { await app.close(); }
+  }
 });

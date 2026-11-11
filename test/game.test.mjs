@@ -88,7 +88,7 @@ test('shared-screen Classic finishes a complete draft, exports data, simulates d
   assert.deepEqual(app.errors, []);
 });
 
-test('all three pools can complete futsal drafts and multi-team tournaments', async t => {
+test('all four pools can complete futsal drafts and multi-team tournaments', async t => {
   for (const pool of ['all_time','ea_database','current_players','world_cup_2026']) {
     const app = await loadApp({ accelerate: true });
     try {

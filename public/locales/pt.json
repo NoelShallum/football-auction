@@ -482,7 +482,8 @@
     "loading": "A carregar…",
     "hasNoPlayers": "\"{pool}\" ainda não tem jogadores.",
     "tooThin": "\"{pool}\" é demasiado limitado para {n} participantes nesta formação - insuficiente em {detail}.",
-    "pickDifferent": "Escolha outro conjunto de jogadores, ou adicione mais jogadores a este."
+    "pickDifferent": "Escolha outro conjunto de jogadores, ou adicione mais jogadores a este.",
+    "loosenFilters": "Tente afrouxar os filtros."
   },
   "mp": {
     "invalidCode": "Introduza um código de sala válido com 6 caracteres",
