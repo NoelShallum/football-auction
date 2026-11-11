@@ -5,7 +5,7 @@ import { loadApp, draftLocally, until } from './helpers.mjs';
 test('boots all player pools, preserves the screen structure, and switches all five languages', async t => {
   const app = await loadApp(); t.after(() => app.close());
   assert.equal(app.run('playerDatabase.length'), 1501);
-  assert.deepEqual(app.json('poolCatalog.filter(p=>p.available).map(p=>poolPlayerCount(p.id))'), [1501, 840, 591]);
+  assert.deepEqual(app.json('poolCatalog.filter(p=>p.available).map(p=>poolPlayerCount(p.id))'), [1501, 10863, 840, 591]);
   assert.equal(app.window.document.getElementById('homeScreen').style.display, 'block');
   for (const code of ['fr', 'ar', 'es', 'pt', 'en']) {
     await app.run(`setLanguage('${code}')`);
@@ -31,7 +31,7 @@ test('first-run onboarding opens and can be completed, with persistent preferenc
 
 test('every published pool supplies all slots in each offered formation at supported participant counts', async t => {
   const app = await loadApp(); t.after(() => app.close());
-  for (const pool of ['all_time','current_players','world_cup_2026']) {
+  for (const pool of ['all_time','ea_database','current_players','world_cup_2026']) {
     await app.run(`setActivePool('${pool}')`);
     for (const mode of ['classic','sixv6']) {
       const forms = app.json(`Object.keys(gameModeById('${mode}').formations)`);
@@ -89,7 +89,7 @@ test('shared-screen Classic finishes a complete draft, exports data, simulates d
 });
 
 test('all three pools can complete futsal drafts and multi-team tournaments', async t => {
-  for (const pool of ['all_time','current_players','world_cup_2026']) {
+  for (const pool of ['all_time','ea_database','current_players','world_cup_2026']) {
     const app = await loadApp({ accelerate: true });
     try {
       await draftLocally(app, { mode: 'sixv6', count: 3, pool });
