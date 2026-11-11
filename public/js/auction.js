@@ -58,7 +58,7 @@ async function startAuction(){
 
   // Check if player database is loaded
   if(playerDatabase.length === 0){
-    alert(t('auction.dbLoadingAlert'));
+    appNotice(t('auction.dbLoadingAlert'), 'error');
     return;
   }
 
@@ -67,14 +67,14 @@ async function startAuction(){
   // fallbacks partway through. Same check the setup screen shows inline.
   const poolProblem = poolReadinessMessage(participantCount);
   if(poolProblem){
-    alert(poolProblem + '\n\n' + t('pool.pickDifferent'));
+    appNotice(poolProblem + ' ' + t('pool.pickDifferent'), 'error');
     renderAllPoolPickers();
     return;
   }
 
   // Validate custom timer if selected
   if(ROUND_SECONDS === -1){
-    alert(t('field.customTimerInvalid'));
+    appNotice(t('field.customTimerInvalid'), 'error');
     return;
   }
 

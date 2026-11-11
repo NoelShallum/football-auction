@@ -6,7 +6,7 @@ Run the complete check with:
 npm run verify
 ```
 
-Local release 1.1.0 passes **44 functional tests**, the source/asset checks and the static build. The production container check (`npm run test:container`) was last run for 1.0.1 and has **not** been re-run since the 1.1.0 changes (it needs a Docker daemon).
+Local release 1.1.0 passes **49 functional tests**, the source/asset checks and the static build. The production container check (`npm run test:container`) was last run for 1.0.1 and has **not** been re-run since the 1.1.0 changes (it needs a Docker daemon).
 
 The verification uses Node's test runner, jsdom for DOM integration, actual loopback HTTP/WebSocket connections, temporary persistence files, and a native canvas implementation for PNG output. jsdom is a DOM test environment, not a graphical browser.
 
@@ -21,6 +21,8 @@ The verification uses Node's test runner, jsdom for DOM integration, actual loop
 - Pool depth for every offered formation at 2, 4, 6 and 10 participants.
 - Complete local Classic draft and futsal drafts using each of the four player pools, and Classic drafts of 3, 5 and 8 managers on the 13,122-player Pro Database (ladder and random).
 - Unsold players: queue, re-offer price, leftover winner, and drafts where nobody ever bids (Classic and futsal, offline and online) still end with full squads and no duplicates.
+- Hosting-aware behaviour: the online entry point hides without a room server, saves go through the `downloads` capability (and fall back to a plain download), and refusals show in the page rather than via `alert()`.
+- The artifact bundle was also run in a real browser behind a restrictive Content-Security-Policy with a stubbed `downloads` capability: no policy violations or console errors, a full draft with unsold rounds, and an export saved through the capability. That check is manual (it is not part of `npm test`), and it cannot reproduce the artifact host itself.
 - Draw order defaults/persistence/behaviour, draft filters and automatic quality floors, and their sync through online room settings (including server-side validation).
 - Complete AI draft with distinct manager profiles.
 - Full online Classic/futsal drafts with separate client DOMs and a real room server.

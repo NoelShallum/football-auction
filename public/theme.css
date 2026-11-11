@@ -82,6 +82,22 @@ body[data-game-mode="sixv6"] .pos-badge:not(.forced){background:rgba(108,180,255
 .sound-toggle-btn.muted{color:var(--paper-mute); opacity:1;}
 :focus-visible{outline:3px solid var(--lime); outline-offset:2px;}
 
+/* When there is no room server the online button is hidden (see probeOnlinePlay);
+   the next choice then takes the primary look. !important beats its inline style. */
+.start-btn.as-primary{background:var(--lime) !important; color:var(--ink) !important; border-color:var(--lime) !important;}
+.online-note{text-align:center; color:var(--stone); font-size:12.5px; line-height:1.6; margin-top:18px;}
+
+/* Side gutter and edge-fixed controls clear a phone's system bars when the page
+   runs edge to edge (a Claude artifact on a phone); they are 0 everywhere else. */
+body{
+  padding-block:28px 60px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.sound-toggle-btn{top:calc(16px + env(safe-area-inset-top, 0px)); right:calc(16px + env(safe-area-inset-right, 0px));}
+.mp-toast{top:calc(70px + env(safe-area-inset-top, 0px));}
+.chat-toggle-btn{bottom:calc(16px + env(safe-area-inset-bottom, 0px)); right:calc(16px + env(safe-area-inset-right, 0px));}
+
 /* ================= SETUP: panels + match sheet ================= */
 #setupScreen{max-width:1180px; margin:0 auto;}
 .setup-layout{display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:20px; align-items:start;}

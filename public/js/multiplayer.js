@@ -92,13 +92,13 @@ function mpWatchPresence(){
 // room-lifecycle events and errors so one participant's message doesn't
 // freeze every other participant's screen too.
 let mpToastTimer = null;
-function mpShowToast(message, tone){
+function mpShowToast(message, tone, ms){
   const el = document.getElementById('mpToast');
   if(!el) return;
   el.textContent = message;
   el.className = 'mp-toast show' + (tone ? ' ' + tone : '');
   clearTimeout(mpToastTimer);
-  mpToastTimer = setTimeout(() => { el.classList.remove('show'); }, 4000);
+  mpToastTimer = setTimeout(() => { el.classList.remove('show'); }, ms || 4000);
 }
 
 // ---- Room chat ----
@@ -2651,6 +2651,9 @@ window.addEventListener('load', async () => {
     mpBootSettled();   // the tutorial must not wait forever on a failed boot
     return;
   }
+  // Is there a room server to talk to? Settled before the home screen shows,
+  // so the online button never flashes up and then disappears.
+  await probeOnlinePlay();
   hideBootOverlay();
 
   if (!mpTryReconnect()) {

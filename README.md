@@ -84,6 +84,12 @@ docker run --rm -p 3000:3000 -v auctionxi-data:/app/data auctionxi-local
 
 Static hosting alone supports shared-screen and AI play. Online multiplayer additionally requires the included server, or an equivalent backend implementing its protocol. Installability and service workers require localhost or HTTPS; networked multiplayer itself works over HTTP on a private LAN.
 
+## Claude artifact
+
+`npm run build:artifact` writes `dist-artifact/index.html`: the whole game as one self-contained page (CSS, JavaScript, translations and all four player pools embedded, about 4.4 MB) in the shape the Claude Artifact tool publishes. Publish that file with the `downloads` capability so exports can be saved.
+
+An artifact has no room server, cannot show `alert()`, cannot start downloads itself and cannot run a service worker, so in that build online rooms are hidden (shared-screen and against-AI play work in full), notices appear in the page, and exports go through the host's save prompt. The page fetches nothing else and opens no sockets. `dist-artifact/preview.html` is the same page inside the wrapper the tool adds, for local testing.
+
 ## Source and development
 
 The Git repository uses `main` and retains tagged local releases and their development history. Runtime room data, credentials, installed dependencies and generated builds are excluded from Git. See [CHANGELOG.md](CHANGELOG.md) for release changes and [SOURCE_NOTES.md](docs/SOURCE_NOTES.md) for the original application's attribution and local adaptations.

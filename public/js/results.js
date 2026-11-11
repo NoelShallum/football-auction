@@ -2922,14 +2922,7 @@ async function simShareBlob(blob, filename, event){
     }
   }
 
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  saveFile(filename, blob);
   track(event, {method: 'download'});
 }
 
@@ -3161,12 +3154,7 @@ function exportAsJSON(){
   };
 
   const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `auction-xi-draft-${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  saveFile(`auction-xi-draft-${Date.now()}.json`, blob);
 }
 
 function exportAsText(){
@@ -3217,16 +3205,10 @@ function exportAsText(){
     ? navigator.clipboard.writeText(text)
     : Promise.reject(new Error('Clipboard unavailable'));
   copyText.then(() => {
-    alert(t('results.copiedClipboard'));
+    appNotice(t('results.copiedClipboard'), 'success');
   }).catch(() => {
-    // Fallback: download as file
-    const blob = new Blob([text], {type: 'text/plain'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `auction-xi-draft-${Date.now()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // Fallback: save as a file
+    saveFile(`auction-xi-draft-${Date.now()}.txt`, new Blob([text], {type: 'text/plain'}));
   });
 }
 

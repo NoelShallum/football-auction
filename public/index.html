@@ -203,11 +203,11 @@
 
       <p data-i18n="home.choose" style="text-align:center; color:var(--stone); font-size:13px; margin-bottom:20px;">Choose how you want to play</p>
 
-      <button class="start-btn" onclick="AI_MODE=false; aiStopThinking(); track('mode_selected',{mode:'online'}); showScreen('lobbyScreen');" style="margin-bottom:16px;">
+      <button class="start-btn" id="playOnlineBtn" onclick="AI_MODE=false; aiStopThinking(); track('mode_selected',{mode:'online'}); showScreen('lobbyScreen');" style="margin-bottom:16px;">
         <span data-i18n="home.playFriends">🌐 Play with Friends</span>
       </button>
 
-      <button class="start-btn" onclick="openSharedSetup();" style="background:var(--bg-alt); color:var(--white); border:1px solid var(--line); margin-bottom:16px;">
+      <button class="start-btn" id="playSharedBtn" onclick="openSharedSetup();" style="background:var(--bg-alt); color:var(--white); border:1px solid var(--line); margin-bottom:16px;">
         <span data-i18n="home.playShared">📺 Play on Shared Screen</span>
       </button>
 
@@ -215,11 +215,13 @@
         <span data-i18n="home.playAI">🤖 Play against AI</span>
       </button>
 
-      <p data-i18n-html="home.modeExplain" style="text-align:center; color:var(--stone); font-size:12px; margin-top:24px; line-height:1.6;">
+      <p id="modeExplain" data-i18n-html="home.modeExplain" style="text-align:center; color:var(--stone); font-size:12px; margin-top:24px; line-height:1.6;">
         <b>Play with Friends:</b> Create or join a room for online multiplayer<br>
         <b>Shared Screen:</b> Pass-and-play mode on one device<br>
         <b>Against AI:</b> Draft solo against computer managers
       </p>
+
+      <p id="onlineUnavailableNote" class="online-note" data-i18n="home.onlineUnavailable" hidden>Online rooms need the game server, which is not reachable here. Shared screen and against-AI play work as normal.</p>
 
       <div id="installAppRow" style="text-align:center; margin-top:22px; display:none;">
         <button class="install-app-btn" id="installAppBtn" data-i18n="home.install">📲 Add to Home Screen</button>

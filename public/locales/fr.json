@@ -30,7 +30,8 @@
     "about": "À propos",
     "privacy": "Confidentialité",
     "terms": "Conditions d'utilisation",
-    "contact": "Contact"
+    "contact": "Contact",
+    "onlineUnavailable": "Les salons en ligne nécessitent le serveur de jeu, inaccessible ici. L'écran partagé et le jeu contre l'IA fonctionnent normalement."
   },
   "tutorial": {
     "howToPlay": "Comment jouer",

@@ -30,7 +30,8 @@
     "about": "About",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
-    "contact": "Contact"
+    "contact": "Contact",
+    "onlineUnavailable": "Online rooms need the game server, which is not reachable here. Shared screen and against-AI play work as normal."
   },
   "tutorial": {
     "howToPlay": "How to Play",

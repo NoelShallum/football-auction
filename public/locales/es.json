@@ -30,7 +30,8 @@
     "about": "Acerca de",
     "privacy": "Privacidad",
     "terms": "Términos del servicio",
-    "contact": "Contacto"
+    "contact": "Contacto",
+    "onlineUnavailable": "Las salas en línea necesitan el servidor del juego, que no está disponible aquí. La pantalla compartida y el juego contra la IA funcionan con normalidad."
   },
   "tutorial": {
     "howToPlay": "Cómo jugar",

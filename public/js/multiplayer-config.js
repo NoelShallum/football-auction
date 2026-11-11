@@ -1,5 +1,8 @@
 /* Local multiplayer configuration. No external credentials required. */
-let database = typeof LocalRealtimeDatabase === 'function' ? new LocalRealtimeDatabase() : null;
+/* window.AUCTION_NO_SERVER is set by builds that are known to have no room server
+   (the single-file Claude artifact): no socket is opened, online play is reported
+   unavailable, and everything else is untouched. */
+let database = (typeof LocalRealtimeDatabase === 'function' && !window.AUCTION_NO_SERVER) ? new LocalRealtimeDatabase() : null;
 
 /* Whether online play can work at all. One place to ask, so the answer cannot
    differ between the button that starts a room and the code that joins one. */
