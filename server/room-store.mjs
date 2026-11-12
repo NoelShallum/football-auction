@@ -68,6 +68,8 @@ function validateSettings(settings) {
   requireThat(Number.isFinite(settings.roundSeconds) && settings.roundSeconds >= 0 && settings.roundSeconds <= 3600, 'Invalid round timer.', 'INVALID_SETTINGS');
   requireThat(['disabled', '3', 'unlimited'].includes(settings.rerollsMode), 'Invalid reroll setting.', 'INVALID_SETTINGS');
   requireThat(['all_time', 'ea_database', 'current_players', 'world_cup_2026'].includes(settings.poolId), 'Player pool is unavailable.', 'INVALID_SETTINGS');
+  // Optional ('any' = flexible, or the one formation the room is locked to).
+  requireThat(settings.formationChoice == null || settings.formationChoice === 'any' || Boolean(FORMS[settings.gameMode]?.[settings.formationChoice]), 'Invalid formation choice.', 'INVALID_SETTINGS');
   // Both optional: rooms created before they existed omit them and draft as they always did.
   requireThat(settings.drawOrder == null || ['phase', 'random'].includes(settings.drawOrder), 'Invalid draw order.', 'INVALID_SETTINGS');
   const filters = settings.filters;
@@ -92,6 +94,24 @@ function needsSlot(room, uid, posIdx) {
   if (room.settings.gameMode !== 'sixv6') return !filled.has(posIdx);
   return formation.some((code, index) => code === formation[posIdx] && !filled.has(index));
 }
+/* Who may bid on the player on the stage. The host decides (a manager can sign a
+   player only if their squad can still be arranged into an allowed formation
+   with him in it - see public/js/lineup.js) and publishes the answer as
+   gameState.eligibleIds, which guests cannot rewrite: a bid has to leave every
+   field but its own untouched. Rooms from before flexible lineups have no list
+   and keep the original slot-ownership rule. */
+function canBid(room, uid, gs = room.gameState) {
+  if (Array.isArray(gs?.eligibleIds)) return Boolean(room.participants[uid]) && gs.eligibleIds.includes(uid);
+  return needsSlot(room, uid, gs?.currentPlayer?.posIdx);
+}
+function validateLineup(room, uid, value) {
+  const formation = FORMS[room.settings.gameMode][value?.formation];
+  const squad = room.participants[uid]?.squad || [];
+  requireThat(formation && Array.isArray(value.slots) && value.slots.length === formation.length, 'Invalid lineup.', 'INVALID_DATA');
+  const placed = value.slots.filter(index => index !== -1);
+  requireThat(value.slots.every(index => Number.isInteger(index) && index >= -1 && index < squad.length)
+    && new Set(placed).size === placed.length && placed.length === squad.length, 'A lineup must place every player once.', 'INVALID_DATA');
+}
 function validateOpenRound(room, now) {
   const gs = room.gameState;
   requireThat(room.status === 'playing' && gs?.roundPhase === 'bidding' && !gs.paused && gs.currentPlayer, 'Bidding is closed.', 'INVALID_BID');
@@ -101,7 +121,7 @@ function validateOffer(room, uid, amount, sealed = false, now = Date.now()) {
   validateOpenRound(room, now);
   const gs = room.gameState;
   requireThat(Boolean(gs.isBlindRound) === sealed, 'Wrong bid type for this round.', 'INVALID_BID');
-  requireThat(room.participants[uid]?.connected !== false && needsSlot(room, uid, gs.currentPlayer.posIdx), 'This position is already filled.', 'INVALID_BID');
+  requireThat(room.participants[uid]?.connected !== false && canBid(room, uid, gs), 'There is no room for this player in your squad.', 'INVALID_BID');
   const player = room.participants[uid];
   const isSix = room.settings.gameMode === 'sixv6';
   const reserve = isSix ? 1 : 20;
@@ -224,11 +244,17 @@ export class RoomStore extends EventEmitter {
       requireThat(room.participants[uid]?.connected !== false, 'Reconnect before acting in this round.');
       if (parts[1] === 'sealedBids') { validateOffer(room, uid, value?.amount, true, this.now()); return; }
       requireThat(['goingVotes', 'rerollVotes'].includes(parts[1]) && value === true, 'Invalid vote.');
-      requireThat(needsSlot(room, uid, gs.currentPlayer?.posIdx) || (parts[1] === 'rerollVotes' && room.settings.gameMode === 'sixv6'), 'This seat is not in the electorate.');
+      requireThat(canBid(room, uid, gs) || (parts[1] === 'rerollVotes' && room.settings.gameMode === 'sixv6'), 'This seat is not in the electorate.');
       if (parts[1] === 'rerollVotes') requireThat(!gs.isBlindRound && !gs.currentLeader && gs.rerollsRemaining > 0 && (gs.roundRerolls || 0) < 5, 'Reroll is unavailable.');
       return;
     }
     if (host) return;
+    if (parts[0] === 'participants' && parts[1] === uid && parts.length === 3 && parts[2] === 'lineup') {
+      // A manager re-arranging their own finished squad: the same players, a different shape.
+      requireThat(room.status === 'ended' && !room.simulation, 'Lineups are locked once the draft is not finished or a tournament has been played.');
+      validateLineup(room, uid, value);
+      return;
+    }
     if (parts[0] === 'participants' && parts[1] === uid) {
       requireThat((parts.length === 2 && value === null) || (parts.length === 3 && ['ready', 'connected'].includes(parts[2]) && typeof value === 'boolean'), 'Only the host may edit squads and budgets.');
       return;

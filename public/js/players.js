@@ -77,6 +77,45 @@ function normalizePoolFile(data, entry){
   return { meta, players };
 }
 
+/* ---------- Positions a player can play ----------
+
+   A pool file lists ONE position per player (and sometimes a few alternates).
+   What the game wants is the list of positions he can actually play: Messi is a
+   right winger who has also played centre-forward and as a playmaker, and the
+   formation he ends up in is decided after the draft. So every player gets a
+   `positions` array, primary first:
+
+     - the position and secondaryPositions the pool already gives (the EA pool
+       and the Current pool carry alternates), plus
+     - public/pools/positions.json, a hand-written list of what notable players
+       actually played in their career, keyed by pool id then exact name.
+
+   Players with nothing extra keep the generic cover rules (see js/lineup.js). */
+const POSITION_CODES = ['GK', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'LW', 'RW', 'CF', 'ST'];
+const POSITIONS_URL = 'pools/positions.json';
+
+let positionOverridesPromise = null;
+function loadPositionOverrides(){
+  if(!positionOverridesPromise){
+    positionOverridesPromise = fetch(POSITIONS_URL, { cache: 'no-cache' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => (data && data.pools) || {})
+      .catch(() => ({}));   // the extras are optional: without them players keep what their pool says
+  }
+  return positionOverridesPromise;
+}
+
+// Sets player.positions: primary first, then alternates, valid codes only, no repeats.
+function normalizePlayerPositions(player, extra){
+  const out = [];
+  const add = code => { if(POSITION_CODES.includes(code) && !out.includes(code)) out.push(code); };
+  add(player.position);
+  (Array.isArray(player.secondaryPositions) ? player.secondaryPositions : []).forEach(add);
+  (Array.isArray(extra) ? extra : []).forEach(add);
+  player.positions = out.length ? out : [player.position];
+  return player.positions;
+}
+
 async function loadPoolCatalog(){
   try {
     const res = await fetch(POOL_MANIFEST_URL, { cache: 'no-cache' });
@@ -102,6 +141,8 @@ async function loadPool(id){
   const res = await fetch(entry.file, { cache: 'no-cache' });
   if(!res.ok) throw new Error(`Could not load ${entry.file} (HTTP ${res.status})`);
   const loaded = normalizePoolFile(await res.json(), entry);
+  const extras = (await loadPositionOverrides())[entry.id] || {};
+  loaded.players.forEach(p => normalizePlayerPositions(p, extras[p.name]));
   poolFileCache[entry.id] = loaded;
   return loaded;
 }
@@ -868,6 +909,10 @@ function buildRoundPlayer(realPlayer, pos, posIdx, phaseIndex){
        CM in your CDM slot is not a natural holding midfielder.
        See simWeightsFor(). */
     basePos: realPlayer.position || pos.code,
+    /* Every position he can play, primary first (see normalizePlayerPositions).
+       The draft offers a player under his natural position, but a manager can
+       use him anywhere in this list - the formation is decided afterwards. */
+    positions: (realPlayer.positions && realPlayer.positions.length) ? realPlayer.positions.slice() : [realPlayer.position || pos.code],
     posIdx: posIdx,
     rating: realPlayer.rating,
     startPrice: modeStartPrice(realPlayer),

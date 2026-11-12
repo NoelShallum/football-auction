@@ -25,6 +25,7 @@ No Firebase project, API keys, database installation, or GitHub account is requi
 - A responsive **Stadium Broadcast** interface (mown pitch, scorebug, paper-white bid card, broadcast line-up pitches), plus onboarding, setup with a live match sheet, auction, results, player detail panels, sounds, vibration, and install controls.
 - **Draw order** (phase-wise or random) in both modes, **draft filters** (era, league, nation, quality), and **unsold players going to the back of the pack** instead of a random assignment.
 - Shared-screen play for 2–10 participants, solo play against AI for 2–6 total managers, and online rooms for 2–6 participants.
+- **Flexible positions**: every player lists the positions he can play, the draft does not commit anyone to a formation (pick **Any** or lock one), and managers re-arrange their lineup on the results screen before the match simulation.
 - Classic 11 v 11, five formations, a 1,000M budget, 5M bid increments, progressive player selection, and automatic final-slot assignments.
 - 6 v 6 futsal, three formations, a 100M budget, 1M opening bids/increments, interchangeable position categories, and rating-weighted random selection.
 - Budget reserves, anti-sniping, pause/resume, passes, one sealed-bid round per draft, elite flash picks, and bounded rerolls.

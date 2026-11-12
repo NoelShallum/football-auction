@@ -264,6 +264,20 @@ body[data-screen="auctionScreen"] .brand{margin-bottom:16px;}
 .pitch-player .nat, .pitch-player .stats{color:var(--paper-mute);}
 .pitch-player .rating{color:var(--paper-good);}
 
+/* ================= LINEUP EDITOR (results) ================= */
+.lineup-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:10px 0 6px;}
+.lineup-form-label{font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--stone);}
+.lineup-bar .chip-btn{min-height:36px; padding:6px 12px; font-size:13px;}
+.lineup-bar .chip-btn:disabled{opacity:.35; cursor:not-allowed;}
+.lineup-current{font-family:'Space Mono',monospace; color:var(--lime);}
+.lineup-hint{font-size:12px; color:var(--stone); margin:0 0 8px; min-height:1.3em;}
+.pitch-player.movable{cursor:pointer;}
+.pitch-player.picked{outline:3px solid var(--lime); outline-offset:2px; z-index:3;}
+.pitch-player.droppable{outline:2px dashed var(--lime); outline-offset:2px;}
+.pitch-player.blocked{opacity:.45;}
+.pitch-player.covering .pos{background:#8A5A00; color:#fff;}
+.pitch-player.covering::after{content:"\21BA"; position:absolute; top:2px; right:4px; font-size:11px; color:#8A5A00;}
+
 /* ================= SMALL SCREENS ================= */
 @media (max-width: 900px){
   .setup-layout{grid-template-columns:1fr;}

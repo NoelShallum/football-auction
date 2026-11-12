@@ -31,7 +31,8 @@ Shared-screen and AI play run entirely in the browser after assets load. For onl
 | `js/multiplayer-config.js` | Shared online state, presence setup, clock correction |
 | `js/modes/classic.js` | Classic formations, cover map, economy, selection and simulation parameters |
 | `js/modes/sixv6.js` | Futsal formations, broad position categories and mode-specific parameters |
-| `js/modes/registry.js` | Active-mode globals, slot labels, eligibility and concrete-slot resolution |
+| `js/modes/registry.js` | Active-mode globals, formation choice (`any` or locked), slot labels |
+| `js/lineup.js` | Pure lineup logic: slot fit, squad feasibility (matching), best lineup/formation, moving players, per-manager formation (`withFormation`) |
 | `js/config.js` | Shared helpers, reroll caps, sealed-round helpers, name/nationality rendering |
 | `js/players.js` | Pool loading, picker UI, coverage checks, selection, pricing and flash picks |
 | `js/unsold.js` | Back-of-the-pack queue, re-offer pricing, leftover winner, pass cap (pure, shared by both engines) |
@@ -81,14 +82,15 @@ rooms/{CODE}
   hostId, status, createdAt
   settings
     gameMode, formation, budget, roundSeconds, showRatings
-    rerollsMode, maxParticipants, poolId
+    rerollsMode, maxParticipants, poolId, formationChoice
   participants/{uid}
-    name, color, budget, squad[], positionsFilled[]
+    name, color, budget, squad[], positionsFilled[], formation
+    lineup {formation, slots[]}   (written by the manager after the draft)
     connected, ready, joinedAt
   gameState
     draftId, roundPhase, roundId, currentRound, phaseNum, totalPhases
     positionOrder[], positionPhaseTracking{}, positionRankFloor{}
-    currentPlayer, currentBid, currentLeader
+    currentPlayer, eligibleIds[], currentBid, currentLeader
     roundEndsAt, roundSeconds, currentRoundSeconds, resetSeconds
     paused, pausedRemainingMs
     rerollsRemaining, roundRerolls, rerollVotes{}, goingVotes{}

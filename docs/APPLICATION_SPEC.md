@@ -28,7 +28,7 @@ The visual design is the **Stadium Broadcast** theme in `public/theme.css`, load
 | Reserve per remaining empty slot | 20M | 1M |
 | Opening price | Rating-based, rounded to 5M | 1M for every player |
 | Selection | Progressive rank/phase ladder | Weighted random within filtered position categories |
-| Repeated positions | Each concrete slot is independently owned | Slots of the same category are interchangeable |
+| Repeated positions | A squad must fit an allowed formation; players stand in any position they can play | The same rule; DEF, MID and FWD are the positions |
 | Last eligible participant | Automatic assignment at asking price | A bidding round still occurs |
 | Match length | 90 minutes, with extra time where needed | 40 minutes, with shorter extra time |
 | Match base expected goals per team | 1.32 | 3.9 |
@@ -42,7 +42,7 @@ Classic formations: **4-3-3, 4-2-3-1, 4-4-2, 3-4-3, 5-3-2**.
 
 Futsal formations: **2-1-2, 2-2-1, 1-2-2**, plus one goalkeeper in each.
 
-Classic labels duplicate roles using pitch coordinates, such as LCB/RCB and LCM/CM/RCM. Slot indices are canonical throughout squads and game state. Futsal categories fold GK separately, DEF from backs/wing-backs/centre-backs, MID from midfield roles, and FWD from ST/CF/LW/RW.
+Classic labels duplicate roles using pitch coordinates, such as LCB/RCB and LCM/CM/RCM. Within one formation, slot indices are canonical for a squad's lineup (`posIdx`); managers can be in different formations, so a slot index only means something together with that manager's `formation`. Futsal categories fold GK separately, DEF from backs/wing-backs/centre-backs, MID from midfield roles, and FWD from ST/CF/LW/RW.
 
 ## Player catalogue and selection
 
@@ -67,9 +67,17 @@ Classic selections maintain a per-slot rank floor that moves down the stable poo
 
 Classic flash picks can draw a phase-zero elite player on eligible later rounds with probability 0.14 and a 1.35 opening-price multiplier, rounded to the pricing increment. Futsal disables flash picks.
 
+## Positions and lineups
+
+Every player has a `positions` list, primary first. It comes from the pool data (EA secondary positions), curated alternates in `public/pools/positions.json` for the best-known players, and is normalised in `public/js/players.js` (`normalizePlayerPositions`). A slot's fit for a player is 4 (his own position), 3 (a listed alternate), 2 (his primary covers it through the mode's cover map, a CM at CDM), 1 (an alternate covers it) or 0 (cannot play there) - `slotFit()` in `public/js/lineup.js`.
+
+The formation is chosen by the manager after the draft, not before it. `FORMATION_CHOICE` is `any` (default: any formation of the mode is allowed) or one formation key (the draft is restricted to it). A manager may sign a player only if their squad plus him can still be assigned, one player per slot with fit above 0, in at least one allowed formation (`participantCanTake()`; maximum bipartite matching). This replaces slot ownership everywhere: bidding eligibility, auto-assignment, leftover picks, votes, the online host (`gameState.eligibleIds`, written by the host and checked by the server) and the AI.
+
+After each signing `refreshLineup()` lays the squad out in its best formation: as many players as possible in positions they can play, then the best total fit, higher ratings winning contested slots, and the current formation winning ties. The results screen lets a manager change formation (refused unless the whole squad can play it), move a player to any position he can play (swapping with the occupant when the occupant can cover the vacated slot), or take the best lineup. Online each manager's edit is shared as `participants/{uid}/lineup {formation, slots[]}`; every client re-validates fit, the server validates the shape, and edits lock once the room has a `simulation`.
+
 ## Auction rules
 
-The formation slots are auctioned in randomized order. Each round eventually fills one concrete slot for one participant. The same player ID cannot be drafted twice from the active pool.
+The draft is paced by a **template** formation (the mode's default when the formation is `any`): its slots are shuffled into tokens and each pass offers one player per token, from that position's ladder. A token is a position, not a seat: whoever wins the player decides where he plays. A token nobody could use is skipped; if a whole pass is skipped while someone is still short of players, the first such manager is handed a player for a position they can still take (a "straggler" round), and the same happens if the pass cap is reached. The same player ID cannot be drafted twice from the active pool.
 
 Maximum affordable bid:
 
@@ -78,7 +86,7 @@ remaining_slots = squad_size - acquired_players
 maximum = budget - reserve_per_slot * max(0, remaining_slots - 1)
 ```
 
-Normal bids must be at least the opening price, or at least the current bid plus the mode's increment. A manager cannot bid while leading or when the relevant position allocation is full. A later valid bid clears that manager's own pass, preserving other managers' passes.
+Normal bids must be at least the opening price, or at least the current bid plus the mode's increment. A manager cannot bid while leading or when the player does not fit their squad (`participantCanTake`). A later valid bid clears that manager's own pass, preserving other managers' passes.
 
 Timer choices are 10, 30, 60, 300 seconds, unlimited, or custom minutes up to 60. Later phases use:
 
@@ -132,7 +140,12 @@ No reroll is spent, nobody is picked at random, and every squad fills. The extra
 
 ## AI managers
 
-Profiles: **The Gaffer, The Showman, The Accountant, The Rock, The Maestro, The Wildcard**. They have separate aggression, randomness, jump-bid likelihood, line preferences, and willingness to prioritize stars over balanced spending.
+Profiles: **The Gaffer, The Showman, The Accountant, The Rock, The Maestro, The Wildcard, The Patriot, The Tinkerman, The Sniper**. Opponents are a random selection of these, fixed until the AI setup is reopened. They have separate aggression, randomness, jump-bid likelihood, line preferences, willingness to prioritize stars over balanced spending, and:
+
+- `valueSense`: trust in the going rate for a rating (`aiMarketValue`, the expected price scaled to the mode's budget per slot). A manager pays up to the higher of the squad-need ceiling and `market x valueSense`, so a player on offer below his worth draws bids even when the position is not an urgent need - but only if he is at least about as good as the replacement they expect (paying market price for a worse player is not value). The Accountant (1.3) is the bargain hunter; the Showman (0.55) barely cares.
+- `rivalry`: a grudge - extra they will pay while the human is the leader.
+- `patience`: The Sniper holds back until the clock is nearly out, never in a sealed or untimed round and never once everyone else has finished.
+- `flagPull` / `flexPull`: extra for a favourite nation (The Patriot picks one at the start of the draft) and for each additional position a player can play (The Tinkerman).
 
 The AI reuses the same auction and validation functions as shared-screen play. Valuations consider the player relative to replacements, remaining budget/slots, squad needs, position line and personality. Its thinking loop bids, passes, and submits sealed offers; it does not run a separate game engine.
 

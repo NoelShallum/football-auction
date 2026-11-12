@@ -219,6 +219,9 @@ async function createMultiplayerRoom() {
         // squad size, all of which the host's round engine depends on.
         gameMode: GAME_MODE_ID,
         formation: selectedFormation,
+        // 'any' (flexible, the default) or the one formation the draft is locked
+        // to. `formation` above stays for rooms and clients that predate this.
+        formationChoice: FORMATION_CHOICE,
         budget: BUDGET,
         roundSeconds: ROUND_SECONDS,
         showRatings: SHOW_RATINGS,
@@ -285,7 +288,10 @@ function mpAdoptRoomSettings(settings){
   if(!settings) return;
   // Mode before formation: it decides which formation keys exist, and
   // the budget/bid increment/squad size the engine runs on.
-  applyGameMode(settings.gameMode || DEFAULT_GAME_MODE_ID, settings.formation);
+  applyGameMode(settings.gameMode || DEFAULT_GAME_MODE_ID);
+  // A room from before formations became optional only has `formation`, and
+  // that meant "locked to it".
+  setFormationChoice(settings.formationChoice != null ? settings.formationChoice : settings.formation);
   ROUND_SECONDS = settings.roundSeconds != null ? settings.roundSeconds : 30;
   RESET_SECONDS = ROUND_SECONDS === 0 ? 0 : Math.max(4, Math.round(ROUND_SECONDS * 0.4));
   SHOW_RATINGS = settings.showRatings || false;
@@ -594,6 +600,7 @@ function renderWaitingRoomSettings() {
     const updates = {
       [`rooms/${currentRoomCode}/settings/gameMode`]: GAME_MODE_ID,
       [`rooms/${currentRoomCode}/settings/formation`]: selectedFormation,
+      [`rooms/${currentRoomCode}/settings/formationChoice`]: FORMATION_CHOICE,
       [`rooms/${currentRoomCode}/settings/budget`]: BUDGET,
     };
     // Switching mode changes what a squad costs, so everyone already in
@@ -608,14 +615,17 @@ function renderWaitingRoomSettings() {
   // Formation chips
   const formRow = document.getElementById('waitingFormationRow');
   formRow.innerHTML = '';
-  Object.keys(FORMATIONS).forEach(formKey => {
+  ['any', ...Object.keys(FORMATIONS)].forEach(formKey => {
     const btn = document.createElement('button');
-    btn.className = 'chip-btn' + (formKey === selectedFormation ? ' active' : '');
-    btn.textContent = formKey;
+    btn.className = 'chip-btn' + (formKey === FORMATION_CHOICE ? ' active' : '');
+    btn.textContent = formKey === 'any' ? t('field.formationAny') : formKey;
     btn.onclick = () => {
-      applyFormation(formKey);
+      setFormationChoice(formKey);
       renderWaitingRoomSettings(); // also refreshes the pool depth warning
-      database.ref(`rooms/${currentRoomCode}/settings/formation`).set(selectedFormation);
+      database.ref().update({
+        [`rooms/${currentRoomCode}/settings/formation`]: selectedFormation,
+        [`rooms/${currentRoomCode}/settings/formationChoice`]: FORMATION_CHOICE,
+      });
     };
     formRow.appendChild(btn);
   });
@@ -773,15 +783,23 @@ function setupMultiplayerListeners() {
     }
     updateWaitingPlayersList(participants);
 
-    state.participants = Object.entries(participants).map(([uid, data]) => ({
-      id: uid,
-      name: data.name,
-      color: data.color,
-      connected: data.connected !== false,
-      budget: data.budget != null ? data.budget : BUDGET,
-      squad: data.squad || [],
-      positionsFilled: new Set(data.positionsFilled || [])
-    }));
+    state.participants = Object.entries(participants).map(([uid, data]) => {
+      const participant = {
+        id: uid,
+        name: data.name,
+        color: data.color,
+        connected: data.connected !== false,
+        budget: data.budget != null ? data.budget : BUDGET,
+        squad: data.squad || [],
+        positionsFilled: new Set(data.positionsFilled || []),
+        formation: data.formation
+      };
+      // A manager who re-arranged their finished squad shares it as a lineup;
+      // it is re-checked here, so a bad one is simply ignored.
+      if (data.lineup) applyLineupPayload(participant, data.lineup);
+      return participant;
+    });
+    if (document.getElementById('resultsScreen').style.display === 'block') refreshLineupBlocks();
 
     if (mpGameState) {
       mpRenderFromState();
@@ -827,7 +845,8 @@ function setupMultiplayerListeners() {
     if (settings && !isHost) {
       // Mode first - it swaps the formation table the key is looked up in,
       // and sets BUDGET/BID_STEP/squad size to match the host.
-      applyGameMode(settings.gameMode || DEFAULT_GAME_MODE_ID, settings.formation);
+      applyGameMode(settings.gameMode || DEFAULT_GAME_MODE_ID);
+      setFormationChoice(settings.formationChoice != null ? settings.formationChoice : settings.formation);
       ROUND_SECONDS = settings.roundSeconds != null ? settings.roundSeconds : 30;
       RESET_SECONDS = ROUND_SECONDS === 0 ? 0 : Math.max(4, Math.round(ROUND_SECONDS * 0.4));
       SHOW_RATINGS = settings.showRatings || false;
@@ -1104,6 +1123,8 @@ async function hostStartAuction() {
       resetUpdates[`rooms/${currentRoomCode}/participants/${uid}/budget`] = startBudget;
       resetUpdates[`rooms/${currentRoomCode}/participants/${uid}/squad`] = [];
       resetUpdates[`rooms/${currentRoomCode}/participants/${uid}/positionsFilled`] = [];
+      resetUpdates[`rooms/${currentRoomCode}/participants/${uid}/formation`] = null;
+      resetUpdates[`rooms/${currentRoomCode}/participants/${uid}/lineup`] = null;
     });
     await database.ref().update(resetUpdates);
 
@@ -1217,7 +1238,8 @@ async function mpBuildFreshGameState(){
     color: data.color,
     budget: data.budget != null ? data.budget : BUDGET,
     squad: data.squad || [],
-    positionsFilled: new Set(data.positionsFilled || [])
+    positionsFilled: new Set(data.positionsFilled || []),
+    formation: data.formation
   }));
   state.totalPhases = state.participants.length;   // one pass per participant - see startAuction()
 
@@ -1295,6 +1317,21 @@ function mpScheduleHostRoundTimer(endsAt){
   mpHostTimerHandle = setTimeout(() => mpHostSettleRound(), ms + 60);
 }
 
+/* Adds a signing to a participant the way every host-side sale does: pays, adds him
+   to the squad, re-lays the lineup (js/lineup.js signPlayer) and returns the
+   participant-record writes for it, to go into the same atomic update as the
+   gameState. */
+function mpSignAndUpdates(participant, player, price){
+  signPlayer(participant, player, price);
+  const base = `rooms/${currentRoomCode}/participants/${participant.id}`;
+  return {
+    [`${base}/budget`]: participant.budget,
+    [`${base}/squad`]: participant.squad,
+    [`${base}/positionsFilled`]: Array.from(participant.positionsFilled),
+    [`${base}/formation`]: participant.formation,
+  };
+}
+
 function mpHostAdvanceRound(){
   if (!isHost || !mpGameState) return;
   const gs = mpCloneGameState();
@@ -1312,6 +1349,12 @@ function mpHostAdvanceRound(){
   if (gs.currentRound >= FORMATION.length) { gs.phaseNum++; gs.currentRound = 0; }
 
   if (gs.phaseNum > maxDraftPhases(state.participants.length)) {
+    // Out of passes: anyone still short is handed players rather than ending
+    // the draft with incomplete squads (see mpHostStragglerRound).
+    if (state.participants.some(p => p.squad.length < FORMATION.length)) {
+      mpGameState = gs;
+      return mpHostStragglerRound();
+    }
     gs.roundPhase = 'complete';
     gs.currentPlayer = null;
     mpGameState = gs;
@@ -1328,14 +1371,18 @@ function mpHostAdvanceRound(){
   // exactly as single-player resets state.roundRerolls in startRound().
   gs.roundRerolls = 0;
 
+  // A round is a TOKEN of the template formation, not a slot anybody owns -
+  // mirrors single-player's startRound().
   const posIdx = gs.positionOrder[gs.currentRound];
-  const eligible = state.participants.filter(p => participantNeedsSlot(p, posIdx));
-
-  if (eligible.length === 0) {
-    gs.currentRound++;
+  const pos = FORMATION[posIdx];
+  if (!anyoneCanUsePosition(state.participants, pos.code)) {
+    gs.idleSkips = (gs.idleSkips || 0) + 1;
     mpGameState = gs;
+    if (gs.idleSkips >= FORMATION.length) return mpHostStragglerRound();
+    gs.currentRound++;
     return mpHostAdvanceRound();
   }
+  gs.idleSkips = 0;
 
   const phase = gs.positionPhaseTracking[posIdx] || 0;
 
@@ -1354,7 +1401,8 @@ function mpHostAdvanceRound(){
     // Occasionally a flash pick from the top tier instead (see
     // maybeGenerateFlashPlayer()) - mirrors single-player exactly,
     // including bypassing the dynamic floor entirely for that pick.
-    const flashPlayer = maybeGenerateFlashPlayer(posIdx, phase, state.participants.length, eligible.length);
+    const usable = state.participants.filter(p => participantCanTake(p, { positions: [pos.code] })).length;
+    const flashPlayer = maybeGenerateFlashPlayer(posIdx, phase, state.participants.length, usable);
     if(flashPlayer){
       player = flashPlayer;
     } else {
@@ -1364,6 +1412,16 @@ function mpHostAdvanceRound(){
     }
     gs.positionPhaseTracking = {...gs.positionPhaseTracking, [posIdx]: phase + 1};
   }
+
+  // Who can sign THIS player (he may play more than one position). Published
+  // with the round: guests and the server use the host's answer.
+  const eligible = state.participants.filter(p => participantCanTake(p, player));
+  if (eligible.length === 0) {
+    gs.currentRound++;
+    mpGameState = gs;
+    return mpHostAdvanceRound();
+  }
+  gs.eligibleIds = eligible.map(p => p.id);
   gs.roundId = (gs.roundId || 0) + 1;
   gs.currentPlayer = player;
   gs.currentBid = 0;
@@ -1380,23 +1438,13 @@ function mpHostAdvanceRound(){
   if (eligible.length === 1 && activeMode().autoAssignLastEligible) {
     const winner = eligible[0];
     const price = player.startPrice;
-    const slotIdx = resolveFilledSlot(winner, posIdx);
-    const newBudget = winner.budget - price;
-    const newSquad = [...winner.squad, {...player, posIdx: slotIdx, price, newlyPlaced: true}];
-    const newPositionsFilled = Array.from(winner.positionsFilled).concat(slotIdx);
 
     gs.roundPhase = 'settled';
     gs.settledAt = serverNow();
-    gs.settleInfo = { mode: 'autoSingle', winnerId: winner.id, winnerName: winner.name, price, playerName: player.name, playerPos: player.pos, playerRating: player.rating, isFlash: !!player.isFlash };
+    gs.settleInfo = { mode: 'autoSingle', winnerId: winner.id, winnerName: winner.name, price, playerName: player.name, playerPos: playerPrimaryCode(player), playerRating: player.rating, isFlash: !!player.isFlash };
     mpGameState = gs;
 
-    const updates = {};
-    updates[`rooms/${currentRoomCode}/participants/${winner.id}/budget`] = newBudget;
-    updates[`rooms/${currentRoomCode}/participants/${winner.id}/squad`] = newSquad;
-    updates[`rooms/${currentRoomCode}/participants/${winner.id}/positionsFilled`] = newPositionsFilled;
-    mpCommitGameState(gs, updates);
-
-    winner.budget = newBudget; winner.squad = newSquad; winner.positionsFilled = new Set(newPositionsFilled);
+    mpCommitGameState(gs, mpSignAndUpdates(winner, player, price));
 
     mpAdvanceTimerHandle = setTimeout(() => {
       const gs2 = mpCloneGameState();
@@ -1486,7 +1534,7 @@ function mpHostSettleRound(){
       gs.unsold = [...(gs.unsold || []), unsoldEntry(p, decision.noBids, gs.phaseNum)];
       gs.roundPhase = 'settled';
       gs.settledAt = serverNow();
-      gs.settleInfo = { mode: 'unsold', playerName: p.name, playerPos: p.pos, playerRating: p.rating, isFlash: !!p.isFlash };
+      gs.settleInfo = { mode: 'unsold', playerName: p.name, playerPos: playerPrimaryCode(p), playerRating: p.rating, isFlash: !!p.isFlash };
       gs.currentLeader = null;
       mpGameState = gs;
       mpCommitGameState(gs);
@@ -1499,7 +1547,7 @@ function mpHostSettleRound(){
       }, MP_SETTLE_DISPLAY_MS);
       return;
     }
-    const winner = pickLeftoverWinner(state.participants, posIdx);
+    const winner = pickLeftoverWinner(state.participants, p);
     if (!winner) {
       gs.currentRound++;
       mpGameState = gs;
@@ -1516,29 +1564,19 @@ function mpHostSettleRound(){
 
 function mpFinishSettle(gs, winner, price, mode, posIdx){
   const p = gs.currentPlayer;
-  const slotIdx = resolveFilledSlot(winner, posIdx);
-  const newBudget = winner.budget - price;
-  const newSquad = [...winner.squad, {...p, posIdx: slotIdx, price, newlyPlaced: true}];
-  const newPositionsFilled = Array.from(winner.positionsFilled).concat(slotIdx);
 
   gs.roundPhase = 'settled';
   gs.settledAt = serverNow();
-  gs.settleInfo = { mode, winnerId: winner.id, winnerName: winner.name, price, playerName: p.name, playerPos: p.pos, playerRating: p.rating, isFlash: !!p.isFlash };
+  gs.settleInfo = { mode, winnerId: winner.id, winnerName: winner.name, price, playerName: p.name, playerPos: playerPrimaryCode(p), playerRating: p.rating, isFlash: !!p.isFlash };
   gs.currentLeader = null;
   mpGameState = gs;
 
-  const updates = {};
-  updates[`rooms/${currentRoomCode}/participants/${winner.id}/budget`] = newBudget;
-  updates[`rooms/${currentRoomCode}/participants/${winner.id}/squad`] = newSquad;
-  updates[`rooms/${currentRoomCode}/participants/${winner.id}/positionsFilled`] = newPositionsFilled;
-  mpCommitGameState(gs, updates);
-
-  winner.budget = newBudget; winner.squad = newSquad; winner.positionsFilled = new Set(newPositionsFilled);
+  mpCommitGameState(gs, mpSignAndUpdates(winner, p, price));
 
   // Modes without auto-assignment (6v6) skip this shortcut and run a
   // normal round instead, so the last slot is still won by bidding -
   // mirrors single-player's settleRound() exactly.
-  const stillNeed = state.participants.filter(pp => participantNeedsSlot(pp, posIdx));
+  const stillNeed = state.participants.filter(pp => participantCanTake(pp, { positions: [FORMATION[posIdx].code] }));
   if (stillNeed.length === 1 && activeMode().autoAssignLastEligible) {
     mpAdvanceTimerHandle = setTimeout(() => mpHostAutoAssignLast(stillNeed[0], posIdx), MP_SETTLE_DISPLAY_MS);
   } else {
@@ -1553,26 +1591,36 @@ function mpFinishSettle(gs, winner, price, mode, posIdx){
 
 // Mirrors single-player's autoAssignLastPlayer(): the position's last
 // remaining eligible participant gets a (possibly weaker) player without
-// bidding, right after the previous winner's SOLD flash.
-function mpHostAutoAssignLast(participant, posIdx){
+// bidding, right after the previous winner's SOLD flash. posIdx -1 plus a
+// `code` is a straggler (see mpHostStragglerRound).
+function mpHostAutoAssignLast(participant, posIdx, code){
   if (!isHost) return;
   const gs = mpCloneGameState();
-  const pos = FORMATION[posIdx];
-  const currentPhase = gs.positionPhaseTracking[posIdx] || 0;
+  const pos = { code: code || FORMATION[posIdx].code };
+  const tracked = posIdx >= 0;
+  const currentPhase = tracked ? (gs.positionPhaseTracking[posIdx] || 0) : Math.max(0, state.participants.length - 1);
   const numParticipants = state.participants.length;
 
   // Same reasoning as single-player's autoAssignLastPlayer(): currentPhase
   // is already the last (weakest) percentile band by this point, so
   // selectPlayerDynamic does the whole job - still through the dynamic
   // floor so this final pick continues the same downward progression.
-  const picked = pickAutoAssignPlayer(pos.code, currentPhase, numParticipants, (gs.positionRankFloor || {})[posIdx]);
-  const realPlayer = picked.player;
-  gs.positionRankFloor = {...gs.positionRankFloor, [posIdx]: picked.rankFloor};
-
-  // Shared builder, not a third hand-written copy of the same object -
-  // see the note in single-player's autoAssignLastPlayer().
-  const lastPlayer = buildRoundPlayer(realPlayer, pos, posIdx, currentPhase);
-  gs.positionPhaseTracking = {...gs.positionPhaseTracking, [posIdx]: currentPhase + 1};
+  // A few draws are allowed to find a player who actually fits this squad.
+  let lastPlayer = null;
+  for (let attempt = 0; attempt < 6 && !lastPlayer; attempt++) {
+    const picked = pickAutoAssignPlayer(pos.code, currentPhase, numParticipants, tracked ? (gs.positionRankFloor || {})[posIdx] : 0);
+    if (tracked) gs.positionRankFloor = {...gs.positionRankFloor, [posIdx]: picked.rankFloor};
+    // Shared builder, not a third hand-written copy of the same object -
+    // see the note in single-player's autoAssignLastPlayer().
+    const candidate = buildRoundPlayer(picked.player, pos, posIdx, currentPhase);
+    if (participantCanTake(participant, candidate)) lastPlayer = candidate;
+  }
+  if (!lastPlayer) {
+    gs.currentRound++;
+    mpGameState = gs;
+    return mpHostAdvanceRound();
+  }
+  if (tracked) gs.positionPhaseTracking = {...gs.positionPhaseTracking, [posIdx]: currentPhase + 1};
 
   const maxAfford = getMaxAffordable(participant);
   let price = lastPlayer.startPrice;
@@ -1582,12 +1630,8 @@ function mpHostAutoAssignLast(participant, posIdx){
     lastPlayer.rating = Math.min(lastPlayer.rating, 69);
   }
 
-  const slotIdx = resolveFilledSlot(participant, posIdx);
-  const newBudget = participant.budget - price;
-  const newSquad = [...participant.squad, {...lastPlayer, posIdx: slotIdx, price, newlyPlaced: true}];
-  const newPositionsFilled = Array.from(participant.positionsFilled).concat(slotIdx);
-
   gs.currentPlayer = lastPlayer;
+  gs.eligibleIds = [participant.id];
   gs.roundPhase = 'settled';
   // roundId must change here too, even though we're still within the
   // same "round slot" - otherwise the render layer's isNewKey check
@@ -1595,18 +1639,12 @@ function mpHostAutoAssignLast(participant, posIdx){
   // flash that just played and silently skips this animation entirely.
   gs.roundId = (gs.roundId || 0) + 1;
   gs.settledAt = serverNow();
-  gs.settleInfo = { mode: 'autoLast', winnerId: participant.id, winnerName: participant.name, price, playerName: lastPlayer.name, playerPos: lastPlayer.pos, playerRating: lastPlayer.rating, isFlash: false };
+  gs.settleInfo = { mode: 'autoLast', winnerId: participant.id, winnerName: participant.name, price, playerName: lastPlayer.name, playerPos: playerPrimaryCode(lastPlayer), playerRating: lastPlayer.rating, isFlash: false };
   gs.currentBid = 0;
   gs.currentLeader = null;
   mpGameState = gs;
 
-  const updates = {};
-  updates[`rooms/${currentRoomCode}/participants/${participant.id}/budget`] = newBudget;
-  updates[`rooms/${currentRoomCode}/participants/${participant.id}/squad`] = newSquad;
-  updates[`rooms/${currentRoomCode}/participants/${participant.id}/positionsFilled`] = newPositionsFilled;
-  mpCommitGameState(gs, updates);
-
-  participant.budget = newBudget; participant.squad = newSquad; participant.positionsFilled = new Set(newPositionsFilled);
+  mpCommitGameState(gs, mpSignAndUpdates(participant, lastPlayer, price));
 
   mpAdvanceTimerHandle = setTimeout(() => {
     const gs2 = mpCloneGameState();
@@ -1614,6 +1652,26 @@ function mpHostAutoAssignLast(participant, posIdx){
     mpGameState = gs2;
     mpHostAdvanceRound();
   }, MP_SETTLE_DISPLAY_MS);
+}
+
+// Mirrors single-player's startStragglerRound(): a whole pass went by in which
+// nobody could use any position the template offers, so the first manager still
+// short of players is handed one for a position they CAN still take.
+function mpHostStragglerRound(){
+  if (!isHost) return;
+  if (mpGameState) mpGameState.idleSkips = 0;
+  const short = state.participants.find(p => p.squad.length < FORMATION.length);
+  const codes = short ? usableCodes(short) : [];
+  if (!short || !codes.length) {
+    const gs = mpCloneGameState();
+    gs.roundPhase = 'complete';
+    gs.currentPlayer = null;
+    mpGameState = gs;
+    mpCommitGameState(gs);
+    database.ref(`rooms/${currentRoomCode}/status`).set('ended');
+    return;
+  }
+  mpHostAutoAssignLast(short, -1, codes[Math.floor(Math.random() * codes.length)]);
 }
 
 // ---- Actions any client can request (host executes, everyone renders) ----
@@ -1641,10 +1699,10 @@ function mpPlaceBid(amount){
     if (amount < minBid) return; // abort
     const participant = state.participants.find(p => p.id === pid);
     if (!participant) return; // abort
-    // Formation limits, enforced on the write rather than only in the UI:
-    // a participant who has already filled every slot for this position
-    // cannot take another one.
-    if (!participantNeedsSlot(participant, gs.currentPlayer.posIdx)) return; // abort
+    // Squad limits, enforced on the write rather than only in the UI: a
+    // participant whose squad cannot fit this player in any allowed
+    // formation cannot bid on him.
+    if (!mpEligibleFor(gs, pid)) return; // abort
     const maxAfford = getMaxAffordable(participant);
     if (amount > maxAfford) return; // abort
 
@@ -1740,14 +1798,9 @@ function mpVoterIdsFor(gs, kind){
   const connected = mpConnectedParticipantIds();
   if (kind === 'reroll' && modeRerollElectorate() === 'all') return connected;
 
-  const posIdx = gs && gs.currentPlayer ? gs.currentPlayer.posIdx : null;
-  if (posIdx == null) return connected;
+  if (!gs || !gs.currentPlayer) return connected;
 
-  const eligible = connected.filter(uid => {
-    const p = state.participants.find(x => x.id === uid);
-    if (!p) return false;
-    return participantNeedsSlot(p, posIdx);
-  });
+  const eligible = connected.filter(uid => mpEligibleFor(gs, uid));
 
   // Never return an empty electorate: a zero denominator would make
   // "everyone has voted" trivially true and fire the action instantly,
@@ -1756,12 +1809,19 @@ function mpVoterIdsFor(gs, kind){
   return eligible.length > 0 ? eligible : connected;
 }
 
-// Does THIS client still need the position currently up for auction?
+/* Can this participant sign the player on the stage? The host publishes the
+   answer with the round (gs.eligibleIds) so every client, and the server,
+   agree on it; a state from before that existed is worked out locally. */
+function mpEligibleFor(gs, uid){
+  if (!gs || !gs.currentPlayer) return false;
+  if (Array.isArray(gs.eligibleIds)) return gs.eligibleIds.includes(uid);
+  const p = state.participants.find(x => x.id === uid);
+  return !!p && participantCanTake(p, gs.currentPlayer);
+}
+
+// Does THIS client have room for the player currently up for auction?
 function mpIsEligibleThisRound(){
-  if (!mpGameState || !mpGameState.currentPlayer) return false;
-  const me = state.participants.find(x => x.id === currentUserId);
-  if (!me) return false;
-  return participantNeedsSlot(me, mpGameState.currentPlayer.posIdx);
+  return mpEligibleFor(mpGameState, currentUserId);
 }
 
 // Whether this client gets a say in a reroll - which, unlike bidding, is
@@ -1905,6 +1965,7 @@ function mpHostExecuteReroll(){
   const newPlayer = picked.player;
   gs.positionRankFloor = {...gs.positionRankFloor, [posIdx]: picked.rankFloor};
   gs.currentPlayer = newPlayer;
+  gs.eligibleIds = state.participants.filter(p => participantCanTake(p, newPlayer)).map(p => p.id);
   gs.currentBid = 0;
   gs.currentLeader = null;
   gs.rerollsRemaining--;
@@ -1961,6 +2022,8 @@ function mpHostResetToLobby(reason){
     updates[`rooms/${currentRoomCode}/participants/${uid}/budget`] = BUDGET;
     updates[`rooms/${currentRoomCode}/participants/${uid}/squad`] = [];
     updates[`rooms/${currentRoomCode}/participants/${uid}/positionsFilled`] = [];
+    updates[`rooms/${currentRoomCode}/participants/${uid}/formation`] = null;
+    updates[`rooms/${currentRoomCode}/participants/${uid}/lineup`] = null;
     updates[`rooms/${currentRoomCode}/participants/${uid}/ready`] = (uid === currentUserId);
   });
   updates[`rooms/${currentRoomCode}/gameState`] = null;
@@ -2086,11 +2149,10 @@ function mpRenderFromState(){
   state.currentPlayer = gs.currentPlayer;
 
   const p = gs.currentPlayer;
-  const pos = FORMATION[p.posIdx] || {code: p.pos, label: p.pos};
   const key = gs.roundId + ':' + gs.roundPhase;
   const isNewKey = key !== mpRenderedKey;
 
-  document.getElementById('posTag').textContent = slotLabel(p.posIdx);
+  renderPlayerPositions(p);
   state.unsold = gs.unsold || [];
   document.getElementById('progressTag').textContent = progressText(gs.phaseNum, gs.totalPhases, gs.currentRound);
   renderUnsoldPile();
@@ -2098,7 +2160,7 @@ function mpRenderFromState(){
   if (gs.roundPhase === 'bidding') {
     document.getElementById('soldFlash').classList.remove('show');
     document.getElementById('playerPos').classList.remove('forced');
-    document.getElementById('playerPos').textContent = slotCode(p.posIdx);
+    document.getElementById('playerPos').textContent = playerPrimaryCode(p);
     document.getElementById('flashBadge').style.display = (p.isFlash && !gs.isBlindRound) ? 'inline-block' : 'none';
     document.getElementById('blindBadge').style.display = gs.isBlindRound ? 'inline-block' : 'none';
 
@@ -2108,7 +2170,7 @@ function mpRenderFromState(){
     document.getElementById('playerSub').textContent = t('auction.startingPrice', {price: fmt(p.startPrice)});
     // Matches single-player's phaseEligible wording exactly - state.participants
     // is already mirrored from mpParticipantsSnapshot by this point in the render.
-    const eligibleCount = state.participants.filter(x => participantNeedsSlot(x, p.posIdx)).length;
+    const eligibleCount = state.participants.filter(x => mpEligibleFor(gs, x.id)).length;
     document.getElementById('phaseTag').textContent = t('auction.phaseEligible', {phase: p.phase, count: eligibleCount});
 
     // A blind round never shows a public current bid/leader - see
@@ -2264,7 +2326,7 @@ function mpRenderFromState(){
     if (isNewKey && gs.settleInfo && gs.settleInfo.mode === 'unsold') {
       // Nobody bid: no winner, no price - the player just goes to the back of the pack.
       document.getElementById('playerPos').classList.add('forced');
-      document.getElementById('playerPos').textContent = slotCode(p.posIdx);
+      document.getElementById('playerPos').textContent = playerPrimaryCode(p);
       document.getElementById('playerName').innerHTML = playerNameHTML(p, {nation:false});
       document.getElementById('playerNat').innerHTML = playerNationalityLineHTML(p);
       document.getElementById('playerSub').textContent = t('auction.backOfPack');
@@ -2285,7 +2347,7 @@ function mpRenderFromState(){
       const word = t(wordKey);
 
       document.getElementById('playerPos').classList.toggle('forced', !isSold);
-      document.getElementById('playerPos').textContent = slotCode(p.posIdx);
+      document.getElementById('playerPos').textContent = playerPrimaryCode(p);
       const nameDisplay = playerNameHTML(p, {nation:false});
       document.getElementById('playerName').innerHTML = nameDisplay;
       document.getElementById('playerNat').innerHTML = playerNationalityLineHTML(p);
@@ -2298,7 +2360,7 @@ function mpRenderFromState(){
       document.getElementById('soldFlash').classList.add('show');
       document.getElementById('countdownBanner').classList.remove('show');
 
-      addTicker(buildSaleTickerHTML(info.playerName, slotCode(p.posIdx), info.winnerName, info.price, tickerSuffix, info.playerRating, info.isFlash));
+      addTicker(buildSaleTickerHTML(info.playerName, playerPrimaryCode(p), info.winnerName, info.price, tickerSuffix, info.playerRating, info.isFlash));
       sounds.sold();
       haptics.sold();
     }

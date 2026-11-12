@@ -6,7 +6,7 @@ Run the complete check with:
 npm run verify
 ```
 
-Local release 1.1.0 passes **49 functional tests**, the source/asset checks and the static build. The production container check (`npm run test:container`) was last run for 1.0.1 and has **not** been re-run since the 1.1.0 changes (it needs a Docker daemon).
+The working tree after 1.1.0 passes **66 functional tests**, the source/asset checks and the static build. The production container check (`npm run test:container`) was last run for 1.0.1 and has **not** been re-run since the 1.1.0 changes (it needs a Docker daemon).
 
 The verification uses Node's test runner, jsdom for DOM integration, actual loopback HTTP/WebSocket connections, temporary persistence files, and a native canvas implementation for PNG output. jsdom is a DOM test environment, not a graphical browser.
 
@@ -17,7 +17,9 @@ The verification uses Node's test runner, jsdom for DOM integration, actual loop
 - Correct pool totals, unique pool-local IDs, and all five locale dictionaries.
 - Boot, all published pool prefetches, all five language switches and Arabic direction.
 - First-run language onboarding and saved settings.
-- Formation/position eligibility, slot ownership, reserves, clocks and per-draft/per-round reroll caps.
+- Formation/position eligibility (squad fit across allowed formations, locked and flexible), reserves, clocks and per-draft/per-round reroll caps.
+- Flexible positions: slot-fit tiers, best lineup and formation, moving and swapping players, refused formation changes, lineup payload round trips and forged payloads, every manager ending a real draft in a legal lineup, and curated position data in every pool.
+- AI value hunting, taste (nation and versatility), patient bidders, the randomised roster, and drafts against five opponents covering every archetype in both modes.
 - Pool depth for every offered formation at 2, 4, 6 and 10 participants.
 - Complete local Classic draft and futsal drafts using each of the four player pools, and Classic drafts of 3, 5 and 8 managers on the 13,122-player Pro Database (ladder and random).
 - Unsold players: queue, re-offer price, leftover winner, and drafts where nobody ever bids (Classic and futsal, offline and online) still end with full squads and no duplicates.

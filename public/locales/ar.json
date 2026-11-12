@@ -81,7 +81,9 @@
     "customTimerInvalid": "يرجى إدخال مدة مؤقّت صالحة (1 إلى 60 دقيقة)",
     "drawOrder": "ترتيب السحب",
     "ifNobodyBids": "إذا لم يزايد أحد",
-    "whoCanAppear": "من يمكن أن يظهر"
+    "whoCanAppear": "من يمكن أن يظهر",
+    "formationAny": "أي تشكيلة",
+    "formationAnyNote": "أي تشكيلة: اختر اللاعبين بحرية ثم حدّد الخطة. يمكن لكل لاعب أن يلعب في أي مركز يجيده."
   },
   "setup": {
     "participants": "عدد المشاركين",
@@ -168,9 +170,9 @@
     "youLead": "أنت في الصدارة",
     "submitSealedBid": "إرسال عرض مغلق",
     "updateSealedBid": "تعديل العرض المغلق",
-    "youAlreadyHavePosition": "✓ تملك هذا المركز بالفعل",
+    "youAlreadyHavePosition": "✓ لا مكان له في تشكيلتك",
     "passedWaiting": "✓ انسحبت - في انتظار المنافسين",
-    "errAlreadyHave": "تملك هذا المركز بالفعل",
+    "errAlreadyHave": "لا مكان له في تشكيلتك",
     "errMinBid": "الحد الأدنى {min}",
     "errMaxAfford": "أقصى ما يمكنك دفعه: {max}",
     "errAlreadyLeading": "أنت في الصدارة بالفعل",
@@ -193,7 +195,8 @@
     "unsoldPile": "غير المباعين · {count}",
     "backOfPack": "آخر الحزمة",
     "returnsNextLap": "يعود في الدورة التالية",
-    "returnedFromPack": "فرصة ثانية · يبدأ بـ {price}"
+    "returnedFromPack": "فرصة ثانية · يبدأ بـ {price}",
+    "alsoPlays": "ويلعب أيضاً {positions}"
   },
   "ticker": {
     "bargain": "صفقة رابحة!",
@@ -218,7 +221,8 @@
     "unsoldReturns": [
       "<b>{name}</b> يعود من الحزمة، يبدأ بـ {price}.",
       "فرصة ثانية لـ <b>{name}</b> - يبدأ بـ {price}."
-    ]
+    ],
+    "bargainBid": "{name} يشم رائحة صفقة رابحة."
   },
   "sim": {
     "needTwo": "المحاكاة تحتاج إلى تشكيلتين على الأقل.",
@@ -431,7 +435,13 @@
     "pctBudget": "{pct}٪ من الميزانية",
     "rerollsUsed": "مرات إعادة السحب",
     "copiedClipboard": "تم نسخ نتائج الدرافت إلى الحافظة!",
-    "avgRatingShort": "التقييم"
+    "avgRatingShort": "التقييم",
+    "lineupFormation": "الخطة",
+    "lineupHint": "المس لاعباً ثم مركزاً لنقله. لا ينتقل إلا إلى مركز يجيده.",
+    "lineupMoving": "نقل {name} ({positions}) - المس مركزاً مضيئاً.",
+    "lineupBest": "أفضل تشكيلة",
+    "lineupCannot": "لا يستطيع اللعب في هذا المركز.",
+    "lineupSaveFailed": "تعذّر مشاركة تشكيلتك."
   },
   "chat": {
     "toggle": "دردشة الغرفة",

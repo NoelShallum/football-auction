@@ -81,7 +81,9 @@
     "customTimerInvalid": "Merci d'indiquer une durée de minuteur valide (1 à 60 minutes)",
     "drawOrder": "Ordre de tirage",
     "ifNobodyBids": "Si personne n'enchérit",
-    "whoCanAppear": "Joueurs possibles"
+    "whoCanAppear": "Joueurs possibles",
+    "formationAny": "Libre",
+    "formationAnyNote": "Toute formation : draftez librement, puis choisissez le schéma. Chaque joueur peut évoluer à tous ses postes."
   },
   "setup": {
     "participants": "Nombre de participants",
@@ -168,9 +170,9 @@
     "youLead": "Vous menez",
     "submitSealedBid": "Envoyer l'offre scellée",
     "updateSealedBid": "Modifier l'offre scellée",
-    "youAlreadyHavePosition": "✓ Vous avez déjà ce poste",
+    "youAlreadyHavePosition": "✓ Plus de place pour lui dans votre onze",
     "passedWaiting": "✓ Passé - en attente des adversaires",
-    "errAlreadyHave": "Vous avez déjà ce poste",
+    "errAlreadyHave": "Plus de place pour lui dans votre onze",
     "errMinBid": "Minimum {min}",
     "errMaxAfford": "Maximum possible : {max}",
     "errAlreadyLeading": "Vous menez déjà",
@@ -193,7 +195,8 @@
     "unsoldPile": "Invendus · {count}",
     "backOfPack": "Au fond de la pile",
     "returnsNextLap": "Revient au prochain tour",
-    "returnedFromPack": "Deuxième chance · mise à prix {price}"
+    "returnedFromPack": "Deuxième chance · mise à prix {price}",
+    "alsoPlays": "aussi {positions}"
   },
   "ticker": {
     "bargain": "bonne affaire !",
@@ -218,7 +221,8 @@
     "unsoldReturns": [
       "<b>{name}</b> revient de la pile, mise à prix {price}.",
       "Deuxième chance pour <b>{name}</b> - mise à prix {price}."
-    ]
+    ],
+    "bargainBid": "{name} flaire la bonne affaire."
   },
   "sim": {
     "needTwo": "Une simulation nécessite au moins deux effectifs.",
@@ -431,7 +435,13 @@
     "pctBudget": "{pct} % du budget",
     "rerollsUsed": "Relances utilisées",
     "copiedClipboard": "Résultats du draft copiés dans le presse-papiers !",
-    "avgRatingShort": "Note"
+    "avgRatingShort": "Note",
+    "lineupFormation": "Schéma",
+    "lineupHint": "Touchez un joueur, puis un poste, pour le déplacer. Il n'ira que là où il peut jouer.",
+    "lineupMoving": "Déplacer {name} ({positions}) - touchez un poste en surbrillance.",
+    "lineupBest": "Meilleur onze",
+    "lineupCannot": "Il ne peut pas jouer à ce poste.",
+    "lineupSaveFailed": "Impossible de partager votre composition."
   },
   "chat": {
     "toggle": "Chat du salon",

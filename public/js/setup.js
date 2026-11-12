@@ -18,7 +18,9 @@ function loadSettings(){
       // Mode first: it decides which formation keys are even valid, and
       // applyGameMode falls back to the mode's default if the saved
       // formation belongs to the other mode (or to a removed one).
-      applyGameMode(settings.gameMode || DEFAULT_GAME_MODE_ID, settings.formation);
+      applyGameMode(settings.gameMode || DEFAULT_GAME_MODE_ID);
+      // Absent (every save from before formations became optional) = flexible.
+      setFormationChoice(settings.formationChoice);
       SHOW_RATINGS = settings.showRatings || false;
       REROLLS_MODE = settings.rerollsMode || '3';
       // Absent/unknown = the mode's own default, which is what every save
@@ -44,6 +46,7 @@ function saveSettings(){
       roundSeconds: ROUND_SECONDS,
       gameMode: GAME_MODE_ID,
       formation: selectedFormation,
+      formationChoice: FORMATION_CHOICE,
       showRatings: SHOW_RATINGS,
       rerollsMode: REROLLS_MODE,
       drawOrder: DRAW_ORDER,   // null until the player picks one explicitly
@@ -303,12 +306,14 @@ renderGameModeRow();
 const formationRow = document.getElementById('formationRow');
 function buildFormationRow(){
   formationRow.innerHTML = '';
-  Object.keys(FORMATIONS).forEach(formKey=>{
+  // "Any" first: the formation is decided after the draft, and can be changed
+  // then. A specific one restricts the draft to that shape.
+  ['any', ...Object.keys(FORMATIONS)].forEach(formKey=>{
     const btn = document.createElement('button');
-    btn.className = 'chip-btn' + (formKey===selectedFormation?' active':'');
-    btn.textContent = formKey;
+    btn.className = 'chip-btn' + (formKey===FORMATION_CHOICE?' active':'');
+    btn.textContent = formKey === 'any' ? t('field.formationAny') : formKey;
     btn.onclick = ()=>{
-      applyFormation(formKey);
+      setFormationChoice(formKey);
       renderFormationRow();
       updateFormationNote();
       renderAllPoolPickers(); // pool depth is judged per formation slot
@@ -320,23 +325,27 @@ function buildFormationRow(){
 }
 buildFormationRow();
 function renderFormationRow(){
-  [...formationRow.children].forEach(b=> b.classList.toggle('active', b.dataset.form===selectedFormation));
+  [...formationRow.children].forEach(b=> b.classList.toggle('active', b.dataset.form===FORMATION_CHOICE));
 }
 function updateFormationNote(){
+  const any = FORMATION_CHOICE === 'any';
   const posCount = {};
   FORMATION.forEach(f => posCount[f.code] = (posCount[f.code] || 0) + 1);
-  const parts = Object.entries(posCount).map(([c, n]) => n + ' ' + c).join(' · ');
+  const parts = Object.entries(posCount).map(([c, n]) => n + ' ' + c).join(' \u00b7 ');
+  const head = any
+    ? `${t('field.formationAnyNote')} (${FORMATION.length} players)`
+    : `Formation: ${parts} (${FORMATION.length} players)`;
   document.getElementById('formationNote').innerHTML =
-    `Formation: ${parts} (${FORMATION.length} players) · Budget ${fmt(BUDGET)}<br>${activeMode().noteHTML()}`;
+    `${esc(head)} \u00b7 Budget ${fmt(BUDGET)}<br>${activeMode().noteHTML()}`;
 
   // The budget headline used to be the literal string "1,000M" in the
   // markup, which was simply wrong in 6v6 (100M) - and wrong on the one
   // line of the setup screen people actually read before starting.
   document.getElementById('budgetAmt').textContent = fmt(BUDGET);
 
-  // Which slots this formation actually has, in the same wording the
-  // auction will use - so LCB/RCB is not the first time you meet them.
-  const slots = FORMATION.map((f, i) => slotCode(i)).join(' · ');
+  // Which slots the formation has, in the same wording the draft shows. With
+  // "any" there is no single shape, so the slot list would only mislead.
+  const slots = any ? '' : FORMATION.map((f, i) => slotCode(i)).join(' \u00b7 ');
   document.getElementById('formationSlots').textContent = slots;
 }
 
@@ -533,8 +542,22 @@ const HUMAN_ID = 'p0';
 
 // Deterministic slice of the archetype list, so the roster shown on the
 // setup screen is the roster you actually play against.
+/* The opponents are a random selection of the archetypes, in a random order, and
+   stay the same until the AI setup is opened again - so the names grid, the
+   draft and a restart with the same settings all show the same people. Each
+   gets its own copy of the profile, because some carry per-draft state. */
+let aiRosterOrder = null;
+function shuffleAIRoster(){
+  const order = AI_PROFILES.map((_, i) => i);
+  for(let i = order.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  aiRosterOrder = order;
+}
 function aiRosterFor(count){
-  return AI_PROFILES.slice(0, Math.max(0, count));
+  if(!aiRosterOrder) shuffleAIRoster();
+  return aiRosterOrder.slice(0, Math.max(0, count)).map(i => ({...AI_PROFILES[i]}));
 }
 
 function openSharedSetup(){
@@ -546,6 +569,7 @@ function openSharedSetup(){
 
 function openAISetup(){
   AI_MODE = true;
+  shuffleAIRoster();
   track('mode_selected', {mode: 'vs_ai'});
   // Total participants (you + opponents) is capped at 6, matching the
   // online room limit.

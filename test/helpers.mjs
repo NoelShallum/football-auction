@@ -97,7 +97,7 @@ export async function draftLocally(app, { mode = 'classic', count = 2, pool = 'a
     if (handled === key) return false;
     handled = key;
     app.run(`{
-      const eligible = state.participants.filter(p => participantNeedsSlot(p, state.currentPlayer.posIdx));
+      const eligible = state.participants.filter(p => participantCanTake(p, state.currentPlayer));
       const human = ${ai ? 'eligible.find(p => !p.isAI)' : 'eligible.reduce((a,b)=>a.squad.length <= b.squad.length ? a : b)'};
       if(human){
         bidInputs[human.id] = getMinBid();

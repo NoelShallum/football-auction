@@ -22,7 +22,7 @@ function endAuction(){
   // reached without passing back through setup (e.g. Play Again online).
   applyModeChrome();
   document.getElementById('resultsMode').innerHTML =
-    `<b>${esc(activeMode().name)}</b> · ${esc(selectedFormation)} · ${fmt(BUDGET)} budget`;
+    `<b>${esc(activeMode().name)}</b> · ${esc(FORMATION_CHOICE === 'any' ? t('field.formationAny') : selectedFormation)} · ${fmt(BUDGET)} budget`;
 
   // The bottom of the funnel: paired with draft_started, this is the
   // completion rate - the number that says whether people who commit to
@@ -72,8 +72,8 @@ function endAuction(){
       avgRatingHTML = `<div class="squad-avg">${esc(t('results.avgRating', {rating: squadAvgRating(p).toFixed(1)}))}</div>`;
     }
 
-    // Build formation visualization
-    const formationHTML = buildFormationDisplay(p.squad);
+    // Build formation visualization, with the lineup editor around it
+    const formationHTML = `<div class="lineup-block" data-lineup-pid="${esc(String(p.id))}">${lineupBlockHTML(p)}</div>`;
 
     /* Collapsed, and two entries shorter than it was.
 
@@ -119,18 +119,9 @@ function endAuction(){
     const shareBtn = card.querySelector('[data-share-pid]');
     if(shareBtn) shareBtn.onclick = () => simShareSquadCard(shareBtn.dataset.sharePid, shareBtn);
 
-    // Wire each rendered pitch card up to its real player object so tapping
-    // it (mobile) opens showPlayerInfoPanel() with the full details that the
-    // card itself hides at that width - see .pitch-player CSS.
-    card.querySelectorAll('.pitch-player[data-pos-idx]').forEach(el => {
-      const posIdx = Number(el.dataset.posIdx);
-      const player = p.squad.find(pl => pl.posIdx === posIdx);
-      if(player) el.onclick = () => showPlayerInfoPanel(player, posIdx);
-    });
-
-    // Shorten any name that doesn't fit its card. Has to run after the
-    // card is in the document - it measures real layout (see fitPitchName).
-    fitAllPitchNames(card);
+    // Pitch taps and the formation chips (see bindLineupBlock) - and, from there,
+    // the mobile info panel and the name fitting that need the card in the page.
+    bindLineupBlock(card.querySelector('.lineup-block'), p);
   });
 
   // Post-draft match simulation panel (knockout / mini league).
@@ -353,8 +344,9 @@ const SIM_FALLBACK_STRENGTH = 62;
 // position: buildRoundPlayer() overwrites `pos` with the slot code, which
 // is exactly why `basePos` exists alongside it.
 function simPositionCode(player){
-  const slot = FORMATION[player.posIdx];
-  return (slot && slot.code) || player.pos || 'CM';
+  // `pos` is the slot he stands in, in HIS manager's formation (managers can
+  // differ, so the shared FORMATION cannot be indexed by posIdx here).
+  return (player && player.pos) || ((FORMATION[player.posIdx] || {}).code) || 'CM';
 }
 
 /* What a player contributes to each line, from two facts: the slot they
@@ -384,6 +376,9 @@ function simWeightsFor(player){
 
   if(!slotW) return baseW || SIM_LINE_WEIGHTS[slotCode] || SIM_DEFAULT_WEIGHT;
   if(!baseW) return slotW;
+  // A position he has genuinely played (Messi on the right wing) is not
+  // "out of position": only covering for one he has not is.
+  if(playerPositionList(player).indexOf(slotCode) >= 0) return slotW;
   return simBlendWeights(slotW, baseW, SIM_OUT_OF_POSITION_BLEND);
 }
 
@@ -1536,7 +1531,7 @@ function simTeamOfTournament(matches){
       if(!entry.player) return;
       let row = rows.get(entry.ref.key);
       if(!row){
-        row = {ref: entry.ref, posIdx: entry.player.posIdx, total: 0, apps: 0, goals: 0};
+        row = {ref: entry.ref, player: entry.player, code: simPositionCode(entry.player), total: 0, apps: 0, goals: 0};
         rows.set(entry.ref.key, row);
       }
       row.total += entry.rating;
@@ -1545,16 +1540,26 @@ function simTeamOfTournament(matches){
     });
   });
 
+  const better = (x, y) =>
+    (y.total / y.apps) - (x.total / x.apps) ||
+    y.apps - x.apps ||
+    y.ref.rating - x.ref.rating ||
+    x.ref.key.localeCompare(y.ref.key);
+
+  /* Managers play different formations, so there is no shared slot index to
+     choose by. The shape is the tournament's template; each slot takes the best
+     average among players who actually played that position, and only if there
+     is nobody does it take someone who can cover it. */
+  const taken = new Set();
   const xi = [];
-  FORMATION.forEach((_, posIdx) => {
-    const candidates = [...rows.values()].filter(r => r.posIdx === posIdx);
+  FORMATION.forEach((slot, posIdx) => {
+    const free = [...rows.values()].filter(r => !taken.has(r.ref.key));
+    let candidates = free.filter(r => r.code === slot.code);
+    if(!candidates.length) candidates = free.filter(r => slotFit(r.player, slot.code) > 0);
     if(!candidates.length) return;
-    candidates.sort((x, y) =>
-      (y.total / y.apps) - (x.total / x.apps) ||
-      y.apps - x.apps ||
-      y.ref.rating - x.ref.rating ||
-      x.ref.key.localeCompare(y.ref.key));
+    candidates.sort(better);
     const best = candidates[0];
+    taken.add(best.ref.key);
     xi.push({
       posIdx,
       ref: best.ref,
@@ -1737,7 +1742,7 @@ function simRenderPlayerRatings(m){
         .sort((x, y) => x.player.posIdx - y.player.posIdx)
         .map(r => `
         <div class="sim-rate-row">
-          <span class="sim-rate-pos ${simLineOf(r.player)}">${esc(slotCode(r.player.posIdx))}</span>
+          <span class="sim-rate-pos ${simLineOf(r.player)}">${esc(simPositionCode(r.player))}</span>
           <span class="sim-rate-name">${esc(r.ref.name)}</span>
           <span class="sim-rate-num${r.rating >= 8 ? ' hot' : (r.rating < 6 ? ' cold' : '')}">${r.rating.toFixed(1)}</span>
         </div>`).join('')}
@@ -2789,7 +2794,7 @@ async function simBuildSquadCard(participant, placing){
   ctx.textAlign = 'center';
   ctx.fillStyle = '#8CA097';
   ctx.font = `400 24px ${MONO}`;
-  ctx.fillText(`${activeMode().name}  ·  ${selectedFormation}`, mid, 138);
+  ctx.fillText(`${activeMode().name}  ·  ${participant.formation || selectedFormation}`, mid, 138);
 
   // ---- who ----
   ctx.fillStyle = '#F5F7F2';
@@ -2824,13 +2829,14 @@ async function simBuildSquadCard(participant, placing){
   const boxW = PW * 0.54, boxH = PH * 0.16;
   ctx.strokeRect(mid - boxW / 2, PY + PH - boxH, boxW, boxH);
 
-  const coords = getPlayerPositions();
+  // This manager's own shape, which can differ from the template and from anyone else's.
+  const coords = withFormation(participant.formation, () => getPlayerPositions());
   const byIdx = {};
-  (participant.squad || []).forEach(pl => { byIdx[pl.posIdx] = pl; });
+  (participant.squad || []).forEach(pl => { if(pl.posIdx >= 0) byIdx[pl.posIdx] = pl; });
 
-  /* A FORMATION entry is {code, label}, not a string - stringifying it
+  /* A formation entry is {code, label}, not a string - stringifying it
      printed "[object Object]" in every one of the eleven dots. */
-  FORMATION.forEach((slot, posIdx) => {
+  formationSlotsOf(participant.formation || selectedFormation).forEach((slot, posIdx) => {
     const slotCode = (slot && slot.code) ? slot.code : String(slot || '');
     const c = coords[posIdx];
     if(!c) return;
@@ -2988,6 +2994,7 @@ function runSimulation(mode, seed){
   // Kept for the share card, which is built on demand once the match has
   // actually been watched (see finish() in simStartPlayback).
   simShareContext = {mode, result, teams};
+  refreshLineupBlocks();   // the lineups are final once a tournament has been played
 
   simStartPlayback(mode, result, teams);
 }
@@ -3131,7 +3138,7 @@ function exportAsJSON(){
     settings: {
       gameMode: GAME_MODE_ID,
       poolId: activePoolId,
-      formation: selectedFormation,
+      formation: FORMATION_CHOICE,
       budget: BUDGET,
       participants: state.participants.length,
       timer: ROUND_SECONDS,
@@ -3140,11 +3147,13 @@ function exportAsJSON(){
     },
     participants: state.participants.map(p => ({
       name: p.name,
+      formation: p.formation || selectedFormation,
       budget: p.budget,
       spent: BUDGET - p.budget,
       squad: p.squad.map(player => ({
         name: player.name,
         position: player.pos,
+        positions: playerPositionList(player),
         rating: player.rating,
         price: player.price,
         nationality: player.nationality,
@@ -3160,14 +3169,13 @@ function exportAsJSON(){
 function exportAsText(){
   let text = '═══════════════════════════════════════\n';
   text += '           AUCTION XI DRAFT\n';
-  text += `         Formation: ${selectedFormation}\n`;
   text += '═══════════════════════════════════════\n\n';
 
   state.participants.forEach((p, idx) => {
     const spent = BUDGET - p.budget;
     text += `${idx + 1}. ${p.name.toUpperCase()}\n`;
     text += `${'─'.repeat(40)}\n`;
-    text += `Formation: ${selectedFormation}\n\n`;
+    text += `Formation: ${p.formation || selectedFormation}\n\n`;
 
     // Group players by position for organized display
     const positionOrder = ['GK', 'LB', 'CB', 'RB', 'LWB', 'RWB', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'LW', 'RW', 'ST', 'CF', 'DEF', 'MID', 'FWD'];
@@ -3212,17 +3220,39 @@ function exportAsText(){
   });
 }
 
+/* ================= LINEUP: THE PITCH, AND CHANGING IT =================
+
+   Each manager's squad is drawn in THEIR formation, and until a tournament has
+   been played they can change it: pick another shape, or tap a player and then
+   the position to move him to. A player only goes where he can play (js/lineup.js
+   slotFit), and the player already there swaps into his old place when he can
+   cover it. Online everyone edits their own lineup and it is shared through the
+   participant's `lineup` field, which every client re-checks on arrival. */
+let lineupSelection = null;   // {pid, posIdx}: the player picked up to be moved
+
+// May this lineup still be changed by the person looking at it?
+function lineupEditable(p){
+  if(simShareContext) return false;                          // a tournament has been played
+  if(currentRoomCode) return p.id === currentUserId;         // online: only your own
+  return true;                                               // shared screen: everyone's
+}
+
 // Desktop shows every field directly on the card (pos / name / nationality
 // / rating+price, each on their own line - see .pitch-player CSS). Mobile
 // (<=768px) hides .nat/.stats via CSS and shows only pos+name on the pitch
-// itself; data-pos-idx lets endAuction() wire each rendered card up to
+// itself; data-pos-idx lets bindLineupBlock() wire each rendered card up to
 // showPlayerInfoPanel() so tapping it reveals the full details there instead.
-function buildFormationDisplay(squad){
+function buildFormationDisplay(squad, formationKey, opts){
+  return withFormation(formationKey, () => buildFormationDisplayBody(squad, opts || {}));
+}
+
+function buildFormationDisplayBody(squad, opts){
   // Organize players by position index
   const playersByPosIdx = {};
   squad.forEach(player => {
-    playersByPosIdx[player.posIdx] = player;
+    if(player.posIdx >= 0) playersByPosIdx[player.posIdx] = player;
   });
+  const picked = opts.selectedIdx != null ? playersByPosIdx[opts.selectedIdx] : null;
 
   // Get position coordinates for current formation
   const positions = getPlayerPositions();
@@ -3235,11 +3265,18 @@ function buildFormationDisplay(squad){
     if(!pos) return;
 
     const player = playersByPosIdx[posIdx];
+    const classes = ['pitch-player'];
+    if(opts.editable) classes.push('movable');
+    if(picked && posIdx === opts.selectedIdx) classes.push('picked');
+    else if(picked) classes.push(slotFit(picked, formPos.code) > 0 ? 'droppable' : 'blocked');
 
     if(player){
+      // 4 = his own position, 3 = one he has played, below that he is covering.
+      const fit = slotFit(player, formPos.code);
+      if(fit > 0 && fit <= 2) classes.push('covering');
       const ratingHTML = SHOW_RATINGS ? `<span class="rating">${esc(player.rating)}</span> · ` : '';
       html += `
-        <div class="pitch-player" style="left:${pos.x}%; top:${pos.y}%;" data-pos-idx="${posIdx}">
+        <div class="${classes.join(' ')}" style="left:${pos.x}%; top:${pos.y}%;" data-pos-idx="${posIdx}">
           <div class="pos">${slotCode(posIdx)}</div>
           <div class="name" data-full="${esc(player.name)}">${esc(player.name)}</div>
           <div class="nat">${nationalityClubHTML(player)}</div>
@@ -3249,7 +3286,7 @@ function buildFormationDisplay(squad){
     } else {
       // Empty slot (shouldn't happen)
       html += `
-        <div class="pitch-player" style="left:${pos.x}%; top:${pos.y}%;">
+        <div class="${classes.join(' ')}" style="left:${pos.x}%; top:${pos.y}%;" data-pos-idx="${posIdx}">
           <div class="pos">${slotCode(posIdx)}</div>
           <div class="name" data-full="—">—</div>
           <div class="nat"></div>
@@ -3261,6 +3298,98 @@ function buildFormationDisplay(squad){
 
   html += '</div>';
   return html;
+}
+
+// The formation chips, the "best lineup" button and the pitch for one manager.
+function lineupBlockHTML(p){
+  const editable = lineupEditable(p);
+  const sel = lineupSelection && lineupSelection.pid === p.id ? lineupSelection.posIdx : null;
+  const pitch = buildFormationDisplay(p.squad, p.formation, {editable, selectedIdx: sel});
+  if(!editable){
+    return `<div class="lineup-bar"><span class="lineup-form-label">${esc(t('results.lineupFormation'))}</span><b class="lineup-current">${esc(p.formation || '')}</b></div>${pitch}`;
+  }
+  const keys = allowedFormationKeys();
+  const chips = keys.length > 1 ? keys.map(key => {
+    const fits = bestLineup(p.squad, key).complete;
+    return `<button class="chip-btn lineup-form${key === p.formation ? ' active' : ''}" data-lineup-form="${esc(key)}"${fits ? '' : ' disabled'}>${esc(key)}</button>`;
+  }).join('') : `<b class="lineup-current">${esc(p.formation || '')}</b>`;
+  const movingEntry = sel != null ? p.squad.find(e => e.posIdx === sel) : null;
+  const hint = movingEntry
+    ? t('results.lineupMoving', {name: movingEntry.name, positions: playerPositionList(movingEntry).join(' · ')})
+    : t('results.lineupHint');
+  return `
+    <div class="lineup-bar">
+      <span class="lineup-form-label">${esc(t('results.lineupFormation'))}</span>
+      ${chips}
+      ${keys.length > 1 ? `<button class="chip-btn lineup-best" data-lineup-best="1">${esc(t('results.lineupBest'))}</button>` : ''}
+    </div>
+    <div class="lineup-hint">${esc(hint)}</div>
+    ${pitch}`;
+}
+
+// Rebuilds one manager's block in place (and rebinds it).
+function renderLineupBlock(block, p){
+  block.innerHTML = lineupBlockHTML(p);
+  bindLineupBlock(block, p);
+}
+
+// After a change: share it online, and repaint.
+function lineupChanged(block, p){
+  if(currentRoomCode && p.id === currentUserId && database){
+    database.ref(`rooms/${currentRoomCode}/participants/${p.id}/lineup`).set(lineupPayload(p))
+      .catch(() => mpShowToast(t('results.lineupSaveFailed'), 'error'));
+  }
+  lineupSelection = null;
+  renderLineupBlock(block, p);
+}
+
+function bindLineupBlock(block, p){
+  if(!block) return;
+  const editable = lineupEditable(p);
+
+  block.querySelectorAll('[data-lineup-form]').forEach(btn => {
+    btn.onclick = () => {
+      if(btn.dataset.lineupForm === p.formation) return;
+      if(!changeFormation(p, btn.dataset.lineupForm)){ appNotice(t('results.lineupCannot'), 'error'); return; }
+      lineupChanged(block, p);
+    };
+  });
+  const best = block.querySelector('[data-lineup-best]');
+  if(best) best.onclick = () => { p.formation = null; refreshLineup(p); lineupChanged(block, p); };
+
+  block.querySelectorAll('.pitch-player[data-pos-idx]').forEach(el => {
+    const posIdx = Number(el.dataset.posIdx);
+    const player = p.squad.find(pl => pl.posIdx === posIdx);
+    if(!player) return;
+    el.onclick = () => {
+      if(!editable){ showPlayerInfoPanel(player, posIdx); return; }
+      const picked = lineupSelection && lineupSelection.pid === p.id ? lineupSelection.posIdx : null;
+      if(picked == null){
+        lineupSelection = {pid: p.id, posIdx};
+        renderLineupBlock(block, p);
+        return;
+      }
+      if(picked === posIdx){ lineupSelection = null; renderLineupBlock(block, p); return; }
+      const mover = p.squad.find(pl => pl.posIdx === picked);
+      if(!mover || !moveToSlot(p, mover, posIdx)){
+        appNotice(t('results.lineupCannot'), 'error');
+        return;
+      }
+      lineupChanged(block, p);
+    };
+  });
+
+  // Has to run after the block is in the document - it measures real layout
+  // (see fitPitchName).
+  fitAllPitchNames(block);
+}
+
+// Every block, repainted: a rival changed their lineup, or a tournament just locked them.
+function refreshLineupBlocks(){
+  document.querySelectorAll('[data-lineup-pid]').forEach(block => {
+    const p = state.participants.find(x => String(x.id) === block.dataset.lineupPid);
+    if(p) renderLineupBlock(block, p);
+  });
 }
 
 /* Longest form of a player's name that actually fits inside its pitch
@@ -3344,7 +3473,8 @@ window.addEventListener('resize', () => {
 // viewport size - on desktop the same info is already visible on the card,
 // so the panel is simply redundant there rather than necessary.
 function showPlayerInfoPanel(player, posIdx){
-  document.getElementById('playerInfoPos').textContent = slotCode(posIdx);
+  const list = playerPositionList(player);
+  document.getElementById('playerInfoPos').textContent = (player.pos || slotCode(posIdx)) + (list.length > 1 ? ' · ' + t('auction.alsoPlays', {positions: list.slice(1).join(', ')}) : '');
   document.getElementById('playerInfoName').textContent = player.name;
   const natClub = nationalityClubHTML(player);
   const natEl = document.getElementById('playerInfoNat');

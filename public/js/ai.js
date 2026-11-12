@@ -14,19 +14,39 @@ let AI_MODE = false;
 // starHunger is how willing this manager is to blow a big share of the
 // budget on one standout instead of spreading it evenly - high means
 // "stars and scrubs", low means a balanced squad of solid players.
+/* Besides the dials above, three more shape how a manager reads value:
+
+     valueSense  how much they trust the going rate for a rating (see
+                 aiMarketValue). 0 ignores it; above 1 they will not let a
+                 player go for less than he is worth, and bid on anyone
+                 who is on offer below it, whatever their squad needs.
+     rivalry     extra they will pay to stop whoever currently leads
+                 the bidding, when that is the human (a grudge).
+     patience    0 bids as soon as they like a price; towards 1 they sit
+                 on their hands until the clock is nearly out, then pounce.
+     flagPull    extra they pay for a player of their favourite nation
+                 (picked at the start of the draft from the pool).
+     flexPull    extra per additional position a player can play: the
+                 versatile signing that makes a lineup easy to build. */
 const AI_PROFILES = [
-  {key:'gaffer',     name:'The Gaffer',    aggression:1.00, noise:0.14, jumpChance:0.18, starHunger:1.00,
+  {key:'gaffer',     name:'The Gaffer',    aggression:1.00, noise:0.14, jumpChance:0.18, starHunger:1.00, valueSense:0.90, rivalry:0,    patience:0,    flagPull:0,    flexPull:0.04,
    lineBias:{GK:1.00, DEF:1.00, MID:1.05, ATT:1.00}, blurb:'Balanced'},
-  {key:'showman',    name:'The Showman',   aggression:1.16, noise:0.20, jumpChance:0.34, starHunger:1.35,
+  {key:'showman',    name:'The Showman',   aggression:1.16, noise:0.20, jumpChance:0.34, starHunger:1.35, valueSense:0.55, rivalry:0.08, patience:0,    flagPull:0,    flexPull:0.03,
    lineBias:{GK:0.88, DEF:0.90, MID:1.00, ATT:1.25}, blurb:'Chases superstars'},
-  {key:'accountant', name:'The Accountant',aggression:0.86, noise:0.10, jumpChance:0.06, starHunger:0.70,
+  {key:'accountant', name:'The Accountant',aggression:0.86, noise:0.10, jumpChance:0.06, starHunger:0.70, valueSense:1.30, rivalry:0,    patience:0,    flagPull:0,    flexPull:0.04,
    lineBias:{GK:1.00, DEF:1.05, MID:1.00, ATT:0.95}, blurb:'Hunts bargains'},
-  {key:'rock',       name:'The Rock',      aggression:1.04, noise:0.13, jumpChance:0.14, starHunger:0.90,
+  {key:'rock',       name:'The Rock',      aggression:1.04, noise:0.13, jumpChance:0.14, starHunger:0.90, valueSense:0.80, rivalry:0,    patience:0,    flagPull:0,    flexPull:0.03,
    lineBias:{GK:1.18, DEF:1.24, MID:0.95, ATT:0.85}, blurb:'Defence first'},
-  {key:'maestro',    name:'The Maestro',   aggression:1.06, noise:0.15, jumpChance:0.20, starHunger:1.10,
+  {key:'maestro',    name:'The Maestro',   aggression:1.06, noise:0.15, jumpChance:0.20, starHunger:1.10, valueSense:0.80, rivalry:0,    patience:0,    flagPull:0,    flexPull:0.05,
    lineBias:{GK:0.92, DEF:0.96, MID:1.28, ATT:1.00}, blurb:'Owns the midfield'},
-  {key:'wildcard',   name:'The Wildcard',  aggression:1.10, noise:0.34, jumpChance:0.40, starHunger:1.20,
+  {key:'wildcard',   name:'The Wildcard',  aggression:1.10, noise:0.34, jumpChance:0.40, starHunger:1.20, valueSense:0.70, rivalry:0.06, patience:0,    flagPull:0,    flexPull:0.03,
    lineBias:{GK:1.00, DEF:1.00, MID:1.00, ATT:1.10}, blurb:'Unpredictable'},
+  {key:'patriot',    name:'The Patriot',   aggression:1.04, noise:0.16, jumpChance:0.20, starHunger:1.00, valueSense:0.85, rivalry:0,    patience:0,    flagPull:0.30, flexPull:0.03,
+   lineBias:{GK:1.00, DEF:1.00, MID:1.00, ATT:1.00}, blurb:'Backs one nation'},
+  {key:'tinkerman',  name:'The Tinkerman', aggression:1.00, noise:0.15, jumpChance:0.18, starHunger:0.95, valueSense:0.95, rivalry:0,    patience:0,    flagPull:0,    flexPull:0.11,
+   lineBias:{GK:1.00, DEF:1.00, MID:1.05, ATT:1.00}, blurb:'Loves versatile players'},
+  {key:'sniper',     name:'The Sniper',    aggression:1.08, noise:0.12, jumpChance:0.28, starHunger:1.05, valueSense:1.00, rivalry:0.05, patience:0.75, flagPull:0,    flexPull:0.04,
+   lineBias:{GK:1.00, DEF:1.00, MID:1.00, ATT:1.05}, blurb:'Waits, then pounces'},
 ];
 
 // Which third of the pitch a formation slot belongs to. Used for the
@@ -150,6 +170,31 @@ function aiReplacementRating(player, numParticipants){
   return ratings[Math.floor(ratings.length * 0.35)];
 }
 
+/* What a player of this rating normally goes for, in this mode's economy.
+   expectedPriceForRating() is tuned to Classic's 1,000M for eleven; other modes
+   are scaled by budget per slot so the same ratio means the same thing. */
+function aiMarketValue(player){
+  const scale = (BUDGET / Math.max(1, FORMATION.length)) / (1000 / 11);
+  return Math.max(MIN_PER_POSITION, expectedPriceForRating(player.rating) * scale);
+}
+
+// The nations in the pool with enough players to be worth backing.
+function aiFavouriteNation(){
+  const nations = draftFilterOptions().nations.filter(n => n.count >= 8).slice(0, 8);
+  return nations.length ? nations[Math.floor(Math.random() * nations.length)].name : '';
+}
+
+// How much extra (a fraction, 0.12 = 12% more) this manager reads into the player
+// beyond his rating: their country, or how many positions he can play.
+function aiTasteMul(ai, player){
+  const prof = ai.profile || {};
+  let extra = 0;
+  if(prof.flagPull && ai.favNation && primaryNationality(player.nationality) === ai.favNation) extra += prof.flagPull;
+  const flexible = Math.max(0, playerPositionList(player).length - 1);
+  extra += Math.min(0.30, flexible * (prof.flexPull || 0));
+  return 1 + extra;
+}
+
 // Facts about the round that are the same for every opponent, so they're
 // computed once per round rather than once per manager.
 function aiRoundContext(){
@@ -166,7 +211,7 @@ function aiRoundContext(){
   // go for more, so it's worth committing decisively rather than losing
   // it by a single increment.
   const funded = state.participants.filter(p =>
-    participantNeedsSlot(p, player.posIdx) &&
+    participantCanTake(p, player) &&
     getMaxAffordable(p) >= player.startPrice * 1.5
   ).length;
   const contestMul = 1 + Math.min(0.18, Math.max(0, funded - 1) * 0.05);
@@ -232,11 +277,29 @@ function aiValuePlayer(ai, player, ctx){
   const noise = 1 + (Math.random() - 0.5) * prof.noise;
   const flashPull = player.isFlash ? 1.10 : 1;
   const contest = ctx ? ctx.contestMul : 1;
+  const taste = aiTasteMul(ai, player);
 
   const mods = Math.min(AI_MAX_MODIFIER,
-    prof.starHunger * prof.aggression * needMul * bias * flashPull * contest) * noise;
+    prof.starHunger * prof.aggression * needMul * bias * flashPull * contest * taste) * noise;
 
   let ceiling = perSlot * qualityMul * mods;
+
+  /* Value hunting. A player on offer below what his rating is worth is worth
+     bidding for even when the squad's immediate need says otherwise - that is
+     the whole point of a bargain. So there is a second ceiling, the going rate
+     for his rating (adjusted for taste and for how much this manager trusts it),
+     and the manager will pay up to whichever of the two is higher.
+
+     Only for a player who would genuinely help: at or near the level they would
+     otherwise end up with at the position. Paying market price for someone worse
+     than the replacement is not value, it is a waste of the budget. */
+  const market = aiMarketValue(player);
+  const sense = prof.valueSense != null ? prof.valueSense : 0.9;
+  const helps = !ctx || player.rating >= ctx.replacement - 1;
+  if(sense > 0 && helps){
+    const fair = market * sense * taste * (0.95 + Math.random() * 0.10);
+    ceiling = Math.max(ceiling, Math.min(fair, spendable));
+  }
 
   // They have to fill this slot sooner or later and money left at the
   // final whistle buys nothing, so any player they can comfortably
@@ -253,8 +316,12 @@ function aiValuePlayer(ai, player, ctx){
 // Decide this AI's action for the current state of the round.
 // Returns {action:'bid', amount} or {action:'pass'}.
 function aiDecide(ai, player, minBid){
-  const ceiling = state.aiValuations[ai.id];
+  let ceiling = state.aiValuations[ai.id];
   if(ceiling == null) return {action:'pass'};
+  // A grudge: they will stretch further to stop the human running away with him.
+  if(ai.profile.rivalry && state.currentLeader === HUMAN_ID){
+    ceiling = Math.min(getMaxAffordable(ai), ceiling * (1 + ai.profile.rivalry));
+  }
   if(minBid > ceiling) return {action:'pass'};
   if(minBid > getMaxAffordable(ai)) return {action:'pass'};
 
@@ -327,7 +394,9 @@ function aiBeginRound(){
   const ctx = aiRoundContext();
   state.aiValuations = {};
   state.participants.forEach(p => {
-    if(p.isAI) state.aiValuations[p.id] = aiValuePlayer(p, state.currentPlayer, ctx);
+    if(!p.isAI) return;
+    if(p.profile && p.profile.flagPull && p.favNation == null) p.favNation = aiFavouriteNation();
+    state.aiValuations[p.id] = aiValuePlayer(p, state.currentPlayer, ctx);
   });
   aiScheduleThink(AI_FIRST_THINK_MS);
 }
@@ -335,6 +404,19 @@ function aiBeginRound(){
 function aiScheduleThink(ms){
   aiStopThinking();
   aiThinkHandle = setTimeout(aiTick, ms);
+}
+
+/* A patient manager holds back while there is plenty of clock left and others
+   still deciding, then comes in late. Never in an untimed or sealed round, and
+   never once everyone else has finished: waiting then would only stall the round. */
+function aiWaiting(ai){
+  const patience = ai.profile.patience || 0;
+  if(!patience || state.isBlindRound || !(state.currentRoundSeconds > 0) || !state.roundEndsAt) return false;
+  const othersStillDeciding = state.participants.some(p =>
+    p.id !== ai.id && participantCanTake(p, state.currentPlayer) && !goingVoteIsIn(p.id));
+  if(!othersStillDeciding) return false;
+  const remaining = (state.roundEndsAt - Date.now()) / 1000;
+  return remaining > Math.max(6, state.currentRoundSeconds * (1 - patience));
 }
 
 function aiTick(){
@@ -346,10 +428,9 @@ function aiTick(){
   const player = state.currentPlayer;
   if(!player) return;
 
-  const posIdx = player.posIdx;
   const pending = state.participants.filter(p =>
     p.isAI &&
-    participantNeedsSlot(p, posIdx) &&         // doesn't already own the slot
+    participantCanTake(p, player) &&           // has room for him in the lineup
     state.currentLeader !== p.id &&            // already winning; nothing to do
     !state.goingVotes[p.id]                    // hasn't already passed
   );
@@ -380,11 +461,23 @@ function aiTick(){
     return;
   }
 
-  // Someone genuinely still in contention: one decision, with a beat.
-  const ai = pending[Math.floor(Math.random() * pending.length)];
+  // Someone genuinely still in contention: one decision, with a beat. Patient
+  // managers hold back until the clock is low (they are still in the round).
+  const ready = pending.filter(p => !aiWaiting(p));
+  if(!ready.length){ aiScheduleThink(350); return; }
+  const ai = ready[Math.floor(Math.random() * ready.length)];
   const decision = aiDecide(ai, player, minBid);
   if(decision.action === 'bid'){
     bidInputs[ai.id] = decision.amount;
+    // Say so when they pounce on a player going for well under his worth.
+    if(ai.profile.valueSense >= 1 && decision.amount < aiMarketValue(player) * 0.8){
+      state.aiBargainShown = state.aiBargainShown || {};
+      const flag = (state.currentRound + ':' + state.phaseNum + ':' + ai.id);
+      if(!state.aiBargainShown[flag]){
+        state.aiBargainShown[flag] = true;
+        addTicker(`<span style="color:var(--green)">${t('ticker.bargainBid', {name: esc(ai.name)})}</span>`);
+      }
+    }
     placeBid(ai.id); // reschedules the loop itself
     return;
   }

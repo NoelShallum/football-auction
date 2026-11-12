@@ -201,7 +201,6 @@ const MODE_CLASSIC = {
   // Duplicate slots are individually owned and are shown with a side
   // prefix so the room can tell them apart - see buildSlotDisplay().
   sidedSlots: true,
-  interchangeableSlots: false,
   // Only participants who still need the position vote on a reroll.
   rerollElectorate: 'eligible',
   // Occasional elite "scouting report" pick that jumps the ladder.

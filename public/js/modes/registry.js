@@ -95,13 +95,50 @@ function applyGameMode(id, formationKey){
   const mode = gameModeById(id) || GAME_MODES[DEFAULT_GAME_MODE_ID];
   GAME_MODE_ID = mode.id;
   FORMATIONS = mode.formations;
-  selectedFormation = (formationKey && FORMATIONS[formationKey]) ? formationKey : mode.defaultFormation;
+  // Naming a formation here locks the draft to it. Otherwise the current choice
+  // stays if this mode has it (formation keys are per-mode, so a switch usually
+  // falls back to flexible).
+  if(formationKey && FORMATIONS[formationKey]) FORMATION_CHOICE = formationKey;
+  else if(FORMATION_CHOICE !== 'any' && !FORMATIONS[FORMATION_CHOICE]) FORMATION_CHOICE = 'any';
+  selectedFormation = FORMATION_CHOICE === 'any' ? mode.defaultFormation : FORMATION_CHOICE;
   FORMATION = FORMATIONS[selectedFormation];
   BUDGET = mode.budget;
   MIN_PER_POSITION = mode.minBid;
   BID_STEP = mode.bidStep;
   buildSlotDisplay();
   return mode;
+}
+
+/* ================= FORMATION CHOICE =================
+
+   The formation is no longer something to commit to before the draft.
+
+     'any'      (the default) any formation of the mode is allowed. Each manager
+                just builds a squad, and ends up in whichever formation suits it
+                best; it can be changed afterwards.
+     a key      the draft is restricted to that one formation ('4-3-3').
+
+   Either way players can stand anywhere they can play within it (see
+   js/lineup.js). FORMATION / selectedFormation still exist, but only as the
+   TEMPLATE the draft paces itself on (which positions come up each pass: the
+   mode's default shape when flexible) and as the formation a renderer is
+   currently drawing (see withFormation). */
+let FORMATION_CHOICE = 'any';
+
+function allowedFormationKeys(){
+  return (FORMATION_CHOICE !== 'any' && FORMATIONS[FORMATION_CHOICE]) ? [FORMATION_CHOICE] : Object.keys(FORMATIONS);
+}
+
+// Anything unrecognised means flexible.
+function setFormationChoice(choice){
+  if(choice && choice !== 'any' && FORMATIONS[choice]){
+    FORMATION_CHOICE = choice;
+    applyFormation(choice);
+  } else {
+    FORMATION_CHOICE = 'any';
+    applyFormation(activeMode().defaultFormation);
+  }
+  return FORMATION_CHOICE;
 }
 
 // Changing formation WITHIN a mode. Exists so the slot display below is
@@ -189,57 +226,15 @@ function slotLabel(posIdx){
   return SLOT_LABELS[posIdx] || (FORMATION[posIdx] || {}).label || '';
 }
 
-/* ================= WHO STILL NEEDS THIS SLOT =================
+/* ================= WHO CAN SIGN WHOM =================
 
-   Classic owns slots individually: the left CB and the right CB are
-   separate signings, and holding one leaves you needing the other
-   specifically. That is the point of a real formation, and the L/R
-   labels above exist to make it legible.
-
-   6v6 does not work that way. Its slots are broad categories - a 2-1-2
-   has two FWD slots, not a left and a right one - so being offered "the
-   forward in slot 5" while your slot 4 is empty is a distinction with no
-   meaning to anybody. There, a participant is eligible for a code while
-   they hold FEWER of it than their formation has, full stop.
-
-   resolveFilledSlot() then decides which concrete slot index a win
-   actually lands in, so positionsFilled, squad entries and every pitch
-   render stay keyed by slot index exactly as before - nothing
-   downstream needs to know this rule exists. In Classic both functions
-   collapse to precisely the original behaviour. */
-function modeSlotsInterchangeable(){
-  return !!activeMode().interchangeableSlots;
-}
-
-function participantNeedsSlot(participant, posIdx){
-  if(!participant || !participant.positionsFilled) return false;
-  if(!modeSlotsInterchangeable()) return !participant.positionsFilled.has(posIdx);
-
-  const code = (FORMATION[posIdx] || {}).code;
-  let total = 0, filled = 0;
-  FORMATION.forEach((f, i) => {
-    if(f.code !== code) return;
-    total++;
-    if(participant.positionsFilled.has(i)) filled++;
-  });
-  return filled < total;
-}
-
-// Which slot index a win on `posIdx` is actually recorded against. Only
-// ever differs from posIdx when slots are interchangeable AND the offered
-// one is already taken - it then lands in the first free slot of the same
-// code, which is the one the winner could see was still empty.
-function resolveFilledSlot(participant, posIdx){
-  if(!participant || !participant.positionsFilled) return posIdx;
-  if(!modeSlotsInterchangeable()) return posIdx;
-  if(!participant.positionsFilled.has(posIdx)) return posIdx;
-
-  const code = (FORMATION[posIdx] || {}).code;
-  for(let i = 0; i < FORMATION.length; i++){
-    if(FORMATION[i].code === code && !participant.positionsFilled.has(i)) return i;
-  }
-  return posIdx;   // unreachable: eligibility is always checked before a win
-}
+   Slots are not owned any more. A manager can sign a player as long as their
+   squad can still be arranged into one of the allowed formations with every
+   player standing in a position he can play - see participantCanTake() in
+   js/lineup.js. That one rule replaces the old per-slot ownership, so a left
+   back can double as a wing-back, a forward can play either wing, and the
+   formation itself is decided after the draft. The 6v6 categories (DEF, MID,
+   FWD) are slots like any other and follow the same rule. */
 
 /* Who has to vote before a reroll goes through, online.
 

@@ -81,7 +81,9 @@
     "customTimerInvalid": "Introduce una duración de temporizador válida (1-60 minutos)",
     "drawOrder": "Orden de sorteo",
     "ifNobodyBids": "Si nadie puja",
-    "whoCanAppear": "Quién puede salir"
+    "whoCanAppear": "Quién puede salir",
+    "formationAny": "Libre",
+    "formationAnyNote": "Cualquier formación: ficha libremente y luego elige el esquema. Cada jugador puede actuar en todas sus posiciones."
   },
   "setup": {
     "participants": "Número de participantes",
@@ -168,9 +170,9 @@
     "youLead": "Vas en cabeza",
     "submitSealedBid": "Enviar oferta cerrada",
     "updateSealedBid": "Modificar oferta cerrada",
-    "youAlreadyHavePosition": "✓ Ya tienes esta posición",
+    "youAlreadyHavePosition": "✓ No hay sitio para él en tu once",
     "passedWaiting": "✓ Has pasado - esperando a los rivales",
-    "errAlreadyHave": "Ya tienes esta posición",
+    "errAlreadyHave": "No hay sitio para él en tu once",
     "errMinBid": "Mínimo {min}",
     "errMaxAfford": "Máximo disponible: {max}",
     "errAlreadyLeading": "Ya vas en cabeza",
@@ -193,7 +195,8 @@
     "unsoldPile": "Sin vender · {count}",
     "backOfPack": "Al final del montón",
     "returnsNextLap": "Vuelve en la próxima vuelta",
-    "returnedFromPack": "Segunda oportunidad · sale a {price}"
+    "returnedFromPack": "Segunda oportunidad · sale a {price}",
+    "alsoPlays": "también {positions}"
   },
   "ticker": {
     "bargain": "¡un chollo!",
@@ -218,7 +221,8 @@
     "unsoldReturns": [
       "<b>{name}</b> vuelve del montón, sale a {price}.",
       "Segunda oportunidad para <b>{name}</b> - sale a {price}."
-    ]
+    ],
+    "bargainBid": "{name} huele una ganga."
   },
   "sim": {
     "needTwo": "Una simulación necesita al menos dos plantillas.",
@@ -431,7 +435,13 @@
     "pctBudget": "{pct} % del presupuesto",
     "rerollsUsed": "Recambios usados",
     "copiedClipboard": "¡Resultados del draft copiados al portapapeles!",
-    "avgRatingShort": "Valoración"
+    "avgRatingShort": "Valoración",
+    "lineupFormation": "Esquema",
+    "lineupHint": "Toca un jugador y luego una posición para moverlo. Solo irá donde pueda jugar.",
+    "lineupMoving": "Moviendo a {name} ({positions}) - toca una posición resaltada.",
+    "lineupBest": "Mejor once",
+    "lineupCannot": "No puede jugar ahí.",
+    "lineupSaveFailed": "No se pudo compartir tu alineación."
   },
   "chat": {
     "toggle": "Chat de la sala",

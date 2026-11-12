@@ -119,6 +119,7 @@ async function startAuction(){
   // the last, auto-assigned (or unopposed) one. It was N-1, which showed the
   // final pass as "Phase 6/5".
   state.totalPhases = state.participants.length;
+  state.idleSkips = 0;
   state.phaseNum = 1;
   state.currentRound = 0;
   state.unsold = [];            // the back of the pack - see js/unsold.js
@@ -204,6 +205,9 @@ function startRound(){
 
   // Safety check - if we've gone through too many phases, force end
   if(state.phaseNum > maxDraftPhases(state.participants.length)){
+    // Out of passes: anyone still short is simply handed players (below)
+    // rather than leaving the draft with incomplete squads.
+    if(state.participants.some(p => p.squad.length < FORMATION.length)) return startStragglerRound();
     return endAuction();
   }
 
@@ -212,6 +216,10 @@ function startRound(){
   // decremented by rerollPlayer(), so it's a real, exhaustible resource
   // instead of refilling every round.
 
+  /* A round is a TOKEN from the template formation (a position and a ladder of
+     its own), not a slot anybody owns: the manager who wins the player decides
+     afterwards where he plays. So the question is whether anyone could still use
+     a player of this position - see js/lineup.js. */
   const posIdx = state.positionOrder[state.currentRound];
   const pos = FORMATION[posIdx];
 
@@ -220,14 +228,16 @@ function startRound(){
   // round - resetting there would make the ceiling unreachable.
   state.roundRerolls = 0;
 
-  // Find who still needs this position
-  const eligible = state.participants.filter(p => participantNeedsSlot(p, posIdx));
-
-  if(eligible.length === 0){
-    // Everyone has this position, skip to next round
+  if(!anyoneCanUsePosition(state.participants, pos.code)){
+    // Nobody has room for this position: next token. If a whole pass goes by
+    // like that, the managers still short of players need positions the
+    // template does not offer, so they are handed one directly.
+    state.idleSkips = (state.idleSkips || 0) + 1;
+    if(state.idleSkips >= FORMATION.length) return startStragglerRound();
     state.currentRound++;
     return startRound();
   }
+  state.idleSkips = 0;
 
   // Track which phase this position is in (0-indexed)
   if(!positionPhaseTracking[posIdx]){
@@ -237,7 +247,7 @@ function startRound(){
   const positionPhase = positionPhaseTracking[posIdx];
   const numParticipants = state.participants.length;
 
-  // Anyone unsold whose slot nobody needs any more can never come back.
+  // Anyone unsold that nobody could sign any more can never come back.
   state.unsold = pruneUnsold(state.unsold, state.participants);
 
   // A player nobody bid on last time round is offered BEFORE a fresh draw.
@@ -254,7 +264,7 @@ function startRound(){
     // top tier instead (see maybeGenerateFlashPlayer()), which deliberately
     // bypasses positionRankFloor entirely (a real phase-0 draw regardless
     // of this position's progress is the whole point of a flash pick).
-    const flashPlayer = maybeGenerateFlashPlayer(posIdx, positionPhase, numParticipants, eligible.length);
+    const flashPlayer = maybeGenerateFlashPlayer(posIdx, positionPhase, numParticipants, state.participants.filter(p => participantCanTake(p, { positions: [pos.code] })).length);
     if(flashPlayer){
       state.currentPlayer = flashPlayer;
     } else {
@@ -265,6 +275,15 @@ function startRound(){
 
     // Increment phase tracker for this position
     positionPhaseTracking[posIdx]++;
+  }
+
+  // Who can sign THIS player (he may play more than one position).
+  const eligible = state.participants.filter(p => participantCanTake(p, state.currentPlayer));
+  if(eligible.length === 0){
+    // Drawn for a position somebody had room for, yet nobody can fit him: a
+    // returned unsold player the squads have since outgrown. Move on.
+    state.currentRound++;
+    return startRound();
   }
 
   // Check if only one person needs this position (automatic assignment).
@@ -292,6 +311,18 @@ function startRound(){
   startBidding(eligible, isBlind);
 }
 
+/* The position line under the stage: what the player is, and where else he can
+   play ("Right Winger · also CF, ST"). The formation is decided afterwards, so
+   this is information for the bid, not a slot being filled. */
+function renderPlayerPositions(player){
+  const list = playerPositionList(player);
+  const label = positionLabel(list[0] || '');
+  const also = list.slice(1);
+  document.getElementById('posTag').textContent = also.length
+    ? `${label} · ${t('auction.alsoPlays', {positions: also.join(', ')})}`
+    : label;
+}
+
 function startBidding(eligible, isBlind){
   state.currentBid = 0;
   state.currentLeader = null;
@@ -301,7 +332,6 @@ function startBidding(eligible, isBlind){
   state.goingVotes = {};
 
   const p = state.currentPlayer;
-  const pos = FORMATION[p.posIdx];
 
   // Initialize bid inputs to starting price
   state.participants.forEach(participant => {
@@ -311,10 +341,8 @@ function startBidding(eligible, isBlind){
   document.getElementById('soldFlash').classList.remove('show');
   document.getElementById('countdownBanner').classList.remove('show');
   document.getElementById('playerPos').classList.remove('forced');
-  // The SLOT's display code, not the bare position code: in a 4-3-3 all
-  // three CM slots read "CM" otherwise, and nobody can tell which one is
-  // actually being auctioned (see buildSlotDisplay).
-  document.getElementById('playerPos').textContent = slotCode(p.posIdx);
+  // What he IS: his own position. Where he ends up playing is decided later.
+  document.getElementById('playerPos').textContent = playerPrimaryCode(p);
   document.getElementById('flashBadge').style.display = (p.isFlash && !state.isBlindRound) ? 'inline-block' : 'none';
   document.getElementById('blindBadge').style.display = state.isBlindRound ? 'inline-block' : 'none';
 
@@ -323,7 +351,7 @@ function startBidding(eligible, isBlind){
   document.getElementById('playerNat').innerHTML = playerNationalityLineHTML(p);
   document.getElementById('playerSub').textContent = t('auction.startingPrice', {price: fmt(p.startPrice)});
 
-  document.getElementById('posTag').textContent = slotLabel(p.posIdx);
+  renderPlayerPositions(p);
   document.getElementById('phaseTag').textContent = t('auction.phaseEligible', {phase: p.phase, count: eligible.length});
   document.getElementById('progressTag').textContent = progressText(state.phaseNum, state.totalPhases, state.currentRound);
   renderUnsoldPile();
@@ -384,11 +412,10 @@ function startBidding(eligible, isBlind){
 
 function autoAssign(participant){
   const p = state.currentPlayer;
-  const pos = FORMATION[p.posIdx];
 
   document.getElementById('soldFlash').classList.remove('show');
   document.getElementById('playerPos').classList.add('forced');
-  document.getElementById('playerPos').textContent = slotCode(p.posIdx);
+  document.getElementById('playerPos').textContent = playerPrimaryCode(p);
   document.getElementById('flashBadge').style.display = 'none';
   document.getElementById('blindBadge').style.display = 'none';
 
@@ -397,7 +424,7 @@ function autoAssign(participant){
   document.getElementById('playerNat').innerHTML = playerNationalityLineHTML(p);
   document.getElementById('playerSub').textContent = t('auction.autoAssignedAt', {price: fmt(p.startPrice)});
 
-  document.getElementById('posTag').textContent = slotLabel(p.posIdx);
+  renderPlayerPositions(p);
   document.getElementById('phaseTag').textContent = t('auction.autoAssignPhase');
   document.getElementById('progressTag').textContent = progressText(state.phaseNum, state.totalPhases, state.currentRound);
   renderUnsoldPile();
@@ -409,20 +436,14 @@ function autoAssign(participant){
   renderBidderGrid();
 
   setTimeout(() => {
-    // Which slot this actually lands in: the offered one in Classic,
-    // the winner's first free slot of that code where slots are
-    // interchangeable (see resolveFilledSlot).
-    const slotIdx = resolveFilledSlot(participant, p.posIdx);
-    participant.budget -= p.startPrice;
-    participant.squad.push({...p, posIdx: slotIdx, price: p.startPrice, newlyPlaced: true});
-    participant.positionsFilled.add(slotIdx);
+    signPlayer(participant, p, p.startPrice);
 
     document.getElementById('soldWord').textContent = t('auction.autoAssigned');
     document.getElementById('soldWord').className = 'word forced';
     document.getElementById('soldDetail').textContent = t('auction.soldDetail', {player: playerNameText(p), winner: participant.name, price: fmt(p.startPrice)});
     document.getElementById('soldFlash').classList.add('show');
 
-    addTicker(buildSaleTickerHTML(p.name, slotCode(slotIdx), participant.name, p.startPrice, ' (auto)', p.rating, p.isFlash));
+    addTicker(buildSaleTickerHTML(p.name, playerPrimaryCode(p), participant.name, p.startPrice, ' (auto)', p.rating, p.isFlash));
 
     renderBidderGrid();
 
@@ -449,13 +470,10 @@ function validateBid(pid, amount){
   const minBid = getMinBid();
   const maxAfford = getMaxAffordable(p);
 
-  // Formation limits are enforced here, not just by disabling the button:
-  // once every slot for this position is filled the participant is out of
-  // the running for it entirely. In Classic this was implicitly true
-  // (auto-assignment retired a slot as soon as one person was left), but
-  // 6v6 leans on it as a real rule - a 2-1-2 squad that already owns two
-  // defenders simply cannot bid on another one.
-  if(state.currentPlayer && p && !participantNeedsSlot(p, state.currentPlayer.posIdx)){
+  // Squad limits are enforced here, not just by disabling the button: a
+  // manager whose XI cannot fit this player in any allowed formation (two
+  // keepers, a fourth centre back with no back-three) is out of the running.
+  if(state.currentPlayer && p && !participantCanTake(p, state.currentPlayer)){
     return t('auction.errAlreadyHave');
   }
   /* Passing is NOT checked here any more. It means "I am out unless I
@@ -751,8 +769,7 @@ const openSquads = new Set();
 function renderBidderGrid(){
   const grid = document.getElementById('bidderGrid');
 
-  const posIdx = state.currentPlayer?.posIdx;
-  const eligible = state.participants.filter(p => participantNeedsSlot(p, posIdx));
+  const eligible = state.currentPlayer ? state.participants.filter(p => participantCanTake(p, state.currentPlayer)) : [];
   const online = !!currentRoomCode;
 
   // Offline is shared-screen, so every participant still needs their own
@@ -901,11 +918,17 @@ function getPlayerPositions(){
   return coords[selectedFormation] || coords[mode.defaultFormation] || {};
 }
 
+// Each manager's pitch is drawn in THEIR formation (managers can differ), so the
+// body runs with it active - see withFormation().
 function buildLiveFormation(participant, showTooltips){
+  return withFormation(participant.formation, () => buildLiveFormationBody(participant, showTooltips));
+}
+
+function buildLiveFormationBody(participant, showTooltips){
   // Organize players by position index
   const playersByPosIdx = {};
   participant.squad.forEach(player => {
-    playersByPosIdx[player.posIdx] = player;
+    if(player.posIdx >= 0) playersByPosIdx[player.posIdx] = player;
   });
 
   // Get position coordinates for current formation
@@ -1178,7 +1201,7 @@ function updateAIGoingButton(){
   const btn = document.getElementById('goingBtn');
   if(!state.auctioning || !state.currentPlayer){ btn.disabled = true; return; }
   const human = state.participants.find(p => p.id === HUMAN_ID);
-  const eligible = human && participantNeedsSlot(human, state.currentPlayer.posIdx);
+  const eligible = human && participantCanTake(human, state.currentPlayer);
   const iVoted = goingVoteIsIn(HUMAN_ID);
   btn.disabled = iVoted || !eligible;
   btn.textContent = !eligible ? t('auction.youAlreadyHavePosition')
@@ -1207,7 +1230,7 @@ function castGoingVote(pid){
   if(!AI_MODE || !state.auctioning) return;
   if(state.goingVotes[pid]) return;
   const p = state.participants.find(x => x.id === pid);
-  if(!p || !participantNeedsSlot(p, state.currentPlayer.posIdx)) return;
+  if(!p || !participantCanTake(p, state.currentPlayer)) return;
 
   state.goingVotes[pid] = true;
   if(p.isAI) addTicker(`<span style="color:var(--stone)">${t('ticker.passes', {name: esc(p.name)})}</span>`);
@@ -1218,8 +1241,7 @@ function castGoingVote(pid){
 // Everyone who still needs this position has now said they're done.
 function checkGoingVotesAndMaybeSettle(){
   if(!AI_MODE || !state.auctioning || !state.currentPlayer) return;
-  const posIdx = state.currentPlayer.posIdx;
-  const eligible = state.participants.filter(p => participantNeedsSlot(p, posIdx));
+  const eligible = state.participants.filter(p => participantCanTake(p, state.currentPlayer));
   if(!eligible.length) return;
   if(!eligible.every(p => goingVoteIsIn(p.id))) return;
 
@@ -1287,28 +1309,24 @@ function renderUnsoldPile(){
 // price or the floor if that is out of reach.
 function assignLeftoverPlayer(noBids){
   const p = state.currentPlayer;
-  const posIdx = p.posIdx;
 
-  const winner = pickLeftoverWinner(state.participants, posIdx);
+  const winner = pickLeftoverWinner(state.participants, p);
   if(!winner){
-    // Nobody needs this position anymore
+    // Nobody can fit him any more
     state.currentRound++;
     startRound();
     return;
   }
   const finalPrice = leftoverPrice(p, winner, noBids);
 
-  const slotIdx = resolveFilledSlot(winner, posIdx);
-  winner.budget -= finalPrice;
-  winner.squad.push({...p, posIdx: slotIdx, price: finalPrice, newlyPlaced: true});
-  winner.positionsFilled.add(slotIdx);
+  signPlayer(winner, p, finalPrice);
 
   document.getElementById('soldWord').textContent = t('auction.leftoverPick');
   document.getElementById('soldWord').className = 'word forced';
   document.getElementById('soldDetail').textContent = t('auction.soldDetailLeftover', {player: playerNameText(p), winner: winner.name, price: fmt(finalPrice)});
   document.getElementById('soldFlash').classList.add('show');
 
-  addTicker(buildSaleTickerHTML(p.name, slotCode(slotIdx), winner.name, finalPrice, ' (leftover)', p.rating, p.isFlash));
+  addTicker(buildSaleTickerHTML(p.name, playerPrimaryCode(p), winner.name, finalPrice, ' (leftover)', p.rating, p.isFlash));
 
   renderBidderGrid();
 
@@ -1461,8 +1479,6 @@ function settleRound(){
   }
 
   const p = state.currentPlayer;
-  const posIdx = p.posIdx;
-  const eligible = state.participants.filter(p => participantNeedsSlot(p, posIdx));
 
   // Nobody bid: back of the pack (or, the second time, a leftover pick). It
   // ends: each player can draw only UNSOLD_MAX_NO_BIDS no-bids before someone
@@ -1475,17 +1491,14 @@ function settleRound(){
   let price = state.currentBid;
   const winner = state.participants.find(x => x.id === state.currentLeader);
 
-  const slotIdx = resolveFilledSlot(winner, posIdx);
-  winner.budget -= price;
-  winner.squad.push({...p, posIdx: slotIdx, price, newlyPlaced: true});
-  winner.positionsFilled.add(slotIdx);
+  signPlayer(winner, p, price);
 
   document.getElementById('soldWord').textContent = t('auction.sold');
   document.getElementById('soldWord').className = 'word sold';
   document.getElementById('soldDetail').textContent = t('auction.soldDetail', {player: playerNameText(p), winner: winner.name, price: fmt(price)});
   document.getElementById('soldFlash').classList.add('show');
 
-  addTicker(buildSaleTickerHTML(p.name, slotCode(slotIdx), winner.name, price, '', p.rating, p.isFlash));
+  addTicker(buildSaleTickerHTML(p.name, playerPrimaryCode(p), winner.name, price, '', p.rating, p.isFlash));
 
   renderBidderGrid();
 
@@ -1495,11 +1508,12 @@ function settleRound(){
     if(player) player.newlyPlaced = false;
   }, 1000);
 
-  // Check if only one participant still needs this position.
+  // Check if only one participant can still use this position.
   // Modes without auto-assignment (6v6) skip this shortcut entirely and
   // fall through to a normal round, so that last slot is still won by
   // bidding - unopposed, at the minimum bid - rather than handed over.
-  const stillNeed = state.participants.filter(p => participantNeedsSlot(p, posIdx));
+  const posIdx = p.posIdx;
+  const stillNeed = state.participants.filter(x => participantCanTake(x, { positions: [FORMATION[posIdx].code] }));
 
   if(stillNeed.length === 1 && activeMode().autoAssignLastEligible){
     // Immediate auto-assignment for last participant
@@ -1516,11 +1530,16 @@ function settleRound(){
   }
 }
 
-function autoAssignLastPlayer(participant, posIdx){
-  const pos = FORMATION[posIdx];
+/* Hands `participant` a player for a position without a contest: the last one who
+   can still use it (posIdx is a token of the template), or - posIdx -1 and a
+   `code` - a straggler whose lineup needs a position the template does not
+   offer (see startStragglerRound). */
+function autoAssignLastPlayer(participant, posIdx, code){
+  const pos = { code: code || FORMATION[posIdx].code };
+  const tracked = posIdx >= 0;
 
   // Get current phase for this position
-  const currentPhase = positionPhaseTracking[posIdx] || 0;
+  const currentPhase = tracked ? (positionPhaseTracking[posIdx] || 0) : Math.max(0, state.totalPhases - 1);
   const numParticipants = state.participants.length;
 
   // By the time only one participant is left needing this position, the
@@ -1533,20 +1552,30 @@ function autoAssignLastPlayer(participant, posIdx){
   // through the dynamic floor so the last player handed out continues
   // the same downward progression as everyone else's, rather than
   // resetting to the top of the weakest band.
-  const picked = pickAutoAssignPlayer(pos.code, currentPhase, numParticipants, positionRankFloor[posIdx]);
-  const realPlayer = picked.player;
-  positionRankFloor[posIdx] = picked.rankFloor;
-
   /* Built through the SHARED builder rather than assembled by hand here.
      This used to be its own copy of buildRoundPlayer's object literal,
      and the two duly drifted: when players gained a `basePos` (their real
      position, which the match simulation needs to tell a striker from a
      winger) the auto-assigned half of every draft silently didn't get
-     one. With two participants that is literally half the squad. */
-  const lastPlayer = buildRoundPlayer(realPlayer, pos, posIdx, currentPhase);
+     one. With two participants that is literally half the squad.
+
+     The draw is by position, but a player who covers that position may not
+     fit THIS squad (a CM where the lineup needs a CAM-only role), so a few
+     draws are allowed to find one who does. */
+  let lastPlayer = null;
+  for(let attempt = 0; attempt < 6 && !lastPlayer; attempt++){
+    const picked = pickAutoAssignPlayer(pos.code, currentPhase, numParticipants, tracked ? positionRankFloor[posIdx] : 0);
+    if(tracked) positionRankFloor[posIdx] = picked.rankFloor;
+    const candidate = buildRoundPlayer(picked.player, pos, posIdx, currentPhase);
+    if(participantCanTake(participant, candidate)) lastPlayer = candidate;
+  }
+  if(!lastPlayer){
+    state.currentRound++;
+    return startRound();
+  }
 
   // Increment phase tracker for this position
-  positionPhaseTracking[posIdx] = (positionPhaseTracking[posIdx] || 0) + 1;
+  if(tracked) positionPhaseTracking[posIdx] = (positionPhaseTracking[posIdx] || 0) + 1;
 
   // Check if participant can afford it
   const maxAfford = getMaxAffordable(participant);
@@ -1559,14 +1588,13 @@ function autoAssignLastPlayer(participant, posIdx){
     lastPlayer.rating = Math.min(lastPlayer.rating, 69); // Cap at 69 for last resort
   }
 
-  const slotIdx = resolveFilledSlot(participant, posIdx);
-  participant.budget -= price;
-  participant.squad.push({...lastPlayer, posIdx: slotIdx, price, newlyPlaced: true});
-  participant.positionsFilled.add(slotIdx);
+  signPlayer(participant, lastPlayer, price);
 
   // Show auto-assignment flash
+  state.currentPlayer = lastPlayer;
   document.getElementById('playerPos').classList.add('forced');
-  document.getElementById('playerPos').textContent = slotCode(slotIdx);
+  document.getElementById('playerPos').textContent = playerPrimaryCode(lastPlayer);
+  renderPlayerPositions(lastPlayer);
 
   const nameDisplay = playerNameHTML(lastPlayer, {nation:false});
   document.getElementById('playerName').innerHTML = nameDisplay;
@@ -1578,7 +1606,7 @@ function autoAssignLastPlayer(participant, posIdx){
   document.getElementById('soldDetail').textContent = t('auction.soldDetail', {player: playerNameText(lastPlayer), winner: participant.name, price: fmt(price)});
   document.getElementById('soldFlash').classList.add('show');
 
-  addTicker(buildSaleTickerHTML(lastPlayer.name, slotCode(slotIdx), participant.name, price, ' (auto)', lastPlayer.rating));
+  addTicker(buildSaleTickerHTML(lastPlayer.name, playerPrimaryCode(lastPlayer), participant.name, price, ' (auto)', lastPlayer.rating));
 
   renderBidderGrid();
 
@@ -1592,6 +1620,19 @@ function autoAssignLastPlayer(participant, posIdx){
     state.currentRound++;
     startRound();
   }, 1500);
+}
+
+/* A whole pass went by in which nobody could use any position the template
+   offers, yet somebody is still short of players: their lineup needs a position
+   the template never draws (an attacking midfielder, say). Hand the first such
+   manager a player for one of the positions they CAN still take. */
+function startStragglerRound(){
+  state.idleSkips = 0;
+  document.getElementById('soldFlash').classList.remove('show');
+  const short = state.participants.find(p => p.squad.length < FORMATION.length);
+  const codes = short ? usableCodes(short) : [];
+  if(!short || !codes.length) return endAuction();
+  autoAssignLastPlayer(short, -1, codes[Math.floor(Math.random() * codes.length)]);
 }
 
 function rerollPlayer(){
@@ -1623,7 +1664,7 @@ function rerollPlayer(){
 
   addTicker(buildRerolledTickerHTML(state.currentPlayer.name));
 
-  const eligible = state.participants.filter(p => participantNeedsSlot(p, posIdx));
+  const eligible = state.participants.filter(p => participantCanTake(p, state.currentPlayer));
   startBidding(eligible);
 }
 

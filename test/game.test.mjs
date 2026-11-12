@@ -44,7 +44,7 @@ test('every published pool supplies all slots in each offered formation at suppo
   assert.deepEqual(app.errors, []);
 });
 
-test('classic and futsal enforce position ownership, reserve budgets, phase clocks, and reroll caps', async t => {
+test('classic and futsal enforce squad fit, reserve budgets, phase clocks, and reroll caps', async t => {
   const app = await loadApp(); t.after(() => app.close());
   assert.equal(app.run('getMaxAffordable({budget:1000,squad:[]})'), 800);
   assert.equal(app.run('roundSecondsForPhase(30,1)'), 30);
@@ -53,12 +53,24 @@ test('classic and futsal enforce position ownership, reserve budgets, phase cloc
   assert.equal(app.run("rerollPoolSize('3')"), 5);
   assert.equal(app.run('rerollsLeftThisRound(9999,5)'), 0);
   assert.deepEqual(app.json('SLOT_CODES.slice(2,4)'), ['LCB','RCB']);
-  assert.equal(app.run('participantNeedsSlot({positionsFilled:new Set([2])},3)'), true);
+  // A squad is legal while it can still be arranged into an allowed formation - there are no owned slots.
+  const squadOf = codes => `[${codes.map(c => `{positions:['${c}']}`).join(',')}]`;
+  const canTake = (codes, code) => app.run(`participantCanTake({squad:${squadOf(codes)}}, {positions:['${code}']})`);
+  assert.equal(canTake(['GK'], 'GK'), false, 'one keeper per XI');
+  assert.equal(canTake(['GK'], 'CB'), true);
+  assert.equal(canTake(['CB', 'CB'], 'CB'), true, 'a back three is a legal shape');
+  assert.equal(canTake(['CB', 'CB', 'CB'], 'CB'), false, 'no formation has four centre backs');
+  app.run("setFormationChoice('4-3-3')");
+  assert.equal(canTake(['CB', 'CB'], 'CB'), false, 'locked to 4-3-3: two centre backs is the limit');
+  assert.equal(canTake(['LB'], 'LB'), false, 'a second left back has no slot');
+  app.run("setFormationChoice('any')");
+  assert.equal(canTake(['LB'], 'RWB'), true, 'a left back and a right wing-back make a back five');
+  assert.equal(canTake(['LB'], 'LWB'), false, 'two left-sided defenders need two left slots, and no formation has them');
   app.run("applyGameMode('sixv6','2-1-2')");
   assert.equal(app.run('getMaxAffordable({budget:100,squad:[]})'), 95);
-  assert.equal(app.run('participantNeedsSlot({positionsFilled:new Set([4])},4)'), true);
-  assert.equal(app.run('resolveFilledSlot({positionsFilled:new Set([4])},4)'), 5);
-  assert.equal(app.run('participantNeedsSlot({positionsFilled:new Set([4,5])},4)'), false);
+  assert.equal(canTake(['DEF', 'DEF'], 'DEF'), false);
+  assert.equal(canTake(['FWD'], 'FWD'), true);
+  assert.equal(canTake(['FWD', 'FWD'], 'FWD'), false);
   assert.deepEqual(app.errors, []);
 });
 

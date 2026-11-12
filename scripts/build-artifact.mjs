@@ -51,7 +51,7 @@ const css = stripCssComments(await read('styles.css')) + '\n' + stripCssComments
 
 // Data the app fetches by relative path.
 const manifest = JSON.parse(await read('pools/index.json'));
-const dataFiles = ['players.json', 'pools/index.json'];
+const dataFiles = ['players.json', 'pools/index.json', 'pools/positions.json'];   // positions.json: the curated alternate positions
 for (const pool of manifest.pools) if (pool.available && pool.file && !dataFiles.includes(pool.file)) dataFiles.push(pool.file);
 for (const code of ['en', 'fr', 'ar', 'es', 'pt']) dataFiles.push(`locales/${code}.json`);
 

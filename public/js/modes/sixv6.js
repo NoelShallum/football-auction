@@ -156,9 +156,9 @@ const MODE_SIXV6 = {
   /* The two FWD slots of a 2-1-2 are not a left and a right one - they
      are just "two forwards", so there is no side to label and no reason
      to refuse a bid because the one on offer happens to be the slot you
-     already filled. See participantNeedsSlot()/resolveFilledSlot(). */
+     already filled. (Nothing is owned per slot any more anyway: see
+     participantCanTake() in js/lineup.js.) */
   sidedSlots: false,
-  interchangeableSlots: true,
 
   /* Rerolling is the whole room's call here, not just the call of
      whoever still has a slot open for this category - see

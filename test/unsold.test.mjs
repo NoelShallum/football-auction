@@ -44,18 +44,20 @@ test('unsold helpers: price drops 10% a return, floors at the minimum, and the s
   assert.equal(app.run('unsoldReofferPrice({startPrice:1}, 2)'), 1);   // 1M stays 1M
 });
 
-test('unsold queue entries only come back for their own slot, and only on a later pass', async t => {
+test('unsold queue entries come back for their own position, and only on a later pass', async t => {
   const app = await loadApp(); t.after(() => app.close());
   app.run("applyGameMode('classic', '4-3-3')");
   const entry = 'unsoldEntry({id:7,name:"X",posIdx:2,pos:"CB",rating:80,startPrice:60}, 1, 1)';
-  assert.deepEqual(app.json(`takeUnsoldForSlot([${entry}], 3, 2).player`), null, 'a different (individually owned) slot never receives him');
+  assert.deepEqual(app.json(`takeUnsoldForSlot([${entry}], 4, 2).player`), null, 'a different position (RB) never receives him');
   assert.deepEqual(app.json(`takeUnsoldForSlot([${entry}], 2, 1).player`), null, 'not within the pass he went unsold in');
   const back = app.json(`takeUnsoldForSlot([${entry}], 2, 2)`);
   assert.equal(back.player.id, 7);
   assert.equal(back.player.startPrice, 55);   // 60 * 0.9 = 54 -> 55 on the 5M step
   assert.equal(back.queue.length, 0);
+  // The formation's other centre-back token is the same position, so it can re-offer him too.
+  assert.equal(app.json(`takeUnsoldForSlot([${entry}], 3, 2).player.id`), 7);
 
-  // 6v6 slots of one category are interchangeable, so either forward slot can re-offer him.
+  // 6v6 tokens of one category are interchangeable as well.
   app.run("applyGameMode('sixv6', '2-1-2')");
   const fwd = app.json("FORMATION.map((f,i)=>[f.code,i]).filter(x=>x[0]==='FWD').map(x=>x[1])");
   assert(fwd.length === 2);
@@ -63,15 +65,27 @@ test('unsold queue entries only come back for their own slot, and only on a late
   assert.equal(app.json(`takeUnsoldForSlot([${e2}], ${fwd[1]}, 2).player.posIdx`), fwd[1]);
 });
 
+test('an unsold player nobody could still fit is pruned from the queue', async t => {
+  const app = await loadApp(); t.after(() => app.close());
+  app.run("applyGameMode('classic', '4-3-3')");
+  const full = codes => `{id:'p', budget:900, squad:[${codes.map(c => `{positions:['${c}']}`).join(',')}]}`;
+  const keeper = '{id:1,name:"K",posIdx:0,pos:"GK",positions:["GK"],rating:80,startPrice:30}';
+  assert.equal(app.run(`pruneUnsold([${keeper}], [${full(['CB'])}]).length`), 1);
+  assert.equal(app.run(`pruneUnsold([${keeper}], [${full(['GK'])}]).length`), 0, 'everyone already has a keeper');
+});
+
 test('the leftover pick goes to the manager with the most empty slots, then the smaller budget', async t => {
   const app = await loadApp(); t.after(() => app.close());
   app.run("applyGameMode('classic', '4-3-3')");
-  const mk = (id, squad, budget) => `{id:'${id}', budget:${budget}, squad:new Array(${squad}).fill({}), positionsFilled:new Set()}`;
-  assert.equal(app.run(`pickLeftoverWinner([${mk('a', 5, 500)}, ${mk('b', 2, 900)}, ${mk('c', 2, 400)}], 4).id`), 'c', 'b and c tie on empty slots; c has less money');
-  assert.equal(app.run(`pickLeftoverWinner([${mk('a', 5, 500)}, ${mk('b', 3, 100)}], 4).id`), 'b', 'more empty slots beats a smaller budget');
-  // Someone who already filled the slot is not in the running.
-  assert.equal(app.run(`pickLeftoverWinner([{id:'a', budget:1, squad:[], positionsFilled:new Set([4])}, ${mk('b', 9, 900)}], 4).id`), 'b');
-  assert.equal(app.run(`pickLeftoverWinner([{id:'a', budget:1, squad:[], positionsFilled:new Set([4])}], 4)`), null);
+  const defence = ['GK', 'CB', 'CB', 'RB', 'LB', 'CM', 'CM', 'CM', 'LW'];
+  const mk = (id, n, budget) => `{id:'${id}', budget:${budget}, squad:[${defence.slice(0, n).map(c => `{positions:['${c}']}`).join(',')}]}`;
+  const striker = '{positions:["ST"]}';
+  assert.equal(app.run(`pickLeftoverWinner([${mk('a', 5, 500)}, ${mk('b', 2, 900)}, ${mk('c', 2, 400)}], ${striker}).id`), 'c', 'b and c tie on empty slots; c has less money');
+  assert.equal(app.run(`pickLeftoverWinner([${mk('a', 5, 500)}, ${mk('b', 3, 100)}], ${striker}).id`), 'b', 'more empty slots beats a smaller budget');
+  // Someone whose squad cannot fit him is not in the running.
+  const keeper = '{positions:["GK"]}';
+  assert.equal(app.run(`pickLeftoverWinner([${mk('a', 5, 1)}, ${mk('b', 0, 900)}], ${keeper}).id`), 'b', 'a already has a keeper');
+  assert.equal(app.run(`pickLeftoverWinner([${mk('a', 5, 1)}], ${keeper})`), null);
 });
 
 test('a player nobody bids on goes to the back of the pack and returns next pass at a lower price', async t => {

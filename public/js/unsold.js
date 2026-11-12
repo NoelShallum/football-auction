@@ -56,10 +56,10 @@ function unsoldEntry(player, noBids, phaseNum){
   });
 }
 
-// Classic owns each slot individually; 6v6 slots of one code are interchangeable.
+// Tokens of the same position are interchangeable: an unsold CM returns on a
+// later CM token, whichever of the formation's CM slots it was drawn for.
 function unsoldMatchesSlot(entry, posIdx){
   if(entry.posIdx === posIdx) return true;
-  if(!modeSlotsInterchangeable()) return false;
   const a = FORMATION[entry.posIdx], b = FORMATION[posIdx];
   return !!a && !!b && a.code === b.code;
 }
@@ -81,17 +81,17 @@ function takeUnsoldForSlot(queue, posIdx, phaseNum){
   return { queue: list.filter((_, j) => j !== i), player };
 }
 
-// Entries whose slot nobody needs any more can never be offered; drop them so
-// the "unsold" count shown to the room is honest.
+// Entries nobody could sign any more (every lineup has outgrown them) can never
+// be offered; drop them so the "unsold" count shown to the room is honest.
 function pruneUnsold(queue, participants){
-  return (queue || []).filter(e => (participants || []).some(p => participantNeedsSlot(p, e.posIdx)));
+  return (queue || []).filter(e => (participants || []).some(p => participantCanTake(p, e)));
 }
 
-/* The leftover pick: of those still needing the slot, the manager with the
+/* The leftover pick: of those who can still sign him, the manager with the
    most empty squad slots; ties go to the smaller budget (a catch-up rule),
-   then seat order. null if nobody needs it. */
-function pickLeftoverWinner(participants, posIdx){
-  const needing = (participants || []).filter(p => participantNeedsSlot(p, posIdx));
+   then seat order. null if nobody can. */
+function pickLeftoverWinner(participants, player){
+  const needing = (participants || []).filter(p => participantCanTake(p, player));
   if(!needing.length) return null;
   const empty = p => FORMATION.length - ((p.squad || []).length);
   return needing.slice().sort((a, b) => (empty(b) - empty(a)) || (a.budget - b.budget))[0];

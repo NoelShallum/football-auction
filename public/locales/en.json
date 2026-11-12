@@ -81,7 +81,9 @@
     "customTimerInvalid": "Please enter a valid custom timer duration (1-60 minutes)",
     "drawOrder": "Draw order",
     "ifNobodyBids": "If nobody bids",
-    "whoCanAppear": "Who can appear"
+    "whoCanAppear": "Who can appear",
+    "formationAny": "Any",
+    "formationAnyNote": "Any formation: draft freely, then choose the shape. Players can stand anywhere they can play."
   },
   "setup": {
     "participants": "Number of participants",
@@ -168,9 +170,9 @@
     "youLead": "You lead",
     "submitSealedBid": "Submit Sealed Bid",
     "updateSealedBid": "Update Sealed Bid",
-    "youAlreadyHavePosition": "✓ You already have this position",
+    "youAlreadyHavePosition": "✓ No room for him in your lineup",
     "passedWaiting": "✓ Passed - waiting for opponents",
-    "errAlreadyHave": "You already have this position",
+    "errAlreadyHave": "No room for him in your lineup",
     "errMinBid": "Must be at least {min}",
     "errMaxAfford": "Max affordable: {max}",
     "errAlreadyLeading": "You're already leading",
@@ -193,7 +195,8 @@
     "unsoldPile": "Unsold pile · {count}",
     "backOfPack": "Back of the pack",
     "returnsNextLap": "Returns next lap",
-    "returnedFromPack": "Second look · opens at {price}"
+    "returnedFromPack": "Second look · opens at {price}",
+    "alsoPlays": "also {positions}"
   },
   "ticker": {
     "bargain": "bargain!",
@@ -218,7 +221,8 @@
     "unsoldReturns": [
       "<b>{name}</b> is back from the pack, opening at {price}.",
       "Second look at <b>{name}</b> - now opening at {price}."
-    ]
+    ],
+    "bargainBid": "{name} smells a bargain."
   },
   "sim": {
     "needTwo": "A simulation needs at least two squads.",
@@ -431,7 +435,13 @@
     "pctBudget": "{pct}% of budget",
     "rerollsUsed": "Rerolls used",
     "copiedClipboard": "Draft results copied to clipboard!",
-    "avgRatingShort": "Rating"
+    "avgRatingShort": "Rating",
+    "lineupFormation": "Formation",
+    "lineupHint": "Tap a player, then a position, to move him. He only goes where he can play.",
+    "lineupMoving": "Moving {name} ({positions}) - tap a highlighted position.",
+    "lineupBest": "Best lineup",
+    "lineupCannot": "He cannot play there.",
+    "lineupSaveFailed": "Could not share your lineup."
   },
   "chat": {
     "toggle": "Room chat",

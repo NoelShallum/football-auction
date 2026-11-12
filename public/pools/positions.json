@@ -1,0 +1,1702 @@
+{
+ "version": 1,
+ "_about": "Extra positions each player can play, beyond the one the pool file lists, written from what the players actually played in their careers. Keyed by pool id, then by exact player name. Applied when a pool loads (js/players.js). Players not listed keep whatever their pool gives them (EA data and the Current pool carry their own alternates) plus the generic cover rules in js/modes/classic.js (a CM covers CAM and CDM, a LB covers LWB, and so on).",
+ "pools": {
+  "all_time": {
+   "Cristiano Ronaldo": [
+    "LW",
+    "RW",
+    "CF"
+   ],
+   "Lionel Messi": [
+    "CF",
+    "ST",
+    "CAM",
+    "RM"
+   ],
+   "Diego Maradona": [
+    "CF",
+    "ST",
+    "LW"
+   ],
+   "Pelé": [
+    "CF",
+    "CAM"
+   ],
+   "Zinedine Zidane": [
+    "CM",
+    "CF"
+   ],
+   "Alfredo Di Stéfano": [
+    "CF",
+    "CAM",
+    "CM"
+   ],
+   "Johan Cruyff": [
+    "CF",
+    "CAM",
+    "LW"
+   ],
+   "Ronaldinho": [
+    "CAM",
+    "ST",
+    "LM"
+   ],
+   "Ronaldo Nazário": [
+    "CF"
+   ],
+   "Eusébio": [
+    "CF",
+    "RW"
+   ],
+   "Ferenc Puskás": [
+    "CF",
+    "CAM"
+   ],
+   "Gerd Müller": [
+    "CF"
+   ],
+   "Garrincha": [
+    "RM"
+   ],
+   "George Best": [
+    "LW",
+    "RM",
+    "CAM"
+   ],
+   "Marco van Basten": [
+    "CF"
+   ],
+   "Michel Platini": [
+    "CM",
+    "CF"
+   ],
+   "Dennis Bergkamp": [
+    "CF",
+    "ST"
+   ],
+   "Erling Haaland": [
+    "CF"
+   ],
+   "Kevin De Bruyne": [
+    "CM",
+    "RW",
+    "RM"
+   ],
+   "Kylian Mbappé": [
+    "LW",
+    "CF",
+    "RW"
+   ],
+   "Robert Lewandowski": [
+    "CF"
+   ],
+   "Rivaldo": [
+    "LW",
+    "ST",
+    "LM"
+   ],
+   "Roberto Baggio": [
+    "ST",
+    "CF",
+    "LW"
+   ],
+   "Romário": [
+    "CF"
+   ],
+   "Thierry Henry": [
+    "LW",
+    "CF"
+   ],
+   "Alessandro Del Piero": [
+    "CAM",
+    "LW",
+    "CF"
+   ],
+   "Andriy Shevchenko": [
+    "CF",
+    "LW"
+   ],
+   "Arjen Robben": [
+    "LW",
+    "RM"
+   ],
+   "Francesco Totti": [
+    "ST",
+    "CF",
+    "LW"
+   ],
+   "Gabriel Batistuta": [
+    "CF"
+   ],
+   "Gheorghe Hagi": [
+    "CM",
+    "LW",
+    "CF"
+   ],
+   "Harry Kane": [
+    "CF",
+    "CAM"
+   ],
+   "Hristo Stoichkov": [
+    "ST",
+    "LM",
+    "CF"
+   ],
+   "Hugo Sánchez": [
+    "CF"
+   ],
+   "Kaká": [
+    "CM",
+    "CF"
+   ],
+   "Karl-Heinz Rummenigge": [
+    "LW",
+    "CF"
+   ],
+   "Mohamed Salah": [
+    "RM",
+    "ST",
+    "CF"
+   ],
+   "Raúl González": [
+    "CF",
+    "CAM",
+    "LW"
+   ],
+   "Alan Shearer": [
+    "CF"
+   ],
+   "David Silva": [
+    "CM",
+    "LW",
+    "RW"
+   ],
+   "Didier Drogba": [
+    "CF"
+   ],
+   "Franck Ribéry": [
+    "LM",
+    "CAM"
+   ],
+   "George Weah": [
+    "LW",
+    "CF"
+   ],
+   "Karim Benzema": [
+    "CF",
+    "CAM"
+   ],
+   "Kenny Dalglish": [
+    "CF",
+    "CAM"
+   ],
+   "Neymar Jr": [
+    "CAM",
+    "ST",
+    "LM",
+    "CF"
+   ],
+   "Vinícius Júnior": [
+    "LM"
+   ],
+   "Samuel Eto'o": [
+    "LW",
+    "RW",
+    "CF"
+   ],
+   "Sergio Agüero": [
+    "CF"
+   ],
+   "Wesley Sneijder": [
+    "CM",
+    "CF"
+   ],
+   "Zbigniew Boniek": [
+    "ST",
+    "CAM",
+    "CF"
+   ],
+   "Ángel Di María": [
+    "LW",
+    "CAM",
+    "LM",
+    "CM"
+   ],
+   "Antoine Griezmann": [
+    "ST",
+    "CF",
+    "LW",
+    "CM"
+   ],
+   "Bernardo Silva": [
+    "CAM",
+    "CM",
+    "RM"
+   ],
+   "Bruno Fernandes": [
+    "CM"
+   ],
+   "Cesc Fàbregas": [
+    "CAM",
+    "CDM"
+   ],
+   "Clarence Seedorf": [
+    "CAM",
+    "CDM"
+   ],
+   "David Beckham": [
+    "RW",
+    "CM",
+    "CAM"
+   ],
+   "David Villa": [
+    "LW",
+    "CF"
+   ],
+   "Deco": [
+    "CM",
+    "RW"
+   ],
+   "Eden Hazard": [
+    "CAM",
+    "RW",
+    "LM"
+   ],
+   "Edinson Cavani": [
+    "CF"
+   ],
+   "Eric Cantona": [
+    "CAM",
+    "CF"
+   ],
+   "Federico Valverde": [
+    "RM",
+    "RB",
+    "CDM",
+    "RW"
+   ],
+   "Frank Lampard": [
+    "CAM"
+   ],
+   "Gary Lineker": [
+    "CF"
+   ],
+   "Ian Rush": [
+    "CF"
+   ],
+   "Jean-Pierre Papin": [
+    "CF"
+   ],
+   "Jude Bellingham": [
+    "CAM"
+   ],
+   "Jurgen Klinsmann": [
+    "CF"
+   ],
+   "Martin Ødegaard": [
+    "CM",
+    "RW"
+   ],
+   "Michael Ballack": [
+    "CAM",
+    "CDM"
+   ],
+   "Oleg Blokhin": [
+    "ST",
+    "LM"
+   ],
+   "Phil Foden": [
+    "LW",
+    "RW",
+    "CM"
+   ],
+   "Raymond Kopa": [
+    "RW",
+    "ST"
+   ],
+   "Robin van Persie": [
+    "CF",
+    "CAM",
+    "LW"
+   ],
+   "Rui Costa": [
+    "CM"
+   ],
+   "Ryan Giggs": [
+    "LW",
+    "CM",
+    "CAM",
+    "RM"
+   ],
+   "Sadio Mané": [
+    "ST",
+    "RW",
+    "LM"
+   ],
+   "Son Heung-min": [
+    "ST",
+    "CF",
+    "RW"
+   ],
+   "Stanley Matthews": [
+    "RM"
+   ],
+   "Thomas Müller": [
+    "ST",
+    "CF",
+    "RW"
+   ],
+   "Victor Osimhen": [
+    "CF"
+   ],
+   "Wayne Rooney": [
+    "CAM",
+    "CF",
+    "LW"
+   ],
+   "Zico": [
+    "CF",
+    "ST",
+    "CM"
+   ],
+   "Zlatan Ibrahimović": [
+    "CF",
+    "CAM"
+   ],
+   "Christian Vieri": [
+    "CF"
+   ],
+   "Davor Šuker": [
+    "CF"
+   ],
+   "Denis Law": [
+    "CF"
+   ],
+   "Emilio Butragueño": [
+    "CF",
+    "CAM"
+   ],
+   "Fernando Torres": [
+    "CF"
+   ],
+   "Filippo Inzaghi": [
+    "CF"
+   ],
+   "Gareth Bale": [
+    "LW",
+    "RW",
+    "LM"
+   ],
+   "Gianluca Vialli": [
+    "CF"
+   ],
+   "Gonzalo Higuaín": [
+    "CF"
+   ],
+   "Henrik Larsson": [
+    "CF",
+    "LW"
+   ],
+   "Hernan Crespo": [
+    "CF"
+   ],
+   "Jairzinho": [
+    "RM",
+    "ST"
+   ],
+   "Juan Roman Riquelme": [
+    "CM"
+   ],
+   "Kevin Keegan": [
+    "CF",
+    "CAM"
+   ],
+   "Khvicha Kvaratskhelia": [
+    "LM",
+    "RW"
+   ],
+   "Lautaro Martínez": [
+    "CF"
+   ],
+   "Luis Suárez": [
+    "CF"
+   ],
+   "Marc Overmars": [
+    "LM",
+    "RW"
+   ],
+   "Mario Kempes": [
+    "CF",
+    "CAM"
+   ],
+   "Mesut Özil": [
+    "CM",
+    "LW"
+   ],
+   "Michael Laudrup": [
+    "CM",
+    "ST",
+    "LW"
+   ],
+   "Michael Owen": [
+    "CF"
+   ],
+   "Paul Gascoigne": [
+    "CM"
+   ],
+   "Pierre-Emerick Aubameyang": [
+    "LW",
+    "CF"
+   ],
+   "Radamel Falcao": [
+    "CF"
+   ],
+   "Rafael Leão": [
+    "ST",
+    "LM"
+   ],
+   "Robert Pirès": [
+    "LM",
+    "CAM"
+   ],
+   "Rudi Völler": [
+    "CF"
+   ],
+   "Sandor Kocsis": [
+    "CF",
+    "CAM"
+   ],
+   "Teddy Sheringham": [
+    "CF",
+    "CAM"
+   ],
+   "Uwe Seeler": [
+    "CF"
+   ],
+   "Bukayo Saka": [
+    "LW",
+    "RM",
+    "CAM"
+   ],
+   "Jamal Musiala": [
+    "LW",
+    "CM",
+    "CF"
+   ],
+   "Nico Williams": [
+    "RW",
+    "LM"
+   ],
+   "Luis Díaz": [
+    "RW",
+    "ST"
+   ],
+   "Leroy Sané": [
+    "LW",
+    "LM"
+   ],
+   "Cole Palmer": [
+    "RW",
+    "CM"
+   ],
+   "Kai Havertz": [
+    "CM",
+    "ST",
+    "CF"
+   ],
+   "Florian Wirtz": [
+    "LW",
+    "CM"
+   ],
+   "Marco Reus": [
+    "LW",
+    "ST",
+    "CF"
+   ],
+   "Paulo Dybala": [
+    "ST",
+    "CF",
+    "RW"
+   ],
+   "Gianfranco Zola": [
+    "ST",
+    "CF",
+    "LW"
+   ],
+   "Enzo Francescoli": [
+    "ST",
+    "CF"
+   ],
+   "Jay-Jay Okocha": [
+    "CM",
+    "LW"
+   ],
+   "Rafael van der Vaart": [
+    "CM",
+    "ST"
+   ],
+   "Rodrygo": [
+    "LW",
+    "ST",
+    "CAM"
+   ],
+   "Viktor Gyökeres": [
+    "CF"
+   ],
+   "Romelu Lukaku": [
+    "CF"
+   ],
+   "Julian Álvarez": [
+    "CF",
+    "CAM",
+    "RW"
+   ],
+   "Julián Álvarez": [
+    "CF",
+    "CAM",
+    "RW"
+   ],
+   "Alexis Sánchez": [
+    "LW",
+    "RW",
+    "CF"
+   ],
+   "Alexander Isak": [
+    "CF"
+   ],
+   "Carlos Tevez": [
+    "CF",
+    "CAM"
+   ],
+   "Diego Costa": [
+    "CF"
+   ],
+   "Diego Forlan": [
+    "CF",
+    "CAM"
+   ],
+   "Ciro Immobile": [
+    "CF"
+   ],
+   "Claudio Caniggia": [
+    "CF",
+    "RW"
+   ],
+   "Bebeto": [
+    "CF"
+   ],
+   "Careca": [
+    "CF"
+   ],
+   "Fernando Morientes": [
+    "CF"
+   ],
+   "Andy Cole": [
+    "CF"
+   ],
+   "Nwankwo Kanu": [
+    "CF",
+    "CAM"
+   ],
+   "Roger Milla": [
+    "CF"
+   ],
+   "Marcelo Salas": [
+    "CF"
+   ],
+   "Patrick Kluivert": [
+    "CF"
+   ],
+   "Ruud van Nistelrooy": [
+    "CF"
+   ],
+   "Miroslav Klose": [
+    "CF"
+   ],
+   "Paolo Rossi": [
+    "CF"
+   ],
+   "Just Fontaine": [
+    "CF"
+   ],
+   "David Trezeguet": [
+    "CF"
+   ],
+   "Iván Zamorano": [
+    "CF"
+   ],
+   "Allan Simonsen": [
+    "LW",
+    "CF",
+    "CAM"
+   ],
+   "Kazimierz Deyna": [
+    "CAM",
+    "CM"
+   ],
+   "Grzegorz Lato": [
+    "RM"
+   ],
+   "Carlos Valderrama": [
+    "CM",
+    "CAM"
+   ],
+   "Andrei Arshavin": [
+    "LW",
+    "CAM"
+   ],
+   "Abedi Pele": [
+    "LW",
+    "CAM"
+   ],
+   "Enzo Scifo": [
+    "CM"
+   ],
+   "Bobby Charlton": [
+    "CAM",
+    "LW",
+    "CF",
+    "LM"
+   ],
+   "Andrés Iniesta": [
+    "CAM",
+    "LM",
+    "LW"
+   ],
+   "Lothar Matthäus": [
+    "CDM",
+    "CAM",
+    "CB"
+   ],
+   "Xavi Hernández": [
+    "CAM",
+    "CDM"
+   ],
+   "Luka Modrić": [
+    "CAM",
+    "CDM"
+   ],
+   "Ruud Gullit": [
+    "CB",
+    "CAM",
+    "CDM",
+    "CF"
+   ],
+   "Andrea Pirlo": [
+    "CM",
+    "CAM"
+   ],
+   "Rodri": [
+    "CM",
+    "CB"
+   ],
+   "Patrick Vieira": [
+    "CM"
+   ],
+   "Joshua Kimmich": [
+    "CM",
+    "RB"
+   ],
+   "Paul Scholes": [
+    "CAM",
+    "CDM",
+    "CF"
+   ],
+   "Pavel Nedvěd": [
+    "LM",
+    "CAM",
+    "LW"
+   ],
+   "Steven Gerrard": [
+    "CAM",
+    "CDM",
+    "RM"
+   ],
+   "Toni Kroos": [
+    "CDM",
+    "CAM"
+   ],
+   "Yaya Touré": [
+    "CDM",
+    "CAM"
+   ],
+   "Casemiro": [
+    "CM",
+    "CB"
+   ],
+   "N'Golo Kanté": [
+    "CM"
+   ],
+   "Claude Makélélé": [
+    "CM"
+   ],
+   "Edgar Davids": [
+    "CDM",
+    "LM"
+   ],
+   "Fernando Redondo": [
+    "CM"
+   ],
+   "Frank Rijkaard": [
+    "CB",
+    "CM"
+   ],
+   "Javier Mascherano": [
+    "CB",
+    "CM"
+   ],
+   "Roy Keane": [
+    "CM"
+   ],
+   "Sergio Busquets": [
+    "CM",
+    "CB"
+   ],
+   "Xabi Alonso": [
+    "CM"
+   ],
+   "Arturo Vidal": [
+    "CDM",
+    "CAM",
+    "RM"
+   ],
+   "Aurélien Tchouaméni": [
+    "CM",
+    "CB"
+   ],
+   "Bastian Schweinsteiger": [
+    "CDM",
+    "CAM"
+   ],
+   "Declan Rice": [
+    "CM"
+   ],
+   "Frenkie de Jong": [
+    "CDM",
+    "CAM"
+   ],
+   "İlkay Gündoğan": [
+    "CAM",
+    "CDM"
+   ],
+   "Johan Neeskens": [
+    "CDM",
+    "CAM"
+   ],
+   "Luis Enrique": [
+    "CAM",
+    "ST",
+    "CDM"
+   ],
+   "Marco Verratti": [
+    "CDM",
+    "CAM"
+   ],
+   "Nicolò Barella": [
+    "CAM",
+    "CDM",
+    "RM"
+   ],
+   "Pedri": [
+    "CAM"
+   ],
+   "Socrates": [
+    "CAM",
+    "CDM"
+   ],
+   "Michael Essien": [
+    "CM",
+    "RB",
+    "CB"
+   ],
+   "Eduardo Camavinga": [
+    "CDM",
+    "LB",
+    "LM"
+   ],
+   "Enzo Fernández": [
+    "CDM",
+    "CAM"
+   ],
+   "Gavi": [
+    "CAM",
+    "CDM",
+    "LM"
+   ],
+   "Granit Xhaka": [
+    "CDM"
+   ],
+   "Thiago Alcântara": [
+    "CAM",
+    "CDM"
+   ],
+   "Gianni Rivera": [
+    "CAM"
+   ],
+   "Roberto Rivellino": [
+    "CAM",
+    "LM",
+    "LW"
+   ],
+   "Bernd Schuster": [
+    "CAM",
+    "CDM"
+   ],
+   "Bryan Robson": [
+    "CAM",
+    "CDM"
+   ],
+   "Graeme Souness": [
+    "CDM"
+   ],
+   "Gunter Netzer": [
+    "CAM"
+   ],
+   "Jan Ceulemans": [
+    "CAM",
+    "ST"
+   ],
+   "Dunga": [
+    "CM",
+    "CB"
+   ],
+   "Gennaro Gattuso": [
+    "CM"
+   ],
+   "Didier Deschamps": [
+    "CM"
+   ],
+   "Fabinho": [
+    "CB",
+    "CM",
+    "RB"
+   ],
+   "Javi Martinez": [
+    "CB",
+    "CM"
+   ],
+   "Martin Zubimendi": [
+    "CM"
+   ],
+   "Demetrio Albertini": [
+    "CM"
+   ],
+   "Alexis Mac Allister": [
+    "CAM",
+    "CDM"
+   ],
+   "Paulo Roberto Falcao": [
+    "CDM",
+    "CAM"
+   ],
+   "Paolo Maldini": [
+    "CB",
+    "LWB"
+   ],
+   "Franz Beckenbauer": [
+    "CDM",
+    "CM"
+   ],
+   "Franco Baresi": [
+    "CDM"
+   ],
+   "Bobby Moore": [
+    "CDM"
+   ],
+   "Matthias Sammer": [
+    "CDM",
+    "CM",
+    "CAM"
+   ],
+   "Roberto Carlos": [
+    "LWB",
+    "LM"
+   ],
+   "Sergio Ramos": [
+    "RB",
+    "CDM"
+   ],
+   "Carles Puyol": [
+    "RB"
+   ],
+   "Carlos Alberto": [
+    "RWB",
+    "CB"
+   ],
+   "Dani Alves": [
+    "RWB",
+    "RM",
+    "RW"
+   ],
+   "Gaetano Scirea": [
+    "CDM"
+   ],
+   "Giacinto Facchetti": [
+    "CB",
+    "LWB"
+   ],
+   "Giorgio Chiellini": [
+    "LB"
+   ],
+   "Lilian Thuram": [
+    "CB",
+    "RWB"
+   ],
+   "Philipp Lahm": [
+    "LB",
+    "CDM",
+    "LWB",
+    "RWB",
+    "CM"
+   ],
+   "Ashley Cole": [
+    "LWB"
+   ],
+   "Antonio Rüdiger": [
+    "RB"
+   ],
+   "Marcelo": [
+    "LWB",
+    "LM",
+    "LW"
+   ],
+   "Marquinhos": [
+    "CDM",
+    "RB"
+   ],
+   "Éder Militão": [
+    "RB"
+   ],
+   "Fernando Hierro": [
+    "CDM",
+    "CM"
+   ],
+   "Javier Zanetti": [
+    "CDM",
+    "CM",
+    "LB",
+    "RWB",
+    "LWB",
+    "RM"
+   ],
+   "Maicon": [
+    "RWB",
+    "RM"
+   ],
+   "Nilton Santos": [
+    "LWB"
+   ],
+   "Ronald Koeman": [
+    "CDM"
+   ],
+   "Trent Alexander-Arnold": [
+    "CM",
+    "RWB",
+    "CDM",
+    "RM"
+   ],
+   "Achraf Hakimi": [
+    "RWB",
+    "RM",
+    "RW"
+   ],
+   "Alphonso Davies": [
+    "LWB",
+    "LM",
+    "LW"
+   ],
+   "Andrew Robertson": [
+    "LWB"
+   ],
+   "Bixente Lizarazu": [
+    "LWB"
+   ],
+   "David Alaba": [
+    "LB",
+    "CDM",
+    "CM",
+    "LWB"
+   ],
+   "Daniel Passarella": [
+    "CDM"
+   ],
+   "Frank de Boer": [
+    "LB",
+    "CDM"
+   ],
+   "Gianluca Zambrotta": [
+    "LB",
+    "RWB",
+    "LWB",
+    "RM"
+   ],
+   "Giuseppe Bergomi": [
+    "RB"
+   ],
+   "Jordi Alba": [
+    "LWB",
+    "LM"
+   ],
+   "Joško Gvardiol": [
+    "LB"
+   ],
+   "Theo Hernández": [
+    "LWB",
+    "LM"
+   ],
+   "Patrice Evra": [
+    "LWB"
+   ],
+   "Alejandro Grimaldo": [
+    "LWB",
+    "LM",
+    "LW"
+   ],
+   "Nuno Mendes": [
+    "LWB"
+   ],
+   "Dani Carvajal": [
+    "RWB"
+   ],
+   "Reece James": [
+    "RWB",
+    "CM",
+    "RM"
+   ],
+   "João Cancelo": [
+    "LB",
+    "LWB",
+    "RWB",
+    "CM"
+   ],
+   "Jules Koundé": [
+    "RB"
+   ],
+   "John Stones": [
+    "CDM",
+    "RB"
+   ],
+   "Manuel Akanji": [
+    "RB",
+    "CDM"
+   ],
+   "Matthijs de Ligt": [
+    "RB"
+   ],
+   "Eric Abidal": [
+    "CB",
+    "LWB"
+   ],
+   "Branislav Ivanović": [
+    "CB"
+   ],
+   "Andreas Brehme": [
+    "RB",
+    "LWB"
+   ],
+   "Junior": [
+    "LM",
+    "CM",
+    "CDM",
+    "LWB"
+   ],
+   "Branco": [
+    "LWB"
+   ],
+   "Giovanni van Bronckhorst": [
+    "LM",
+    "LWB",
+    "CM"
+   ],
+   "Alessandro Bastoni": [
+    "LB"
+   ],
+   "Alvaro Carreras": [
+    "LWB"
+   ],
+   "Willi Orban": [
+    "CDM"
+   ],
+   "Jerome Boateng": [
+    "RB"
+   ],
+   "Nicolas Otamendi": [
+    "RB"
+   ],
+   "Wesley Fofana": [
+    "RB"
+   ]
+  },
+  "world_cup_2026": {
+   "Kylian Mbappé": [
+    "LW",
+    "CF"
+   ],
+   "Rodri": [
+    "CM",
+    "CB"
+   ],
+   "Lionel Messi": [
+    "RW",
+    "ST",
+    "CAM"
+   ],
+   "Erling Haaland": [
+    "CF"
+   ],
+   "Jude Bellingham": [
+    "CM"
+   ],
+   "Michael Olise": [
+    "LW",
+    "CAM"
+   ],
+   "Harry Kane": [
+    "CF",
+    "CAM"
+   ],
+   "Lamine Yamal": [
+    "RM",
+    "LW",
+    "CAM"
+   ],
+   "Ousmane Dembélé": [
+    "LW",
+    "CF",
+    "RM"
+   ],
+   "Vinícius Júnior": [
+    "LM",
+    "ST"
+   ],
+   "Pedri": [
+    "CAM",
+    "CDM"
+   ],
+   "Alexander Isak": [
+    "CF"
+   ],
+   "Bukayo Saka": [
+    "LW",
+    "RM",
+    "CAM"
+   ],
+   "Cody Gakpo": [
+    "ST",
+    "LM",
+    "CF"
+   ],
+   "Mohamed Salah": [
+    "RM",
+    "ST",
+    "CF"
+   ],
+   "Achraf Hakimi": [
+    "RWB",
+    "RM",
+    "RW"
+   ],
+   "Alexis Mac Allister": [
+    "CAM",
+    "CDM"
+   ],
+   "Dani Olmo": [
+    "RW",
+    "CM",
+    "LW"
+   ],
+   "Declan Rice": [
+    "CDM"
+   ],
+   "Fabián Ruiz": [
+    "CAM",
+    "CDM"
+   ],
+   "Ismaïla Sarr": [
+    "LW",
+    "ST",
+    "RM"
+   ],
+   "Jamal Musiala": [
+    "LW",
+    "CM",
+    "CF"
+   ],
+   "Julián Álvarez": [
+    "CF",
+    "CAM",
+    "RW"
+   ],
+   "Lautaro Martínez": [
+    "CF"
+   ],
+   "Luis Díaz": [
+    "RW",
+    "ST"
+   ],
+   "Martin Ødegaard": [
+    "CM",
+    "RW"
+   ],
+   "Mikel Oyarzabal": [
+    "LW",
+    "CF",
+    "RW"
+   ],
+   "Rúben Dias": [
+    "RB"
+   ],
+   "Arda Güler": [
+    "RW",
+    "CM"
+   ],
+   "Bruno Fernandes": [
+    "CM"
+   ],
+   "Bruno Guimarães": [
+    "CDM",
+    "CAM"
+   ],
+   "Deniz Undav": [
+    "CF"
+   ],
+   "Enzo Fernández": [
+    "CDM",
+    "CAM"
+   ],
+   "Florian Wirtz": [
+    "LW",
+    "CM"
+   ],
+   "Joško Gvardiol": [
+    "LB"
+   ],
+   "Kai Havertz": [
+    "CAM",
+    "CF",
+    "CM"
+   ],
+   "Kevin De Bruyne": [
+    "CM",
+    "RW"
+   ],
+   "Leroy Sané": [
+    "LW",
+    "RM"
+   ],
+   "Mateo Kovačić": [
+    "CDM",
+    "CAM"
+   ],
+   "Moisés Caicedo": [
+    "CM"
+   ],
+   "Nuno Mendes": [
+    "LWB"
+   ],
+   "Rafael Leão": [
+    "ST",
+    "LM"
+   ],
+   "Raphinha": [
+    "LW",
+    "RM"
+   ],
+   "Viktor Gyökeres": [
+    "CF"
+   ],
+   "Vitinha": [
+    "CDM",
+    "CAM"
+   ],
+   "Alphonso Davies": [
+    "LWB",
+    "LM",
+    "LW"
+   ],
+   "Amad Diallo": [
+    "RW",
+    "LW",
+    "RM"
+   ],
+   "Aurélien Tchouaméni": [
+    "CM",
+    "CB"
+   ],
+   "Brahim Díaz": [
+    "RW",
+    "LW",
+    "CM"
+   ],
+   "Christian Pulisic": [
+    "RW",
+    "CAM",
+    "ST"
+   ],
+   "Federico Valverde": [
+    "RM",
+    "RB",
+    "CDM",
+    "RW"
+   ],
+   "Felix Nmecha": [
+    "CDM",
+    "CAM"
+   ],
+   "Ferran Torres": [
+    "RW",
+    "LW",
+    "CF"
+   ],
+   "Granit Xhaka": [
+    "CDM"
+   ],
+   "Joshua Kimmich": [
+    "CDM",
+    "CM"
+   ],
+   "Luka Modrić": [
+    "CAM",
+    "CDM"
+   ],
+   "Marc Cucurella": [
+    "LWB",
+    "CB"
+   ],
+   "Marquinhos": [
+    "CDM",
+    "RB"
+   ],
+   "Nico Williams": [
+    "RW",
+    "LM"
+   ],
+   "Pedro Porro": [
+    "RWB",
+    "RM"
+   ],
+   "Riyad Mahrez": [
+    "RW",
+    "RM"
+   ],
+   "Son Heung-min": [
+    "ST",
+    "CF",
+    "RW"
+   ],
+   "Bradley Barcola": [
+    "ST",
+    "RW",
+    "LM"
+   ],
+   "Charles De Ketelaere": [
+    "CM",
+    "LW",
+    "CF"
+   ],
+   "Denzel Dumfries": [
+    "RWB",
+    "RM"
+   ],
+   "Frenkie de Jong": [
+    "CDM",
+    "CAM"
+   ],
+   "Habib Diarra": [
+    "CM"
+   ],
+   "Jeremy Doku": [
+    "RW",
+    "LM"
+   ],
+   "João Neves": [
+    "CM"
+   ],
+   "Jonathan David": [
+    "CF"
+   ],
+   "Jules Koundé": [
+    "CB"
+   ],
+   "Marcel Sabitzer": [
+    "CAM",
+    "CDM"
+   ],
+   "Marko Arnautović": [
+    "CF"
+   ],
+   "Matheus Cunha": [
+    "CAM",
+    "LW",
+    "CF"
+   ],
+   "Mikel Merino": [
+    "CAM",
+    "CDM",
+    "ST"
+   ],
+   "Noussair Mazraoui": [
+    "LWB",
+    "LB"
+   ],
+   "Omar Marmoush": [
+    "LW",
+    "RW",
+    "CF"
+   ],
+   "Rodrigo De Paul": [
+    "CAM",
+    "RM"
+   ],
+   "Ryan Gravenberch": [
+    "CM"
+   ],
+   "Tijjani Reijnders": [
+    "CAM",
+    "CDM"
+   ],
+   "Adrien Rabiot": [
+    "CDM",
+    "LM"
+   ],
+   "Anthony Elanga": [
+    "RW",
+    "ST"
+   ],
+   "Bernardo Silva": [
+    "CAM",
+    "CM",
+    "RM"
+   ],
+   "Casemiro": [
+    "CM",
+    "CB"
+   ],
+   "João Cancelo": [
+    "LB",
+    "LWB",
+    "RWB"
+   ],
+   "Marcus Thuram": [
+    "LW",
+    "CF"
+   ],
+   "Micky van de Ven": [
+    "CB"
+   ],
+   "N'Golo Kanté": [
+    "CDM"
+   ],
+   "Neymar": [
+    "LW",
+    "ST",
+    "CF"
+   ],
+   "Nikola Vlašić": [
+    "CAM",
+    "LW"
+   ],
+   "Youri Tielemans": [
+    "CAM",
+    "CDM"
+   ],
+   "Álex Baena": [
+    "CAM",
+    "RW"
+   ],
+   "Anthony Gordon": [
+    "RW",
+    "ST"
+   ],
+   "Désiré Doué": [
+    "RW",
+    "CAM"
+   ],
+   "Hakan Çalhanoğlu": [
+    "CDM",
+    "CAM"
+   ],
+   "Kenan Yıldız": [
+    "CAM",
+    "ST",
+    "RW"
+   ],
+   "Lee Kang-in": [
+    "RW",
+    "CM"
+   ],
+   "Leandro Trossard": [
+    "ST",
+    "CAM"
+   ],
+   "Lucas Paquetá": [
+    "CM"
+   ],
+   "Théo Hernández": [
+    "LWB",
+    "LM"
+   ],
+   "Reece James": [
+    "RWB",
+    "CM"
+   ],
+   "Romelu Lukaku": [
+    "CF"
+   ],
+   "David Alaba": [
+    "LB",
+    "CDM"
+   ],
+   "Antonio Rüdiger": [
+    "RB"
+   ],
+   "Kim Min-jae": [
+    "RB"
+   ],
+   "Gabriel Magalhães": [
+    "LB"
+   ],
+   "Dayot Upamecano": [
+    "RB"
+   ],
+   "William Saliba": [
+    "RB"
+   ],
+   "John Stones": [
+    "CDM",
+    "RB"
+   ],
+   "Manuel Akanji": [
+    "RB",
+    "CDM"
+   ],
+   "Nicolás Tagliafico": [
+    "LWB"
+   ]
+  },
+  "current_players": {
+   "Erling Haaland": [
+    "CF"
+   ],
+   "Lamine Yamal": [
+    "RM",
+    "LW",
+    "CAM"
+   ],
+   "Pedri": [
+    "CAM",
+    "CDM"
+   ],
+   "Vinícius Júnior": [
+    "LM",
+    "ST"
+   ],
+   "Rodri": [
+    "CB"
+   ],
+   "Declan Rice": [
+    "CB"
+   ],
+   "Federico Valverde": [
+    "RM",
+    "RW"
+   ],
+   "Phil Foden": [
+    "CM",
+    "RW"
+   ],
+   "Bernardo Silva": [
+    "RW",
+    "RM"
+   ],
+   "Dominik Szoboszlai": [
+    "CM",
+    "RM"
+   ],
+   "Trent Alexander-Arnold": [
+    "CM",
+    "RM"
+   ],
+   "Jude Bellingham": [
+    "CF",
+    "LW"
+   ],
+   "Martin Ødegaard": [
+    "RW"
+   ],
+   "Kevin De Bruyne": [
+    "RW"
+   ],
+   "Joshua Kimmich": [
+    "RWB"
+   ],
+   "Nuno Mendes": [
+    "LM"
+   ],
+   "Alejandro Balde": [
+    "LWB",
+    "LM"
+   ],
+   "Estêvão": [
+    "LW",
+    "RM"
+   ],
+   "Gavi": [
+    "CAM",
+    "CDM",
+    "LM"
+   ],
+   "James Maddison": [
+    "CM",
+    "LW"
+   ],
+   "Ryan Gravenberch": [
+    "CM"
+   ],
+   "João Neves": [
+    "CAM"
+   ],
+   "Sandro Tonali": [
+    "CM"
+   ],
+   "Bruno Guimarães": [
+    "CAM"
+   ],
+   "Eduardo Camavinga": [
+    "LB",
+    "LM"
+   ],
+   "Alphonso Davies": [
+    "LM",
+    "LW"
+   ],
+   "Marc Cucurella": [
+    "CB"
+   ],
+   "Ronald Araújo": [
+    "RB",
+    "CDM"
+   ],
+   "Jules Koundé": [
+    "RWB"
+   ],
+   "Jurriën Timber": [
+    "LB",
+    "RWB"
+   ],
+   "Marquinhos": [
+    "RB"
+   ],
+   "Éder Militão": [
+    "RB"
+   ],
+   "Virgil van Dijk": [
+    "CDM"
+   ],
+   "Rúben Dias": [
+    "RB"
+   ]
+  }
+ }
+}

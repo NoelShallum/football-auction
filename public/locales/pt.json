@@ -81,7 +81,9 @@
     "customTimerInvalid": "Indique uma duração de cronómetro válida (1 a 60 minutos)",
     "drawOrder": "Ordem de sorteio",
     "ifNobodyBids": "Se ninguém licitar",
-    "whoCanAppear": "Quem pode aparecer"
+    "whoCanAppear": "Quem pode aparecer",
+    "formationAny": "Livre",
+    "formationAnyNote": "Qualquer formação: contrate à vontade e escolha o esquema depois. Cada jogador pode atuar em todas as suas posições."
   },
   "setup": {
     "participants": "Número de participantes",
@@ -168,9 +170,9 @@
     "youLead": "Está na frente",
     "submitSealedBid": "Enviar oferta fechada",
     "updateSealedBid": "Alterar oferta fechada",
-    "youAlreadyHavePosition": "✓ Já tem esta posição",
+    "youAlreadyHavePosition": "✓ Não há lugar para ele no seu onze",
     "passedWaiting": "✓ Passou - à espera dos adversários",
-    "errAlreadyHave": "Já tem esta posição",
+    "errAlreadyHave": "Não há lugar para ele no seu onze",
     "errMinBid": "Mínimo {min}",
     "errMaxAfford": "Máximo possível: {max}",
     "errAlreadyLeading": "Já está na frente",
@@ -193,7 +195,8 @@
     "unsoldPile": "Não vendidos · {count}",
     "backOfPack": "Fim do baralho",
     "returnsNextLap": "Volta na próxima volta",
-    "returnedFromPack": "Segunda hipótese · abre em {price}"
+    "returnedFromPack": "Segunda hipótese · abre em {price}",
+    "alsoPlays": "também {positions}"
   },
   "ticker": {
     "bargain": "pechincha!",
@@ -218,7 +221,8 @@
     "unsoldReturns": [
       "<b>{name}</b> volta do baralho, abre em {price}.",
       "Segunda hipótese para <b>{name}</b> - abre em {price}."
-    ]
+    ],
+    "bargainBid": "{name} cheira um negócio."
   },
   "sim": {
     "needTwo": "Uma simulação precisa de pelo menos dois plantéis.",
@@ -431,7 +435,13 @@
     "pctBudget": "{pct} % do orçamento",
     "rerollsUsed": "Trocas usadas",
     "copiedClipboard": "Resultados do draft copiados para a área de transferência!",
-    "avgRatingShort": "Classificação"
+    "avgRatingShort": "Classificação",
+    "lineupFormation": "Esquema",
+    "lineupHint": "Toque num jogador e depois numa posição para o mover. Só vai para onde pode jogar.",
+    "lineupMoving": "A mover {name} ({positions}) - toque numa posição destacada.",
+    "lineupBest": "Melhor onze",
+    "lineupCannot": "Ele não pode jogar aí.",
+    "lineupSaveFailed": "Não foi possível partilhar a sua equipa."
   },
   "chat": {
     "toggle": "Chat da sala",
