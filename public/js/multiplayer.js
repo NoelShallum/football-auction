@@ -1219,7 +1219,7 @@ async function mpBuildFreshGameState(){
     squad: data.squad || [],
     positionsFilled: new Set(data.positionsFilled || [])
   }));
-  state.totalPhases = state.participants.length - 1;
+  state.totalPhases = state.participants.length;   // one pass per participant - see startAuction()
 
   usedPlayerIds.clear();
   positionPhaseTracking = {};

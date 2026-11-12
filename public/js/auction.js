@@ -115,7 +115,10 @@ async function startAuction(){
     }));
   }
 
-  state.totalPhases = state.participants.length - 1;
+  // A clean draft is exactly one pass per participant: N-1 contested passes and
+  // the last, auto-assigned (or unopposed) one. It was N-1, which showed the
+  // final pass as "Phase 6/5".
+  state.totalPhases = state.participants.length;
   state.phaseNum = 1;
   state.currentRound = 0;
   state.unsold = [];            // the back of the pack - see js/unsold.js

@@ -131,14 +131,27 @@ test('a draft where nobody EVER bids still ends with full squads, no duplicates,
   }
 });
 
-test('the pass counter reads as an extra lap rather than "Phase 7/3" once unsold players force more passes', async t => {
+test('the pass counter never reads "Phase 6/5": a clean draft is one pass per participant, extra laps count after that', async t => {
   const app = await loadApp(); t.after(() => app.close());
   app.run("applyGameMode('classic')");
-  assert.equal(app.run('progressText(2, 2, 3)'), 'Phase 2/2 · Round 4/11');
-  assert.equal(app.run('progressText(3, 2, 3)'), 'Phase 3/2 · Round 4/11', 'the clean final (auto-assign) pass keeps its existing label');
-  assert.equal(app.run('progressText(4, 2, 0)'), 'Extra lap 1 · Round 1/11');
-  assert(app.run('maxDraftPhases(2)') >= 2 * 2 - 1 + 1, 'the safety cap leaves room for two passes per assignment');
+  assert.equal(app.run('progressText(1, 3, 0)'), 'Phase 1/3 · Round 1/11');
+  assert.equal(app.run('progressText(3, 3, 3)'), 'Phase 3/3 · Round 4/11', 'the final clean pass is N of N');
+  assert.equal(app.run('progressText(4, 3, 0)'), 'Extra lap 1 · Round 1/11');
+  assert.equal(app.run('progressText(6, 6, 10)'), 'Phase 6/6 · Round 11/11', 'six managers: phase 6 of 6');
+  assert(app.run('maxDraftPhases(2)') >= 2 * 2 - 1, 'the safety cap leaves room for two passes per assignment');
   assert(app.run('maxDraftPhases(6)') >= 2 * 6 - 1);
+});
+
+test('the total shown during a real draft equals the number of participants, in both modes', async t => {
+  for (const [mode, count] of [['classic', 6], ['sixv6', 4]]) {
+    const app = await loadApp({ accelerate: true });
+    try {
+      await startShared(app, { mode, count });
+      await until(() => app.run('state.auctioning && state.currentPlayer'), 'first round');
+      assert.equal(app.run('state.totalPhases'), count);
+      assert.match(app.run("document.getElementById('progressTag').textContent"), new RegExp(`Phase 1/${count} `));
+    } finally { await app.close(); }
+  }
 });
 
 /* ---------- draw order ---------- */

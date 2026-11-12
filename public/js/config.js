@@ -83,7 +83,7 @@ function rerollsLeftThisRound(remainingInDraft, usedThisRound){
        needs it. Each pass through the formation retires one participant's
        claim on every slot, so the final pass is entirely auto-assigned
        and never reaches bidding - hence (participants - 1) passes.
-       state.totalPhases is set from the same reasoning.
+       state.totalPhases (the number of passes) is set from the same reasoning.
      - 6v6 has no auto-assignment (the last eligible participant simply
        wins unopposed), so every one of its assignments is a bid round.
 

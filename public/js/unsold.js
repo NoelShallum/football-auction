@@ -111,12 +111,12 @@ function maxDraftPhases(numParticipants){
   return Math.max(2, numParticipants) * UNSOLD_MAX_NO_BIDS + 5;
 }
 
-/* "Phase 2/3 · Round 4/11" - and, once the draft needs more passes than a
-   clean one would (because players went unsold), "Extra lap 1 · Round 4/11"
-   instead of a nonsense "Phase 5/3". The final pass of a clean Classic draft
-   (the auto-assignment) is phase totalPhases + 1, so extras start after it. */
+/* "Phase 2/3 · Round 4/11" - and, once the draft needs more passes than a clean
+   one would (because players went unsold), "Extra lap 1 · Round 4/11" instead of
+   a nonsense "Phase 5/3". A clean draft is exactly one pass per participant, so
+   extras start after pass totalPhases. */
 function progressText(phaseNum, totalPhases, round){
-  const extra = phaseNum - (totalPhases + 1);
+  const extra = phaseNum - totalPhases;
   if(extra > 0) return t('auction.progressExtra', {lap: extra, round: round + 1, rounds: FORMATION.length});
   return t('auction.progress', {phase: phaseNum, phases: totalPhases, round: round + 1, rounds: FORMATION.length});
 }
