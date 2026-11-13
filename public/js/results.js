@@ -21,6 +21,10 @@ function endAuction(){
   // early. applyModeChrome() keeps the accent right if this screen is
   // reached without passing back through setup (e.g. Play Again online).
   applyModeChrome();
+  // The draft only ever ends short when the table stopped bidding; say so.
+  if(state.participants.some(p => p.squad.length < FORMATION.length)){
+    appNotice(t('auction.endedEarly'), 'error');
+  }
   document.getElementById('resultsMode').innerHTML =
     `<b>${esc(activeMode().name)}</b> · ${esc(FORMATION_CHOICE === 'any' ? t('field.formationAny') : selectedFormation)} · ${fmt(BUDGET)} budget`;
 

@@ -149,7 +149,6 @@ const MODE_SIXV6 = {
 
   selection: 'random',
   flashPicks: false,          // pointless when every pick is already random
-  autoAssignLastEligible: false,
   randomBiasExponent: SIXV6_RANDOM_BIAS_EXPONENT,
   randomBiasFloor: SIXV6_RANDOM_BIAS_FLOOR,
 

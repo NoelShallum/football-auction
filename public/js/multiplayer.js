@@ -1349,14 +1349,12 @@ function mpHostAdvanceRound(){
   if (gs.currentRound >= FORMATION.length) { gs.phaseNum++; gs.currentRound = 0; }
 
   if (gs.phaseNum > maxDraftPhases(state.participants.length)) {
-    // Out of passes: anyone still short is handed players rather than ending
-    // the draft with incomplete squads (see mpHostStragglerRound).
-    if (state.participants.some(p => p.squad.length < FORMATION.length)) {
-      mpGameState = gs;
-      return mpHostStragglerRound();
-    }
+    // Nothing is ever forced on anyone, so running out of passes can only mean
+    // the table stopped bidding (or no remaining position fits anybody). End the
+    // draft with the squads as they stand; the results screen shows the gaps.
     gs.roundPhase = 'complete';
     gs.currentPlayer = null;
+    gs.endedEarly = true;
     mpGameState = gs;
     mpCommitGameState(gs);
     database.ref(`rooms/${currentRoomCode}/status`).set('ended');
@@ -1376,13 +1374,10 @@ function mpHostAdvanceRound(){
   const posIdx = gs.positionOrder[gs.currentRound];
   const pos = FORMATION[posIdx];
   if (!anyoneCanUsePosition(state.participants, pos.code)) {
-    gs.idleSkips = (gs.idleSkips || 0) + 1;
-    mpGameState = gs;
-    if (gs.idleSkips >= FORMATION.length) return mpHostStragglerRound();
     gs.currentRound++;
+    mpGameState = gs;
     return mpHostAdvanceRound();
   }
-  gs.idleSkips = 0;
 
   const phase = gs.positionPhaseTracking[posIdx] || 0;
 
@@ -1431,29 +1426,9 @@ function mpHostAdvanceRound(){
   gs.goingVotes = {};
   gs.goingGraceApplied = false;
 
-  // Only one participant still needs this position - assign it to them
-  // immediately, no bidding (mirrors single-player's autoAssign). Modes
-  // without auto-assignment (6v6) skip this and run the round anyway, so
-  // the last eligible participant wins it unopposed at the minimum bid.
-  if (eligible.length === 1 && activeMode().autoAssignLastEligible) {
-    const winner = eligible[0];
-    const price = player.startPrice;
-
-    gs.roundPhase = 'settled';
-    gs.settledAt = serverNow();
-    gs.settleInfo = { mode: 'autoSingle', winnerId: winner.id, winnerName: winner.name, price, playerName: player.name, playerPos: playerPrimaryCode(player), playerRating: player.rating, isFlash: !!player.isFlash };
-    mpGameState = gs;
-
-    mpCommitGameState(gs, mpSignAndUpdates(winner, player, price));
-
-    mpAdvanceTimerHandle = setTimeout(() => {
-      const gs2 = mpCloneGameState();
-      gs2.currentRound++;
-      mpGameState = gs2;
-      mpHostAdvanceRound();
-    }, MP_SETTLE_DISPLAY_MS);
-    return;
-  }
+  // A position only one manager can still use is not handed to them: the round
+  // runs as normal, an unopposed one they win by bidding the asking price (or
+  // decline, and he goes to the back of the pack) - mirrors single-player.
 
   // A single sealed-bid ("blind") round happens once per draft, on
   // gs.blindRoundTarget - see single-player's startRound() for the
@@ -1520,49 +1495,37 @@ function mpHostSettleRound(){
   mpResolveSealedBids(gs);
 
   const p = gs.currentPlayer;
-  const posIdx = p.posIdx;
 
   // Treat a leader who has since left the room the same as "no bids" -
   // otherwise we'd try to award the player to (and pay/deduct from)
   // someone who no longer exists in the room.
   const leaderStillHere = gs.currentLeader && state.participants.some(x => x.id === gs.currentLeader);
   if (!leaderStillHere) {
-    // Nobody bid: back of the pack, or - the second time - a leftover pick.
-    // See js/unsold.js; single-player's handleNoBids() does the same.
-    const decision = unsoldDecision(p);
-    if (decision.action === 'requeue') {
-      gs.unsold = [...(gs.unsold || []), unsoldEntry(p, decision.noBids, gs.phaseNum)];
-      gs.roundPhase = 'settled';
-      gs.settledAt = serverNow();
-      gs.settleInfo = { mode: 'unsold', playerName: p.name, playerPos: playerPrimaryCode(p), playerRating: p.rating, isFlash: !!p.isFlash };
-      gs.currentLeader = null;
-      mpGameState = gs;
-      mpCommitGameState(gs);
-      // The slot is still open: it comes round again on the next pass.
-      mpAdvanceTimerHandle = setTimeout(() => {
-        const gs2 = mpCloneGameState();
-        gs2.currentRound++;
-        mpGameState = gs2;
-        mpHostAdvanceRound();
-      }, MP_SETTLE_DISPLAY_MS);
-      return;
-    }
-    const winner = pickLeftoverWinner(state.participants, p);
-    if (!winner) {
-      gs.currentRound++;
-      mpGameState = gs;
-      return mpHostAdvanceRound();
-    }
-    mpFinishSettle(gs, winner, leftoverPrice(p, winner, decision.noBids), 'leftover', posIdx);
+    // Nobody bid: back of the pack, to come round again cheaper (js/unsold.js).
+    // Single-player's handleNoBids() does the same. Nobody is ever handed him.
+    gs.unsold = [...(gs.unsold || []), unsoldEntry(p, unsoldNoBids(p), gs.phaseNum)];
+    gs.roundPhase = 'settled';
+    gs.settledAt = serverNow();
+    gs.settleInfo = { mode: 'unsold', playerName: p.name, playerPos: playerPrimaryCode(p), playerRating: p.rating, isFlash: !!p.isFlash };
+    gs.currentLeader = null;
+    mpGameState = gs;
+    mpCommitGameState(gs);
+    // The position is still open: it comes round again on the next pass.
+    mpAdvanceTimerHandle = setTimeout(() => {
+      const gs2 = mpCloneGameState();
+      gs2.currentRound++;
+      mpGameState = gs2;
+      mpHostAdvanceRound();
+    }, MP_SETTLE_DISPLAY_MS);
     return;
   }
 
   const winner = state.participants.find(x => x.id === gs.currentLeader);
   const price = gs.currentBid;
-  mpFinishSettle(gs, winner, price, 'bid', posIdx);
+  mpFinishSettle(gs, winner, price, 'bid');
 }
 
-function mpFinishSettle(gs, winner, price, mode, posIdx){
+function mpFinishSettle(gs, winner, price, mode){
   const p = gs.currentPlayer;
 
   gs.roundPhase = 'settled';
@@ -1573,105 +1536,12 @@ function mpFinishSettle(gs, winner, price, mode, posIdx){
 
   mpCommitGameState(gs, mpSignAndUpdates(winner, p, price));
 
-  // Modes without auto-assignment (6v6) skip this shortcut and run a
-  // normal round instead, so the last slot is still won by bidding -
-  // mirrors single-player's settleRound() exactly.
-  const stillNeed = state.participants.filter(pp => participantCanTake(pp, { positions: [FORMATION[posIdx].code] }));
-  if (stillNeed.length === 1 && activeMode().autoAssignLastEligible) {
-    mpAdvanceTimerHandle = setTimeout(() => mpHostAutoAssignLast(stillNeed[0], posIdx), MP_SETTLE_DISPLAY_MS);
-  } else {
-    mpAdvanceTimerHandle = setTimeout(() => {
-      const gs2 = mpCloneGameState();
-      gs2.currentRound++;
-      mpGameState = gs2;
-      mpHostAdvanceRound();
-    }, MP_SETTLE_DISPLAY_MS);
-  }
-}
-
-// Mirrors single-player's autoAssignLastPlayer(): the position's last
-// remaining eligible participant gets a (possibly weaker) player without
-// bidding, right after the previous winner's SOLD flash. posIdx -1 plus a
-// `code` is a straggler (see mpHostStragglerRound).
-function mpHostAutoAssignLast(participant, posIdx, code){
-  if (!isHost) return;
-  const gs = mpCloneGameState();
-  const pos = { code: code || FORMATION[posIdx].code };
-  const tracked = posIdx >= 0;
-  const currentPhase = tracked ? (gs.positionPhaseTracking[posIdx] || 0) : Math.max(0, state.participants.length - 1);
-  const numParticipants = state.participants.length;
-
-  // Same reasoning as single-player's autoAssignLastPlayer(): currentPhase
-  // is already the last (weakest) percentile band by this point, so
-  // selectPlayerDynamic does the whole job - still through the dynamic
-  // floor so this final pick continues the same downward progression.
-  // A few draws are allowed to find a player who actually fits this squad.
-  let lastPlayer = null;
-  for (let attempt = 0; attempt < 6 && !lastPlayer; attempt++) {
-    const picked = pickAutoAssignPlayer(pos.code, currentPhase, numParticipants, tracked ? (gs.positionRankFloor || {})[posIdx] : 0);
-    if (tracked) gs.positionRankFloor = {...gs.positionRankFloor, [posIdx]: picked.rankFloor};
-    // Shared builder, not a third hand-written copy of the same object -
-    // see the note in single-player's autoAssignLastPlayer().
-    const candidate = buildRoundPlayer(picked.player, pos, posIdx, currentPhase);
-    if (participantCanTake(participant, candidate)) lastPlayer = candidate;
-  }
-  if (!lastPlayer) {
-    gs.currentRound++;
-    mpGameState = gs;
-    return mpHostAdvanceRound();
-  }
-  if (tracked) gs.positionPhaseTracking = {...gs.positionPhaseTracking, [posIdx]: currentPhase + 1};
-
-  const maxAfford = getMaxAffordable(participant);
-  let price = lastPlayer.startPrice;
-  if (price > maxAfford) {
-    price = MIN_PER_POSITION;
-    lastPlayer.startPrice = MIN_PER_POSITION;
-    lastPlayer.rating = Math.min(lastPlayer.rating, 69);
-  }
-
-  gs.currentPlayer = lastPlayer;
-  gs.eligibleIds = [participant.id];
-  gs.roundPhase = 'settled';
-  // roundId must change here too, even though we're still within the
-  // same "round slot" - otherwise the render layer's isNewKey check
-  // (roundId+roundPhase) sees the exact same key as the winner's SOLD
-  // flash that just played and silently skips this animation entirely.
-  gs.roundId = (gs.roundId || 0) + 1;
-  gs.settledAt = serverNow();
-  gs.settleInfo = { mode: 'autoLast', winnerId: participant.id, winnerName: participant.name, price, playerName: lastPlayer.name, playerPos: playerPrimaryCode(lastPlayer), playerRating: lastPlayer.rating, isFlash: false };
-  gs.currentBid = 0;
-  gs.currentLeader = null;
-  mpGameState = gs;
-
-  mpCommitGameState(gs, mpSignAndUpdates(participant, lastPlayer, price));
-
   mpAdvanceTimerHandle = setTimeout(() => {
     const gs2 = mpCloneGameState();
     gs2.currentRound++;
     mpGameState = gs2;
     mpHostAdvanceRound();
   }, MP_SETTLE_DISPLAY_MS);
-}
-
-// Mirrors single-player's startStragglerRound(): a whole pass went by in which
-// nobody could use any position the template offers, so the first manager still
-// short of players is handed one for a position they CAN still take.
-function mpHostStragglerRound(){
-  if (!isHost) return;
-  if (mpGameState) mpGameState.idleSkips = 0;
-  const short = state.participants.find(p => p.squad.length < FORMATION.length);
-  const codes = short ? usableCodes(short) : [];
-  if (!short || !codes.length) {
-    const gs = mpCloneGameState();
-    gs.roundPhase = 'complete';
-    gs.currentPlayer = null;
-    mpGameState = gs;
-    mpCommitGameState(gs);
-    database.ref(`rooms/${currentRoomCode}/status`).set('ended');
-    return;
-  }
-  mpHostAutoAssignLast(short, -1, codes[Math.floor(Math.random() * codes.length)]);
 }
 
 // ---- Actions any client can request (host executes, everyone renders) ----
@@ -1938,6 +1808,10 @@ function mpHostExecuteGoing(){
   if (!isHost || !mpGameState || mpGameState.roundPhase !== 'bidding') { mpVoteBusy = false; return; }
   if (!mpGameState.currentLeader) { mpHostSettleRound(); mpVoteBusy = false; return; }
   if (mpGameState.roundSeconds === 0) { mpHostSettleRound(); mpVoteBusy = false; return; }
+  // The leader is the only one who can sign this player: nobody is left to
+  // outbid them, so there is nothing to wait out. (They still had to bid.)
+  const voters = mpVoterIdsFor(mpGameState, 'going');
+  if (voters.length === 1 && voters[0] === mpGameState.currentLeader) { mpHostSettleRound(); mpVoteBusy = false; return; }
   const remaining = mpGameState.roundEndsAt - serverNow();
   const gs = mpCloneGameState();
   // Votes are NOT cleared here any more - a pass has to survive until the
@@ -2338,29 +2212,22 @@ function mpRenderFromState(){
       addTicker(tVariant('ticker.unsoldPack', pickVariantIndex(), {name: esc(p.name)}));
     } else if (isNewKey && gs.settleInfo) {
       const info = gs.settleInfo;
-      // isSold distinguishes the wording; the tracked mode strings below
-      // ('random'/'autoSingle'/'autoLast') never change, only their labels.
-      let isSold, wordKey, cls, detailSuffix, tickerSuffix;
-      if (info.mode === 'leftover') { isSold = false; wordKey = 'auction.leftoverPick'; cls = 'word forced'; detailSuffix = ' (leftover)'; tickerSuffix = ' (leftover)'; }
-      else if (info.mode === 'autoSingle' || info.mode === 'autoLast') { isSold = false; wordKey = 'auction.autoAssigned'; cls = 'word forced'; detailSuffix = ''; tickerSuffix = ' (auto)'; }
-      else { isSold = true; wordKey = 'auction.sold'; cls = 'word sold'; detailSuffix = ''; tickerSuffix = ''; }
-      const word = t(wordKey);
-
-      document.getElementById('playerPos').classList.toggle('forced', !isSold);
+      // Every sale here is a bid the winner made.
+      document.getElementById('playerPos').classList.remove('forced');
       document.getElementById('playerPos').textContent = playerPrimaryCode(p);
       const nameDisplay = playerNameHTML(p, {nation:false});
       document.getElementById('playerName').innerHTML = nameDisplay;
       document.getElementById('playerNat').innerHTML = playerNationalityLineHTML(p);
-      document.getElementById('playerSub').textContent = t(isSold ? 'auction.soldFor' : 'auction.autoAssignedAt', {price: fmt(info.price)});
+      document.getElementById('playerSub').textContent = t('auction.soldFor', {price: fmt(info.price)});
 
-      document.getElementById('soldWord').textContent = word;
-      document.getElementById('soldWord').className = cls;
-      document.getElementById('soldDetail').textContent = t(detailSuffix ? 'auction.soldDetailLeftover' : 'auction.soldDetail',
+      document.getElementById('soldWord').textContent = t('auction.sold');
+      document.getElementById('soldWord').className = 'word sold';
+      document.getElementById('soldDetail').textContent = t('auction.soldDetail',
         {player: playerNameText(p), winner: info.winnerName, price: fmt(info.price)});
       document.getElementById('soldFlash').classList.add('show');
       document.getElementById('countdownBanner').classList.remove('show');
 
-      addTicker(buildSaleTickerHTML(info.playerName, playerPrimaryCode(p), info.winnerName, info.price, tickerSuffix, info.playerRating, info.isFlash));
+      addTicker(buildSaleTickerHTML(info.playerName, playerPrimaryCode(p), info.winnerName, info.price, '', info.playerRating, info.isFlash));
       sounds.sold();
       haptics.sold();
     }

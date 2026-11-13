@@ -205,9 +205,6 @@ const MODE_CLASSIC = {
   rerollElectorate: 'eligible',
   // Occasional elite "scouting report" pick that jumps the ladder.
   flashPicks: true,
-  // When one participant is the only one left needing a slot, hand it to
-  // them at the asking price rather than running a one-bidder auction.
-  autoAssignLastEligible: true,
 
   // Priced by rating - genPrice lives in players.js, which loads later,
   // so this is deliberately a function body rather than a value.

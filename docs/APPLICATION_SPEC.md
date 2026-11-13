@@ -29,7 +29,7 @@ The visual design is the **Stadium Broadcast** theme in `public/theme.css`, load
 | Opening price | Rating-based, rounded to 5M | 1M for every player |
 | Selection | Progressive rank/phase ladder | Weighted random within filtered position categories |
 | Repeated positions | A squad must fit an allowed formation; players stand in any position they can play | The same rule; DEF, MID and FWD are the positions |
-| Last eligible participant | Automatic assignment at asking price | A bidding round still occurs |
+| Only one manager can sign a player | An unopposed bidding round (they must bid the asking price, or decline) | The same |
 | Match length | 90 minutes, with extra time where needed | 40 minutes, with shorter extra time |
 | Match base expected goals per team | 1.32 | 3.9 |
 | Red cards in simulation | Enabled | Disabled; bookings remain |
@@ -99,7 +99,7 @@ Unlimited stays unlimited. Timers derive from absolute deadlines, with server cl
 
 Passing/calling final bids is explicit and sticky until a new round or that manager bids again. The current leader counts as an implicit pass while leading. Once the eligible electorate has passed, the round shortens to a five-second grace window or settles immediately when untimed/without a live leader, as appropriate.
 
-Exactly one bidding round per draft is selected for sealed bids. Only bidding rounds count, excluding Classic automatic assignments. The randomly selected target and final-slots safeguard prevent the round from being skipped. Offers remain visually hidden until reveal; highest valid offer wins, with equal offers resolved by earlier server receipt time. Sealed bids use the original party-game trust model; the transport is not a cryptographic sealed auction.
+Exactly one bidding round per draft is selected for sealed bids. Every round is a bidding round, including an unopposed one, so all of them count. The randomly selected target and final-slots safeguard prevent the round from being skipped. Offers remain visually hidden until reveal; highest valid offer wins, with equal offers resolved by earlier server receipt time. Sealed bids use the original party-game trust model; the transport is not a cryptographic sealed auction.
 
 The clone binds each online action to its draft and round. Delayed bids, votes and sealed offers cannot apply to a replacement player or a restarted draft. The server also rejects bids/votes after a timed round's deadline, even when host settlement is delayed, and computes anti-snipe extensions using its own clock.
 
@@ -130,13 +130,13 @@ A pool may declare `draft.autoMinRating` (`[{upTo: participants, min: rating}]`)
 
 ## Unsold players
 
-A player who draws no bids goes to the **back of the pack**:
+**Nobody is ever handed a player.** A manager only gets someone by bidding for him. There is no automatic assignment of any kind: not for the last manager who can use a position, not after repeated no-bids, and not as a fallback when squads fail to fill.
 
-1. He joins the unsold queue and the draft moves on. His slot stays open, so it comes round on the next pass through the formation. Neither the ladder nor that slot's phase counter advances.
-2. When that slot's turn comes round (a later pass, never the same one), he is offered **before** a fresh draw, opening 10% lower (from his original price, snapped to the bid step, never below the floor).
-3. If he draws no bids a second time, someone must take him: the manager still needing the slot with the **most empty squad slots** (ties: the smaller budget, then seat order) at the lowered price, or the floor price if they cannot afford it past their reserve.
-
-No reroll is spent, nobody is picked at random, and every squad fills. The extra passes are counted as "Extra lap N"; the safety cap on passes is `participants x 2 + 5`. Entries whose slot nobody needs any more are dropped. Online the queue travels in `gameState.unsold`.
+- A position only one manager can still sign is an **unopposed round**: it runs like any other, they win by bidding (the asking price is enough, and on a shared screen or against the AI the sale closes the moment they bid because nobody is left to outbid them), or they decline.
+- A player who draws no bids goes to the **back of the pack**. His position stays open, so it comes round again on the next pass through the formation; neither the ladder nor that position's phase counter advances.
+- When that position's turn comes round (a later pass, never the same one), he is offered **before** a fresh draw, opening 10% lower than last time (from his original price, snapped to the bid step, never below the floor). If nobody bids he goes back again, with no limit: the price reaching the floor is what gets managers to sign.
+- The extra passes are counted as "Extra lap N". The safety cap on passes is `participants x 8 + 20`; it can only be reached if the table stops bidding (or no remaining position fits anyone), and then the draft ends with the squads as they stand and says so on the results screen.
+- Entries nobody could still fit (every lineup has outgrown them) are dropped. Online the queue travels in `gameState.unsold`.
 
 ## AI managers
 

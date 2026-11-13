@@ -35,7 +35,7 @@ Shared-screen and AI play run entirely in the browser after assets load. For onl
 | `js/lineup.js` | Pure lineup logic: slot fit, squad feasibility (matching), best lineup/formation, moving players, per-manager formation (`withFormation`) |
 | `js/config.js` | Shared helpers, reroll caps, sealed-round helpers, name/nationality rendering |
 | `js/players.js` | Pool loading, picker UI, coverage checks, selection, pricing and flash picks |
-| `js/unsold.js` | Back-of-the-pack queue, re-offer pricing, leftover winner, pass cap (pure, shared by both engines) |
+| `js/unsold.js` | Back-of-the-pack queue, re-offer pricing, pass cap (pure, shared by both engines) |
 | `js/ai.js` | Manager profiles, valuation, thinking loop, bidding and passing |
 | `js/setup.js` | Local state, settings, sound/haptics and setup controls |
 | `js/auction.js` | Local round engine, bidder UI, reserves, timer, settlement, rerolls and pause |

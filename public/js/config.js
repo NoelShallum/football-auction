@@ -75,27 +75,14 @@ function rerollsLeftThisRound(remainingInDraft, usedThisRound){
    bidding stage - and share the three helpers below so the two can't
    drift on when it fires.
 
-   How many rounds is that in total? Every round assigns exactly one slot,
-   so a draft is always FORMATION.length x participants assignments. What
-   varies is how many of those get BID on:
-
-     - Classic auto-assigns a slot the moment only one participant still
-       needs it. Each pass through the formation retires one participant's
-       claim on every slot, so the final pass is entirely auto-assigned
-       and never reaches bidding - hence (participants - 1) passes.
-       state.totalPhases (the number of passes) is set from the same reasoning.
-     - 6v6 has no auto-assignment (the last eligible participant simply
-       wins unopposed), so every one of its assignments is a bid round.
-
-   A consequence worth knowing rather than hiding: with 2 participants in
-   Classic there is only ONE bidding pass, so the blind round can only
-   land in phase 1. It spreads across more phases the more people play,
-   which is the best that can be done without inventing bid rounds that
-   the format doesn't have. */
+   How many rounds is that in total? Every round sells exactly one player, so
+   a draft is always FORMATION.length x participants sales, and every one of
+   them is a bidding round - nothing is ever handed out without a bid (a
+   position only one manager can still use is an unopposed round, not a gift).
+   Players nobody bids on come round again, which only adds rounds. */
 function estimatedBiddingRounds(numParticipants){
   const n = Math.max(2, numParticipants || 2);
-  const passes = activeMode().autoAssignLastEligible ? (n - 1) : n;
-  return Math.max(1, FORMATION.length * passes);
+  return Math.max(1, FORMATION.length * n);
 }
 
 function pickBlindRoundTarget(numParticipants){

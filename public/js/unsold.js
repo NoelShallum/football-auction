@@ -1,22 +1,19 @@
 /* ================= UNSOLD PLAYERS: BACK OF THE PACK =================
 
-   When nobody bids on a player, the old engine rerolled him away (spending
-   the draft's reroll pool) and, once rerolls ran out, handed him to a random
-   eligible manager at the asking price. Neither is how a real auction works.
+   Nobody is ever handed a player. A player goes to a manager only because that
+   manager bid for him.
 
-   Now an unsold player goes to the BACK OF THE PACK and is revisited:
+   When nobody bids on a player he goes to the BACK OF THE PACK and is revisited:
 
      1. Nobody bids -> he joins the unsold queue and the draft moves on. The
         slot he was offered for is simply still open, so it comes round again
         on the next pass through the formation.
-     2. When that slot's turn comes round, the queued player is offered
-        BEFORE a fresh draw, at an opening price 10% lower.
-     3. If he draws no bids a second time (UNSOLD_MAX_NO_BIDS), someone has to
-        take him: the leftover pick goes to whichever manager needing the slot
-        has the most empty squad slots (ties: the smaller budget), at that
-        lowered price, or the floor price if they cannot afford it.
-
-   Nobody ever ends up short of players, and nobody is picked at random.
+     2. When that position's turn comes round, the queued player is offered
+        BEFORE a fresh draw, at an opening price 10% lower than the last time,
+        down to the floor price.
+     3. If nobody bids again he goes back again. There is no forced pick: a draft
+        only finishes when every manager has chosen to sign a full squad, and the
+        price falling to the floor is the nudge that gets them there.
 
    Everything here is pure: plain data in, plain data out. Both the
    single-device engine (js/auction.js) and the online host engine
@@ -24,7 +21,6 @@
    reason selection lives in js/players.js. Queue entries are ordinary JSON
    because online they ride inside gameState. */
 
-const UNSOLD_MAX_NO_BIDS = 2;   // the 2nd no-bid on the same player forces a leftover pick
 const UNSOLD_PRICE_DROP = 0.10; // each return opens 10% lower than the last
 
 /* The opening price for a player who has already drawn `noBids` no-bids.
@@ -36,13 +32,9 @@ function unsoldReofferPrice(player, noBids){
   return Math.max(MIN_PER_POSITION, roundToBidStep(dropped));
 }
 
-/* A player just drew no bids. `requeue` sends him to the back of the pack;
-   `leftover` means he has been round enough times and must be assigned. */
-function unsoldDecision(player){
-  const noBids = ((player && player.noBids) || 0) + 1;
-  return noBids >= UNSOLD_MAX_NO_BIDS
-    ? { action: 'leftover', noBids }
-    : { action: 'requeue', noBids };
+// How many times he has now drawn no bids (this one included).
+function unsoldNoBids(player){
+  return ((player && player.noBids) || 0) + 1;
 }
 
 // The queue entry for a requeued player. queuedPhase stops him coming straight
@@ -87,28 +79,14 @@ function pruneUnsold(queue, participants){
   return (queue || []).filter(e => (participants || []).some(p => participantCanTake(p, e)));
 }
 
-/* The leftover pick: of those who can still sign him, the manager with the
-   most empty squad slots; ties go to the smaller budget (a catch-up rule),
-   then seat order. null if nobody can. */
-function pickLeftoverWinner(participants, player){
-  const needing = (participants || []).filter(p => participantCanTake(p, player));
-  if(!needing.length) return null;
-  const empty = p => FORMATION.length - ((p.squad || []).length);
-  return needing.slice().sort((a, b) => (empty(b) - empty(a)) || (a.budget - b.budget))[0];
-}
-
-// The lowered price, or the floor when the winner cannot afford it (budget
-// reserves for their remaining slots are never broken - see getMaxAffordable).
-function leftoverPrice(player, winner, noBids){
-  const wanted = unsoldReofferPrice(player, noBids);
-  return wanted > getMaxAffordable(winner) ? MIN_PER_POSITION : wanted;
-}
-
-/* How many passes through the formation a draft may take before the safety
-   net ends it. Each unsold player can cost an extra pass, so this scales with
-   UNSOLD_MAX_NO_BIDS instead of the old fixed "+5". */
+/* How many passes through the formation a draft may take before the safety net
+   ends it. Unsold players keep coming back and nothing is ever forced, so a table
+   that keeps passing simply takes more laps; this is only the backstop against a
+   draft that can never finish (every remaining position unusable by everyone, or
+   nobody ever bidding). When it is reached the draft ends with the squads as they
+   stand and says so. */
 function maxDraftPhases(numParticipants){
-  return Math.max(2, numParticipants) * UNSOLD_MAX_NO_BIDS + 5;
+  return Math.max(2, numParticipants) * 8 + 20;
 }
 
 /* "Phase 2/3 · Round 4/11" - and, once the draft needs more passes than a clean

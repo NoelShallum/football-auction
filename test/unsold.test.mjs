@@ -26,7 +26,7 @@ async function declineEverything(app) {
   }, 'a draft where nobody bids to finish', 60_000);
 }
 
-test('unsold helpers: price drops 10% a return, floors at the minimum, and the second no-bid forces a leftover pick', async t => {
+test('unsold helpers: price drops 10% a return and floors at the minimum, and no forced pick exists', async t => {
   const app = await loadApp(); t.after(() => app.close());
   app.run("applyGameMode('classic')");
   const price = (start, n) => app.run(`unsoldReofferPrice({startPrice:${start}}, ${n})`);
@@ -34,11 +34,18 @@ test('unsold helpers: price drops 10% a return, floors at the minimum, and the s
   assert.equal(price(75, 1), 70);   // 67.5 snaps to the 5M step
   assert.equal(price(75, 2), 60);   // 60.75
   assert.equal(price(20, 3), 20);   // never below the 20M floor
+  assert.equal(price(75, 50), 20, 'many returns end at the floor and stay there');
   // Measured from the ORIGINAL price, not compounded from a rounded one.
   assert.equal(app.run('unsoldReofferPrice({startPrice:30, baseStartPrice:75}, 1)'), 70);
 
-  assert.deepEqual(app.json('unsoldDecision({startPrice:50})'), { action: 'requeue', noBids: 1 });
-  assert.deepEqual(app.json('unsoldDecision({startPrice:50, noBids:1})'), { action: 'leftover', noBids: 2 });
+  assert.equal(app.run('unsoldNoBids({startPrice:50})'), 1);
+  assert.equal(app.run('unsoldNoBids({startPrice:50, noBids:1})'), 2);
+  assert.equal(app.run('unsoldNoBids({startPrice:50, noBids:7})'), 8, 'there is no limit after which somebody is made to take him');
+
+  // Nothing in the game can hand a manager a player they did not bid for.
+  for (const name of ['unsoldDecision', 'pickLeftoverWinner', 'leftoverPrice', 'autoAssign', 'autoAssignLastPlayer', 'pickAutoAssignPlayer', 'startStragglerRound', 'mpHostAutoAssignLast', 'mpHostStragglerRound', 'assignLeftoverPlayer']) {
+    assert.equal(app.run(`typeof ${name}`), 'undefined', `${name} is gone`);
+  }
 
   app.run("applyGameMode('sixv6')");
   assert.equal(app.run('unsoldReofferPrice({startPrice:1}, 2)'), 1);   // 1M stays 1M
@@ -74,18 +81,40 @@ test('an unsold player nobody could still fit is pruned from the queue', async t
   assert.equal(app.run(`pruneUnsold([${keeper}], [${full(['GK'])}]).length`), 0, 'everyone already has a keeper');
 });
 
-test('the leftover pick goes to the manager with the most empty slots, then the smaller budget', async t => {
-  const app = await loadApp(); t.after(() => app.close());
-  app.run("applyGameMode('classic', '4-3-3')");
-  const defence = ['GK', 'CB', 'CB', 'RB', 'LB', 'CM', 'CM', 'CM', 'LW'];
-  const mk = (id, n, budget) => `{id:'${id}', budget:${budget}, squad:[${defence.slice(0, n).map(c => `{positions:['${c}']}`).join(',')}]}`;
-  const striker = '{positions:["ST"]}';
-  assert.equal(app.run(`pickLeftoverWinner([${mk('a', 5, 500)}, ${mk('b', 2, 900)}, ${mk('c', 2, 400)}], ${striker}).id`), 'c', 'b and c tie on empty slots; c has less money');
-  assert.equal(app.run(`pickLeftoverWinner([${mk('a', 5, 500)}, ${mk('b', 3, 100)}], ${striker}).id`), 'b', 'more empty slots beats a smaller budget');
-  // Someone whose squad cannot fit him is not in the running.
-  const keeper = '{positions:["GK"]}';
-  assert.equal(app.run(`pickLeftoverWinner([${mk('a', 5, 1)}, ${mk('b', 0, 900)}], ${keeper}).id`), 'b', 'a already has a keeper');
-  assert.equal(app.run(`pickLeftoverWinner([${mk('a', 5, 1)}], ${keeper})`), null);
+test('a position only one manager can use is an unopposed round they win by bidding, never a gift', async t => {
+  const app = await loadApp({ accelerate: true }); t.after(() => app.close());
+  await startShared(app, { count: 2 });
+  await until(() => app.run('state.auctioning && state.currentPlayer'), 'first round');
+  // Make the second manager's XI complete, so only the first can sign anybody.
+  app.run(`{
+    state.auctioning = false; clearInterval(state.timerInterval);
+    state.blindRoundUsed = true;   // the draft's one sealed round is not what this test is about
+    const full = ['GK','LB','CB','CB','RB','CM','CM','CM','LW','RW','ST'].map((code, i) => ({id: 9000 + i, name: 'F' + i, rating: 70, price: 20, positions: [code], pos: code, basePos: code, posIdx: i}));
+    state.participants[1].squad = full;
+    refreshLineup(state.participants[1]);
+    state.currentRound++; startRound();
+  }`);
+  assert.equal(app.run('state.auctioning'), true, 'the round runs, it is not skipped or settled for him');
+  assert.equal(app.run('state.participants[0].squad.length'), 0, 'nothing was handed to him');
+  assert.deepEqual(app.json('state.participants.filter(p => participantCanTake(p, state.currentPlayer)).map(p => p.id)'), ['p0'], 'he is the only one who can sign this player');
+  assert.equal(app.run("document.getElementById('soldFlash').classList.contains('show') && /AUTO/i.test(document.getElementById('soldWord').textContent)"), false);
+
+  // Bidding wins him at once (nobody is left to outbid)...
+  const before = app.run('state.participants[0].budget');
+  const player = app.json('({id: state.currentPlayer.id, price: state.currentPlayer.startPrice})');
+  app.run('bidInputs.p0 = getMinBid(); placeBid(\'p0\')');
+  assert.equal(app.run('state.auctioning'), false, 'the sale closed straight away');
+  assert.equal(app.run(`state.participants[0].squad.some(x => x.id === ${player.id} && x.price === ${player.price})`), true);
+  assert.equal(app.run('state.participants[0].budget'), before - player.price);
+
+  // ...and declining sends the next one to the back of the pack instead.
+  await until(() => app.run('state.auctioning && state.currentPlayer'), 'next round');
+  const squadBefore = app.run('state.participants[0].squad.length');
+  const unsoldBefore = app.run('state.unsold.length');
+  app.run('settleRound()');
+  assert.equal(app.run('state.participants[0].squad.length'), squadBefore, 'declining adds nobody');
+  assert.equal(app.run('state.unsold.length'), unsoldBefore + 1, 'he goes to the back of the pack');
+  assert.deepEqual(app.errors, []);
 });
 
 test('a player nobody bids on goes to the back of the pack and returns next pass at a lower price', async t => {
@@ -128,18 +157,52 @@ test('a player nobody bids on goes to the back of the pack and returns next pass
   assert.deepEqual(app.errors, []);
 });
 
-test('a draft where nobody EVER bids still ends with full squads, no duplicates, and no random assignment', async t => {
-  for (const [mode, count] of [['classic', 2], ['classic', 4], ['sixv6', 3]]) {
+test('when nobody bids, nobody is assigned anyone: players keep coming back cheaper until somebody chooses to bid', async t => {
+  for (const [mode, count] of [['classic', 2], ['sixv6', 3]]) {
     const app = await loadApp({ accelerate: true });
     try {
       await startShared(app, { mode, count });
-      await declineEverything(app);
+      // Decline sixty rounds in a row - far more than any old "forced pick" limit allowed.
+      let handled = null, declined = 0;
+      await until(() => {
+        if (declined >= 60) return true;
+        if (!app.run('state.auctioning && state.currentPlayer && !state.paused')) return false;
+        const key = app.run('state.phaseNum + ":" + state.currentRound + ":" + state.currentPlayer.id + ":" + state.currentPlayer.startPrice');
+        if (handled === key) return false;
+        handled = key; declined++;
+        app.run('settleRound()');
+        return false;
+      }, 'sixty declined rounds', 60_000);
+      assert.equal(app.run('state.participants.every(p => p.squad.length === 0)'), true, `${mode}: nobody was handed a player`);
+      assert.equal(app.run('state.participants.every(p => p.budget === BUDGET)'), true, `${mode}: nobody paid for one`);
+      assert.equal(resultsShown(app), false, `${mode}: the draft just keeps going`);
+      const ticker = app.run("document.getElementById('ticker').textContent");
+      assert.equal(/\(auto\)|\(leftover\)|AUTO-ASSIGNED|LEFTOVER/i.test(ticker), false, `${mode}: nothing in the log was assigned`);
+      // Returned players come back cheaper, down to the floor, with no cap.
+      assert(app.run('state.unsold.some(e => e.noBids >= 3)'), `${mode}: a player has gone round more than twice`);
+      assert(app.run('state.unsold.every(e => unsoldReofferPrice(e, e.noBids) >= MIN_PER_POSITION)'));
+
+      // Then the table decides to play: every manager who can bids the asking price. The draft completes.
+      let seen = null;
+      await until(() => {
+        if (resultsShown(app)) return true;
+        if (!app.run('state.auctioning && state.currentPlayer && !state.paused')) return false;
+        const key = app.run('state.phaseNum + ":" + state.currentRound + ":" + state.currentPlayer.id + ":" + state.currentPlayer.startPrice');
+        if (seen === key) return false;
+        seen = key;
+        app.run(`{
+          const eligible = state.participants.filter(p => participantCanTake(p, state.currentPlayer));
+          const bidder = eligible.reduce((a, b) => a.squad.length <= b.squad.length ? a : b);
+          bidInputs[bidder.id] = getMinBid();
+          if(state.isBlindRound) submitSealedBid(bidder.id); else placeBid(bidder.id);
+          settleRound();
+        }`);
+        return false;
+      }, `${mode} draft to finish once somebody bids`, 60_000);
       const size = app.run('FORMATION.length');
-      assert.equal(app.run(`state.participants.every(p => p.squad.length === ${size})`), true, `${mode}/${count}: every squad is full`);
-      assert.equal(app.run('state.participants.every(p => p.budget >= 0)'), true, `${mode}/${count}: nobody overspent`);
+      assert.equal(app.run(`state.participants.every(p => p.squad.length === ${size} && p.budget >= 0)`), true, `${mode}: every squad is full`);
       const ids = app.json('state.participants.flatMap(p => p.squad.map(x => x.id))');
-      assert.equal(new Set(ids).size, ids.length, `${mode}/${count}: no player drafted twice`);
-      assert.equal(app.run('state.rerollsRemaining'), 0, 'rerolls were disabled and none were spent');
+      assert.equal(new Set(ids).size, ids.length, `${mode}: no player drafted twice`);
       assert.deepEqual(app.errors, []);
     } finally { await app.close(); }
   }
@@ -230,7 +293,7 @@ test('flash picks only fire on the ladder', async t => {
 
 /* ---------- online ---------- */
 
-test('online: an unsold player goes to the back of the pack for everyone, and a draft where nobody bids still completes', async t => {
+test('online: an unsold player goes to the back of the pack for everyone, and nobody is ever assigned one', async t => {
   const server = await createApplication(); const address = await server.listen();
   const url = `http://127.0.0.1:${address.port}/`;
   const clients = [];
@@ -264,22 +327,39 @@ test('online: an unsold player goes to the back of the pack for everyone, and a 
     assert.equal(c.run('state.participants.every(p => p.squad.length === 0)'), true);
   }
 
-  let seen = null;
+  // Keep declining: the same player returns cheaper and nobody is ever handed anyone.
+  let seen = null, declined = 0;
   await until(() => {
-    if (clients.every(c => c.run("mpGameState && mpGameState.roundPhase==='complete'"))) return true;
+    if (declined >= 14) return true;
     if (!host.run("mpGameState && mpGameState.roundPhase==='bidding'")) return false;
     const round = host.run('mpGameState.roundId');
     if (round === seen) return false;
-    seen = round;
+    seen = round; declined++;
     host.run('mpHostSettleRound()');
     return false;
-  }, 'an online draft where nobody bids to finish', 60_000);
+  }, 'fourteen declined online rounds', 60_000);
+  await until(() => host.run("mpGameState && mpGameState.roundPhase==='bidding'"), 'a live round after the declines');
+  assert.equal(host.run("mpGameState.roundPhase === 'complete'"), false, 'the draft keeps going');
+  assert.equal(host.run('state.participants.every(p => p.squad.length === 0 && p.budget === BUDGET)'), true, 'nobody was handed anyone');
+  assert.equal(host.run("(mpGameState.unsold || []).some(e => e.noBids >= 2)"), true, 'players have gone round more than once');
 
-  const squads = c => c.json('state.participants.map(p=>({id:p.id,budget:p.budget,squad:p.squad.map(x=>[x.id,x.posIdx,x.price])})).sort((a,b)=>a.id.localeCompare(b.id))');
-  assert.deepEqual(squads(host), squads(guest));
-  assert(host.run('state.participants.every(p => p.squad.length === 11 && p.budget >= 0)'));
-  const ids = host.json('state.participants.flatMap(p => p.squad.map(x => x.id))');
-  assert.equal(new Set(ids).size, ids.length);
+  // One manager bids: they, and only they, get the player.
+  const round = host.run('mpGameState.roundId');
+  await until(() => clients.every(c => c.run(`mpGameState && mpGameState.roundId===${round} && mpGameState.roundPhase==='bidding'`)), 'round synchronization');
+  const bidder = clients.find(c => c.run('mpIsEligibleThisRound()'));
+  const uid = bidder.run('currentUserId');
+  const price = host.run('mpGameState.currentPlayer.startPrice');
+  const playerId = host.run('mpGameState.currentPlayer.id');
+  if (host.run('mpGameState.isBlindRound')) {   // the draft's one sealed round may land here
+    bidder.run('mpSubmitSealedBid(mpGameState.currentPlayer.startPrice)');
+    await until(() => host.run(`!!mpGameState.sealedBids[${JSON.stringify(uid)}]`), 'the sealed offer');
+  } else {
+    bidder.run('mpPlaceBid(mpGameState.currentPlayer.startPrice)');
+    await until(() => host.run(`mpGameState.currentLeader===${JSON.stringify(uid)} || mpGameState.roundId!==${round}`), 'the bid');
+  }
+  if (host.run(`mpGameState.roundId===${round} && mpGameState.roundPhase==='bidding'`)) host.run('mpHostSettleRound()');
+  await until(() => clients.every(c => c.run(`state.participants.find(p => p.id===${JSON.stringify(uid)}).squad.some(x => x.id===${JSON.stringify(playerId)} && x.price===${price})`)), 'the winner to hold him on every client');
+  assert.equal(host.run(`state.participants.filter(p => p.squad.length > 0).length`), 1, 'and nobody else was given anyone');
   assert.deepEqual(host.errors, []); assert.deepEqual(guest.errors, []);
 });
 

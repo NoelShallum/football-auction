@@ -980,18 +980,6 @@ function generateRerollPlayer(posIdx, phaseIndex, numParticipants, rankFloor, cu
   return generatePlayerForPositionDynamic(posIdx, phaseIndex, numParticipants, rankFloor);
 }
 
-/* Who the last participant still needing a slot is handed. On the ladder that
-   is the weakest band by construction; on a random draw it is simply another
-   random draw - there is no "weakest band" to speak of. Returns the same
-   {player, rankFloor} shape selectPlayerDynamic() does, so both engines can
-   store the floor back without caring which one ran. */
-function pickAutoAssignPlayer(position, phaseIndex, numParticipants, rankFloor){
-  if(effectiveDrawOrder() === 'random'){
-    return { player: selectPlayerRandom(position, numParticipants), rankFloor: rankFloor || 0 };
-  }
-  return selectPlayerDynamic(position, phaseIndex, numParticipants, rankFloor);
-}
-
 function generateRoundPlayer(posIdx, phaseIndex, numParticipants, rankFloor){
   if(effectiveDrawOrder() === 'random'){
     const pos = FORMATION[posIdx];
